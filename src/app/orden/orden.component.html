@@ -1,0 +1,188 @@
+<div class="container mb-12">
+
+    @if (lstOrdenesAbiertas.length > 0) {
+    <div class="container mb-5">
+        <h3 class="text-center text-primary">Listado de Ordenes pendientes</h3>
+        <div class="w-100 overflow-auto">
+            <table class="table text-center" style="vertical-align: middle;">
+                <thead>
+                    <tr class="table-primary">
+                        <th scope="col">Número Orden</th>
+                        <th scope="col">Cliente</th>
+                        <th scope="col">Estado</th>
+                        <th scope="col">Accion</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (ordenAbierta of lstOrdenesAbiertas; track $index) {
+                    <tr>
+                        <td><span>{{ordenAbierta.orderNumber}}</span></td>
+                        <td>
+                            <span *ngIf="ordenAbierta?.client?.name">{{ ordenAbierta.client.name }}</span>
+                            <span *ngIf="!ordenAbierta?.client?.idNumber">{{ordenAbierta?.client?.nickname}}</span>
+                        </td>
+                        <td><span>{{ordenAbierta.status}}</span></td>
+                        <td>
+                            <button type="button" class="btn btn-success mx-1"
+                                (click)="abrirOrder(ordenAbierta)">Abrir</button>
+                            <button type="button" class="btn btn-danger"
+                                (click)="eliminarOrdenListado(ordenAbierta.id)">Eliminar</button>
+                        </td>
+                    </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    }
+
+
+
+
+    @if (showOrder) {
+    <div class="container mb-5">
+        <button type="button" class="btn btn-success w-100" (click)="crearNuevaOrdenAfterInit()">
+            Crear nueva orden
+        </button>
+    </div>
+    }
+
+    <div class="container mb-2 d-flex flex-column flex-md-row" *ngIf="showOrder">
+        <div class="col-md-12">
+            <form class="d-flex flex-column flex-md-row align-items-start">
+                <div class="flex-md-row">
+                    <input type="text" class="form-control" placeholder="Nombre Cliente"
+                        [(ngModel)]="cliente.nickname" name="nickname" id="nickname">
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" id="documentType" name="documentType"
+                        [(ngModel)]="searchCriteriaClient.documentType">
+                        <option value="CEDULA_CIUDADANIA" selected>CC</option>
+                        <option value="NIT">NIT</option>
+                        <option value="PASAPORTE">PA</option>
+                        <option value="CEDULA_EXTRANJERIA">CE</option>
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <input type="text" class="form-control" placeholder="Número Documento"
+                        [(ngModel)]="searchCriteriaClient.idNumber" name="documentoPersona" id="documentoPersona">
+                </div>
+
+
+                <div class="col-md-2">
+                    <button class="btn btn-outline-success" (click)="buscarCliente()">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+    <h3 class="text-center mt-4 mb-5 text-primary" *ngIf="showOrder">Orden #{{orden.orderNumber}}</h3>
+
+    @if (cliente && cliente.idNumber || cliente.nickname) {
+    <div class="text-center mt-4 mb-5 text-primary">
+        @if (cliente.idNumber != "") {
+            <span class="badge bg-warning fs-5">{{cliente.name + ' ' + cliente.surname}}</span>
+        }
+        @else if (cliente.nickname != null) {
+            <span class="badge bg-warning fs-5">{{cliente.nickname}}</span>
+        }
+
+
+    </div>
+    }
+
+    <div class="container mb-4" tabindex="-1" role="textbox" aria-label="Escanear código de barras aquí"
+        (keydown)="handleKeyDown($event)" *ngIf="showOrder">
+        <label for="hiddenBarcodeInput">Escanear Producto</label>
+        <input class="form-control" #hiddenBarcodeInput name="hiddenBarcodeInput" id="hiddenBarcodeInput" type="text" autocomplete="off" />
+    </div>
+
+    <div class=" container d-grid gap-2">
+        <button class="btn btn-lg btn-outline-success new-order-button" (click)="startOrder()"
+            *ngIf="!showOrder">Iniciar Orden</button>
+    </div>
+
+    <br />
+
+    <div class="container">
+        <div class="w-100 overflow-auto">
+            <table class="table text-center" style="vertical-align: middle;" *ngIf="showOrder">
+                <thead>
+                    <tr class="table-primary">
+                        <th scope="col">Producto</th>
+                        <th scope="col">Cantidad</th>
+                        <th scope="col">Medida</th>
+                        <th scope="col">Valor Unit</th>
+                        <th scope="col">Total</th>
+                        <th scope="col"></th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    @for (product of lstProducto; track $index) {
+                    <tr class="">
+                        <td scope="row">{{product.description}}</td>
+                        <td>
+                            <div class="btn-group" role="group" aria-label="Basic example">
+                                <div class="input-group-append">
+                                    <button class="btn btn-danger" type="button"
+                                        (click)="restarCantidad($index)">-</button>
+                                </div>
+                                <input type="number" class="btn btn-secondary" [value]="product.amount"
+                                    (input)="onCantidadChange($event, $index)" min="1" style="width: 60px;">
+                                <div class="input-group-append">
+                                    <button class="btn btn-success" type="button"
+                                        (click)="sumarCantidad($index)">+</button>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge rounded-pill bg-dark">{{product.saleType}}</span>
+                        </td>
+                        <td>
+                            <span class="badge rounded-pill bg-warning">{{product.price | currency:'$ ':'symbol':'.0-0'
+                                }}</span>
+                        </td>
+                        <td>
+                            <span class="badge rounded-pill bg-success">{{product.totalValue | currency:'$
+                                ':'symbol':'.0-0'}}</span>
+                        </td>
+                        <td class="text-end">
+                            <button type="button" class="btn btn-danger" (click)="deleteProductOfList($index)">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 256 256">
+                                    <path fill="currentColor"
+                                        d="M216 48h-40v-8a24 24 0 0 0-24-24h-48a24 24 0 0 0-24 24v8H40a8 8 0 0 0 0 16h8v144a16 16 0 0 0 16 16h128a16 16 0 0 0 16-16V64h8a8 8 0 0 0 0-16M96 40a8 8 0 0 1 8-8h48a8 8 0 0 1 8 8v8H96Zm96 168H64V64h128Zm-80-104v64a8 8 0 0 1-16 0v-64a8 8 0 0 1 16 0m48 0v64a8 8 0 0 1-16 0v-64a8 8 0 0 1 16 0" />
+                                </svg>
+                            </button>
+                        </td>
+                    </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="text-end mt-3 mb-5" *ngIf="showOrder">
+            <p class="fs-5 fw-bold">Total venta: <span class="badge rounded-pill bg-info">{{totalOrden | currency:'$
+                    ':'symbol':'.0-0'}}</span></p>
+        </div>
+
+        @if (showSpinnerAutosave) {
+        <div class="container text-center mb-3">
+            <span class="me-2 text-primary">Guardando orden</span>
+            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                <span class="sr-only"></span>
+            </div>
+        </div>
+        }
+
+        <div class="text-end" *ngIf="showOrder">
+            <button type="button" class="btn btn-primary me-2" (click)="handleEndOrder()">Finalizar</button>
+            <button type="button" class="btn btn-secondary" (click)="eliminarOrden()">Cancelar</button>
+        </div>
+
+    </div>
+</div>

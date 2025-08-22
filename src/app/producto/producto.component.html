@@ -1,0 +1,140 @@
+<div class="container mb-5">
+    <h3 class="text-center mt-4 mb-5 text-primary">Listado de Productos</h3>
+    <form class="row gx-3" #formulario="ngForm" (ngSubmit)="onSubmit($event)">
+        <div class="container mb-5">
+            
+            <div class="text-left mt-4 mb-5">
+                <button class="btn btn-primary" type="button" (click)="crearProducto()">
+                    <i class="fas fa-plus"></i>
+                    Nuevo Producto
+                </button>
+            </div>
+
+            <div class="row  mb-4">
+                <div class="col-md-10">
+                    <div class="form-floating">
+                        <input type="text" class="form-control" id="search" name="search" 
+                            placeholder="Codigo Barras o Descripcion" [(ngModel)]="search" maxlength="100" (input)="onSearchChange(search)">
+                        <label for="search">Buscar</label>
+                    </div>
+                </div>
+    
+                <div class="col-md-2  mt-2">
+                    <div class="form-floating">
+                        <button class="btn btn-danger" type="button" (click)="limpiarFiltro()">
+                            <i class="fa fa-broom"></i>
+                            Limpiar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="w-100 overflow-auto mb-4" >
+                <table class="table text-center" style="vertical-align: middle;">
+                    <thead>
+                        <tr class="table-primary">
+                            <th scope="col">
+                                <input type="checkbox" [(ngModel)]="selectAll" id="checkbox-all" name="checkbox-all" (change)="checkAll()" />
+                            </th>
+                            <th scope="col">Código Barra</th>
+                            <th scope="col">Descripción</th>
+                            <th scope="col">Precio</th>
+                            <th scope="col">Tipo</th>
+                            <th scope="col">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (producto of lstProductos; track $index) {
+                        <tr>
+                            <td>
+                                <input type="checkbox" id="checkbox-{{producto.id}}" name="checkbox-{{producto.id}}" [(ngModel)]="producto.selected" (click)="checkOne(producto)"/>
+                            </td>
+                            
+                            <td style="text-align: right;">
+                                <span>{{producto.barcode}}</span>
+                            </td>
+                            
+                            <td style="text-align: left;">
+                                <span>{{producto.description}}</span>
+                            </td>
+                            
+                            <td style="text-align: right;">
+                                <span>{{producto.price | currency: '$ ':'symbol':'1.2-2' }}</span>
+                            </td>
+                            
+                            <td style="text-align: left;">
+                                <span>{{producto.saleType}}</span>
+                            </td>
+                            
+                            <td>
+                                <button type="button" class="btn btn-success mx-1"
+                                    (click)="editarProducto(producto.barcode)">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" class="btn btn-danger"
+                                    (click)="eliminarProducto(producto.id)">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (showChangePrice) {
+            <div class="row mb-12">
+                <div class="col-md-3">
+                    <div class="form-floating">
+                        <input type="number" class="form-control" id="newPrice" name="newPrice" [(ngModel)]="newPrice" #newPriceVal="ngModel" required [min]="minPrecio" [max]="maxPrecio">
+                        <label for="precio">Nuevo Precio Masivo</label>
+                        @if (newPriceVal.invalid) {
+                            @if (newPriceVal?.errors?.['min']) {
+                                <div class="alert alert-dismissible alert-danger mt-2">
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                    <strong>Error:</strong> Debe ingresar un valor superior a {{minPrecio}}.
+                                </div>
+                            }
+                            @if (newPriceVal?.errors?.['max']) {
+                                <div class="alert alert-dismissible alert-danger mt-2">
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                    <strong>Error:</strong> Debe ingresar un valor inferior a {{maxPrecio}}.
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+    
+                <div class="col-md-3 mt-2">
+                    <div class="form-floating">
+                        <button class="btn btn-success" type="button" (click)="updateAllPrice()">
+                            <i class="fas fa-sync-alt"></i>
+                            Actualizar Precio
+                        </button>
+                    </div>
+                </div>
+            </div>
+            }   
+
+            <div class="text-center mt-4 d-flex align-items-center justify-content-center">
+                <button class="btn btn-secondary mx-1" (click)="cambiarPagina(paginaActual - 1)" [disabled]="paginaActual === 1">
+                    <i class="fas fa-angle-double-left"></i>
+                </button>
+                
+                <span>{{ paginaActual }} de {{ totalPaginas }}</span>
+                
+                <button class="btn btn-secondary mx-1" (click)="cambiarPagina(paginaActual + 1)" [disabled]="paginaActual === totalPaginas">
+                    <i class="fas fa-angle-double-right"></i>
+                </button>
+                
+                <select class="form-select mx-1 w-auto" (change)="cambiarCantidadRegistrosPorPagina($event)">
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+            </div>
+
+        </div>
+    </form>
+</div>

@@ -1,0 +1,50 @@
+<!-- Modal -->
+<div class="modal fade" id="modalSaleDetail" tabindex="-1" aria-labelledby="saleDetailModalLabel">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="saleDetailModalLabel">Detalle de Factura / {{billingNumber}} </h5>
+                <button type="button" class="btn-close" (click)="closeSaleDetailModal()" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-wrapper">
+
+                    <table class="table text-center" style="vertical-align: middle;">
+
+                        <thead>
+                            <tr class="table-primary">
+                                <th scope="col">Codigo</th>
+                                <th scope="col">Descripción</th>
+                                <th scope="col">Cantidad</th>
+                                <th scope="col">Precio Unidad</th>
+                                <th scope="col">Total Iva</th>
+                                <th scope="col">SubTotal</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+
+                            @for (sale of saleDetails; track $index) {
+                                <tr class="">
+
+                                    <td>{{sale.product.barcode}}</td>
+                                    <td>{{sale.product.description}}</td>
+                                    <td>{{sale.amount}}</td>
+                                    <td>{{sale.unitPrice| currency:'$ ':'symbol':'.0-0'}}</td>
+                                    <td>{{sale.totalVat| currency:'$ ':'symbol':'.0-0'}}</td>
+                                    <td>{{sale.subTotal| currency:'$ ':'symbol':'.0-0'}}</td>
+                                </tr>
+                            }
+
+                        </tbody>
+                    </table>
+
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" (click)="closeSaleDetailModal()">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>

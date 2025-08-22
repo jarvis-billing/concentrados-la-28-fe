@@ -1,0 +1,145 @@
+<div class="container mb-5">
+  <h3 class="text-center mt-4 mb-5 text-primary">Listado de Productos Vendidos</h3>
+
+  <!-- FILTERS -->
+  <div class="accordion" id="accordionFiltros">
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="headingFiltros">
+        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFiltros"
+          aria-expanded="false" aria-controls="collapseFiltros">
+          <h5>Filtros</h5>
+        </button>
+      </h2>
+      <div id="collapseFiltros" class="accordion-collapse collapse" aria-labelledby="headingFiltros"
+        data-bs-parent="#accordionFiltros">
+        <div class="accordion-body">
+
+          <!-- DATES -->
+          <div class="">
+            <div class="col-md-12 text-primary">
+              <label class="fw-bold">Rango de fechas</label>
+            </div>
+
+            <div class="col-md-12 text-primary">
+              <label class="col-form-label">Desde</label>
+              <input type="date" class="form-control" [(ngModel)]="filterReport.fromDate" name="toDate" [max]="today" />
+            </div>
+            <div class="col-md-12 text-primary">
+              <label class="col-form-label">Hasta</label>
+              <input type="date" class="form-control" [(ngModel)]="filterReport.toDate" name="fromDate" [max]="today" />
+            </div>
+          </div>
+
+
+          <!-- PRODUCTO 
+              <div class="">
+                <div class="col-md-12 text-primary">
+                  <button type="button" class="btn btn-warning p-2 m-5" data-bs-toggle="modal" data-bs-target="#productsModal">
+                    Buscar Producto
+                  </button>
+    
+                  @if (selectedUser) {
+                    <div class="badge rounded-pill text-bg-warning p-2 m-2">
+                      {{ selectedUser.fullName }} 
+                      <button type="button" class="btn-close btn-sm ms-2" aria-label="Close" (click)="removeUserSelected()"></button>
+                    </div>
+                  }
+                </div>
+              </div>
+            -->
+          <!-- BUTTONS -->
+          <div class="mb-3 mt-3">
+            <div class="row">
+              <div>
+                <button class="btn btn-success" type="button" (click)="loadListProductsSales()">Aplicar filtros</button>
+                <button class="ms-2 btn btn-warning">Limpiar filtros</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- INVOICES TABLE -->
+
+  <div class="w-100 overflow-auto mb-4 mt-4">
+    <table class="table text-center table-striped table-wrapper" style="vertical-align: middle;">
+      <thead>
+        <tr class="table-primary">
+          <th scope="col">Codigo de Barras</th>
+          <th scope="col">Descripción</th>
+          <th scope="col">Cantidad Vendida</th>
+          <th scope="col">Precio Unitario</th>
+          <th scope="col">Total Vendido</th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (!isLoading) {
+        @for (product of listProductsSales; track $index) {
+        <tr class="table-primary">
+          <td style="text-align: center;">
+            <span>{{product.id}}</span>
+          </td>
+
+          <td style="text-align: center;">
+            <span>{{product.description}}</span>
+          </td>
+
+          <td style="text-align: center;">
+            <span>{{product.totalAmount}}</span>
+          </td>
+
+          <td style="text-align: center;">
+            <span>{{product.unitPrice | currency:'$ ':'symbol':'.0-0'}}</span>
+          </td>
+
+          <td style="text-align: center;">
+            <span>{{(product.totalAmount * product.unitPrice ) | currency:'$ ':'symbol':'.0-0'}}</span>
+          </td>
+        </tr>
+        }
+      }
+      </tbody>
+    </table>
+  </div>
+
+  @if (!isLoading) {
+  <!-- TOTALS SECTION -->
+  <div class="container mt-4 ">
+
+    <div class="row g-3 justify-content-center">
+      <div class="col-md-2">
+        <div class="card text-white bg-primary">
+          <div class="card-header">Productos vendidos:</div>
+          <div class="card-body">
+            <p class="card-text fw-bold">{{listProductsSales.length}}</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-3">
+        <div class="card text-white bg-primary">
+          <div class="card-header">Total Ventas de Productos:</div>
+          <div class="card-body">
+            <p class="card-text fw-bold">{{calculateTotalSales() | currency:'$ ':'symbol':'.0-0'}}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+@if (isLoading) {
+  <!-- LOADING OVERLAY -->
+  <div class="fullscreen-loading bg-light bg-opacity-75">
+    <div class="text-center">
+      <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+        <span class="visually-hidden">Cargando...</span>
+      </div>
+      <div class="mt-3 fw-semibold">Cargando datos {{ userLogin?.fullName }}, por favor espera...</div>
+    </div>
+  </div>
+}
+</div>

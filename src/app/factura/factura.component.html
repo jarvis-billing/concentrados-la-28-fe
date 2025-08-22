@@ -1,0 +1,338 @@
+<!-- Secciones reorganizadas en columnas: Factura, Cliente, Totales y Productos -->
+<div class="container-fluid">
+  <h2 class="text-primary text-center">Factura de Venta</h2>
+  <!-- Acciones -->
+  <div class="row mt-3">
+    <div class="col text-start">
+      <div class="dropdown">
+        <button class="btn btn-primary dropdown-toggle" type="button" id="accionesDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="bi bi-gear-fill me-1"></i> Acciones Factura
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="accionesDropdown">
+          <li>
+            <button class="dropdown-item" (click)="onInitBilling()">
+              <i class="bi bi-file-earmark-plus me-1"></i> Nueva Factura (F2)
+            </button>
+          </li>
+          <li>
+            <button class="dropdown-item" (click)="saveBilling()">
+              <i class="bi bi-save me-1"></i> Guardar Factura (F4)
+            </button>
+          </li>
+          <li>
+            <button class="dropdown-item" (click)="printTicketBilling()">
+              <i class="bi bi-printer me-1"></i> Imprimir Factura
+            </button>
+          </li>
+          <li>
+            <button class="dropdown-item" (click)="openProductsModal()">
+              <i class="bi bi-search me-1"></i> Buscar productos (F3)
+            </button>
+          </li>
+        </ul>
+      </div>
+  </div>
+</div>
+  <hr class="my-3">
+  <!-- Cabecera: Cliente, Totales, Productos Vendidos -->
+  <div class="container-fluid px-3 pt-2 pb-3">
+  <div class="row mb-2">
+    <!-- Cliente y Factura -->
+    <div class="col-md-3">
+  <div class="border border-info rounded p-2 shadow-sm bg-white fs-6">
+    <h6 class="text-info mb-2">
+      <i class="bi bi-receipt-cutoff me-1"></i> Factura
+    </h6>
+    <div class="mb-1">
+      <strong>No:</strong>
+      <span class="float-end text-muted">{{ factura?.billNumber }}</span>
+    </div>
+    <div class="mb-2">
+      <strong>Fecha:</strong>
+      <span class="float-end text-muted">{{ factura?.dateTimeRecord | date:'dd-MM-yyyy' }}</span>
+    </div>
+
+    <h6 class="text-primary mb-2">
+      <i class="bi bi-person-vcard me-1"></i> Cliente
+    </h6>
+    <div class="mb-1">
+      <strong>Doc:</strong>
+      <span class="float-end">{{ client?.documentType }} {{ client?.idNumber }}</span>
+    </div>
+    <div class="mb-1">
+      <strong>Nombre:</strong>
+      <span class="float-end">
+        @if (client?.name) {
+          {{client?.name}} {{client?.surname}}
+        } @else if (client?.businessName) {
+          {{client?.businessName}}
+        }
+      </span>
+    </div>
+    <div class="mb-1">
+      <strong>Dir:</strong>
+      <span class="float-end">{{ client?.address }}</span>
+    </div>
+    <div class="mb-1">
+      <strong>Tel:</strong>
+      <span class="float-end">{{ client?.phone }}</span>
+    </div>
+    <div class="mb-2">
+      <strong>Email:</strong>
+      <span class="float-end">{{ client?.email }}</span>
+    </div>
+    <button
+      type="button"
+      class="btn btn-sm btn-outline-primary w-100"
+      data-bs-toggle="modal"
+      data-bs-target="#clientModal">
+      <i class="bi bi-person-search me-1"></i> Buscar cliente
+    </button>
+  </div>
+</div>
+
+
+    <!-- Totales -->
+    <div class="col-md-3">
+      <div class="border border-2 border-primary rounded p-3 shadow-sm bg-light">
+        <h5 class="text-primary mb-3">
+          <i class="bi bi-calculator me-1"></i> Totales
+        </h5>
+        <div class="mb-3">
+          <div class="text-dark fw-bold fs-5">
+            <i class="bi bi-cash-stack me-1 text-success"></i>
+            Total a Pagar:
+            <span class="text-success float-end">{{ calculateTotalBilling() | currency:'$ ':'symbol':'.0-0' }}</span>
+          </div>
+        </div>
+        <div class="mb-2">
+          <label for="paymentMethod" class="form-label fw-bold text-primary">
+            <i class="bi bi-credit-card me-1"></i> Método de Pago:
+          </label>
+          <select id="paymentMethod" class="form-select form-select-sm" [value]="paymentMethod" (change)="changePaymentMethod($event)">
+            <option value="EFECTIVO">EFECTIVO</option>
+            <option value="TRANSFERENCIA">TRANSFERENCIA</option>
+            <option value="TARJETA_CREDITO">TARJETA CREDITO</option>
+            <option value="TARJETA_DEBITO">TARJETA DEBITO</option>
+            <option value="CHEQUE">CHEQUE</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label for="reciveValue" class="form-label text-primary fw-bold">
+            <i class="bi bi-cash-coin me-1"></i> Dinero Recibido:
+          </label>
+          <input
+            id="reciveValue"
+            [formControl]="reciveValue"
+            type="text"
+            class="form-control form-control-lg border-primary text-end fw-bold fs-5"
+            appCurrencyFormat
+            (formattedValue)="onCalculateMoneyChange($event)">
+        </div>
+        <div class="mb-2 text-muted">
+          <strong>Vueltas:</strong>
+          <span class="float-end">{{ totalMoneyChange | currency:'$ ':'symbol':'.0-0' }}</span>
+        </div>
+        <div class="text-muted">
+          <strong>Productos agregados:</strong>
+          <span class="float-end">{{ saleDetails.length }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Productos Vendidos -->
+    <div class="col-md-6">
+      <h5 class="text-primary">Productos Vendidos</h5>
+      <div class="table-responsive fs-6" style="max-height: 60vh; overflow-y: auto;">
+        <table class="table table-sm table-bordered align-middle text-center">
+          <thead class="table-primary sticky-top">
+            <tr>
+              <th class="text-nowrap">#</th>
+              <th class="text-nowrap">Código</th>
+              <th class="text-start">Descripción</th>
+              <th class="text-nowrap">Cantidad</th>
+              <th class="text-nowrap">Precio</th>
+              <th class="text-nowrap">Total</th>
+              <th class="text-nowrap"></th>
+            </tr>
+          </thead>
+          <tbody class="bg-white">
+            @if (saleDetails.length) {
+              @for (saleDetail of saleDetails; track $index) {
+              <tr>
+                <td class="text-nowrap">{{$index + 1}}</td>
+                <td class="text-nowrap">{{saleDetail.product.barcode}}</td>
+                <td class="text-start">
+                  {{saleDetail.product.description}}
+                </td>
+                <td>
+                  <div class="btn-group">
+                    <button class="btn btn-danger btn-sm" (click)="restarCantidad($index, saleDetail.amount)">-</button>
+                    <input type="number" class="form-control form-control-sm text-center"
+                          style="width: 60px;"
+                          [value]="saleDetail.amount"
+                          (input)="onCantidadChange($event, $index)">
+                    <button class="btn btn-success btn-sm" (click)="sumarCantidad($index)">+</button>
+                  </div>
+                </td>
+                <td>
+                  <input type="text"
+                        class="form-control form-control-sm text-center"
+                        value="{{saleDetail.unitPrice | currency:'$ ':'symbol':'.0-0'}}"
+                        (input)="onUnitValueChange($event, $index)"
+                        appCurrencyFormat>
+                </td>
+                <td>{{saleDetail.subTotal | currency:'$ ':'symbol':'.0-0'}}</td>
+                <td>
+                  <button type="button" class="btn btn-danger btn-sm" (click)="deleteProductOfList($index)">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </td>
+              </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+    </div>
+  </div>
+
+  
+
+
+  <!-- Modal de productos -->
+  <div class="modal fade" id="productsModal" #productsModal tabindex="-1" aria-labelledby="productsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl-custom">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Buscar producto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" (click)="closeProductModal()" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body">
+        <form [formGroup]="formProduct" (ngSubmit)="searchProduct()" class="d-flex gap-2 mb-3" autocomplete="off">
+          <input class="form-control" type="text" placeholder="Buscar por código o descripción" formControlName="searchProduct" #searchProductInput>
+          <button class="btn btn-primary" type="submit"><i class="bi bi-search me-1"></i>Buscar</button>
+          <button class="btn btn-info" type="button" (click)="clearProductSearchField()"><i class="bi bi-eraser me-1"></i> Limpiar</button>
+        </form>
+
+        <div class="table-responsive">
+          <table class="table text-center align-middle">
+            <thead class="table-primary">
+              <tr>
+                <th>Código Barra</th>
+                <th>Descripción</th>
+                <th>Precio</th>
+                <th>Tipo</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (producto of filteredListProducts; track $index) {
+              <tr>
+                <td>{{producto.barcode}}</td>
+                <td>{{producto.description}}</td>
+                <td>{{producto.price | currency:'$ ':'symbol':'.0-0'}}</td>
+                <td>{{producto.saleType}}</td>
+                <td>
+                  <button type="button" class="btn btn-primary" (click)="onAddProductFromList(producto)">
+                    <i class="bi bi-check-circle me-1"></i> Agregar
+                  </button>
+                </td>
+              </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        @if (!productMatch) {
+        <div class="text-center mt-4 d-flex align-items-center justify-content-center">
+          <button class="btn btn-secondary mx-1" (click)="changePage(paginaActual - 1)" [disabled]="paginaActual === 1">Anterior</button>
+          <span>{{ paginaActual }} de {{ totalPaginas }}</span>
+          <button class="btn btn-secondary mx-1" (click)="changePage(paginaActual + 1)" [disabled]="paginaActual === totalPaginas">Siguiente</button>
+        </div>
+        }
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><i class="bi bi-x-circle me-1"></i>Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+<!-- Modal cantidad -->
+<div class="modal fade" id="productsAmountModal" #productsAmountModal tabindex="-1" aria-labelledby="productsAmountModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Cantidad a Vender de {{productToSell.description}}</h5>
+        <button type="button" class="btn-close" (click)="closeProductAmountModal()" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form [formGroup]="formProductAmount" (ngSubmit)="addAmountProduct()" class="d-flex gap-2 mb-3" autocomplete="off">
+          <input class="form-control" type="text" placeholder="Ingresar la Cantidad" formControlName="amountProduct" #amountProductInput>
+          <button class="btn btn-primary" type="submit">
+            <i class="bi bi-check-circle me-1"></i> Aceptar
+          </button>
+          <button class="btn btn-info" type="button" (click)="clearProductAmountField()"><i class="bi bi-eraser me-1"></i> Limpiar</button>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-info" (click)="returnToProductsModal()">
+          <i class="bi bi-arrow-left-circle me-1"></i> al listado de productos
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal clientes -->
+<div class="modal fade" id="clientModal" tabindex="-1" aria-labelledby="clientModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Buscar cliente</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form [formGroup]="formClient" (ngSubmit)="searchClient()" class="d-flex gap-2 mb-3" autocomplete="off">
+          <input class="form-control" type="text" placeholder="Buscar por nombre o número de documento" formControlName="searchClient">
+          <button class="btn btn-primary" type="submit"><i class="bi bi-search me-1"></i>Buscar</button>
+          <button class="btn btn-info" type="button" (click)="clearClientSearchField()"><i class="bi bi-eraser me-1"></i> Limpiar</button>
+        </form>
+
+        <div class="table-responsive">
+          <table class="table text-center align-middle">
+            <thead class="table-primary">
+              <tr>
+                <th>ID</th>
+                <th>Nombre completo</th>
+                <th>Tipo cliente</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (client of filteredListClients; track $index) {
+              <tr>
+                <td>{{client.idNumber}}</td>
+                <td>{{client.name}} {{client.surname}}</td>
+                <td>{{client.clientType}}</td>
+                <td>
+                  <button type="button" class="btn btn-success" (click)="selectClient(client)">Seleccionar</button>
+                </td>
+              </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><i class="bi bi-x-circle me-1"></i>Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>

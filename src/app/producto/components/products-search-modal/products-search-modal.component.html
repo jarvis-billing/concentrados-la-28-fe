@@ -1,0 +1,89 @@
+<div class="modal fade" id="productsModal" tabindex="-1" aria-labelledby="productsModalLabel" aria-hidden="true">
+
+    <div class="modal-dialog modal-lg">
+  
+      <div class="modal-content">
+  
+        <div class="modal-header">
+  
+          <h5 class="modal-title" id="productsModalLabel">Buscar producto</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" (click)="closeProductModal()"></button>
+        </div>
+  
+        <div class="modal-body">
+  
+          <div class="w-100 overflow-auto">
+  
+            <form autocomplete="off" [formGroup]="formProduct" (ngSubmit)="searchProduct()" class="d-flex gap-2 mb-3">
+              <input class="form-control" type="text" placeholder="Buscar por código o descripción" formControlName="searchProduct" #searchProductInput>
+              <button class="btn btn-primary" type="submit">Buscar</button>
+              <button class="btn btn-info" type="button" (click)="clearProductSearchField()">Limpiar</button>
+            </form>
+  
+            <table class="table text-center" style="vertical-align: middle;">
+  
+              <thead>
+                  <tr class="table-primary">
+                      <th scope="col">Código Barra</th>
+                      <th scope="col">Descripción</th>
+                      <th scope="col w-auto">Precio</th>
+                      <th scope="col">Tipo</th>
+                      <th scope="col"></th>
+                  </tr>
+              </thead>
+  
+              <tbody>
+  
+                @for (producto of filteredListProducts; track $index) {
+                <tr>
+                    <td>
+                        <span>{{producto.barcode}}</span>
+                    </td>
+  
+                    <td>
+                        <span>{{producto.description}}</span>
+                    </td>
+  
+                    <td>
+                        <span>{{producto.price | currency:'$ ':'symbol':'.0-0'}}</span>
+                    </td>
+  
+                    <td>
+                        <span>{{producto.saleType}}</span>
+                    </td>
+  
+                    <td>
+                      <button type="button" (click)="ProductToSell(producto)" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#productsAmountModal">
+                        Agregar
+                      </button>
+                    </td>
+  
+                </tr>
+                }
+  
+              </tbody>
+  
+            </table>
+  
+          </div>
+  
+          @if (!productMatch) {
+            <div class="text-center mt-4 d-flex align-items-center justify-content-center">
+              <button class="btn btn-secondary mx-1" (click)="changePage(paginaActual - 1)" [disabled]="paginaActual === 1">Anterior</button>
+              <span>{{ paginaActual }} de {{ totalPaginas }}</span>
+              <button class="btn btn-secondary mx-1" (click)="changePage(paginaActual + 1)" [disabled]="paginaActual === totalPaginas">Siguiente</button>
+            </div>
+          }
+  
+  
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+          </div>
+  
+        </div>
+  
+      </div>
+  
+    </div>
+  
+  </div>

@@ -1,0 +1,101 @@
+.table-wrapper {
+    width: 100%;
+    overflow-y: auto;
+   
+    .table {
+        width: 100%;
+    }
+
+    tbody {
+        display: block;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    thead,
+    tbody tr {
+        display: table;
+        width: 100%;
+        table-layout: fixed;
+    }
+}
+
+.fw-center {
+    text-align: center;
+}
+
+.form-select {
+    width: 208px !important;
+}
+
+.form-payment {
+    input {
+        margin-bottom: 10px;
+        font-size: large;
+        font-family: Verdana, Geneva, Tahoma, sans-serif;
+        font-weight: 200;
+    }
+}
+
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type=number] {
+    -moz-appearance: textfield;
+}
+
+.modal-xl-custom {
+  max-width: 58vw;
+  width: 58vw;
+}
+
+/* Estilos generales */
+h5, h6 {
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.table th,
+.table td {
+  padding: 0.45rem;
+  font-size: 0.85rem;
+}
+
+/* Inputs numéricos más angostos */
+input[type="number"].form-control,
+input[type="text"].form-control {
+  padding: 0.25rem 0.4rem;
+  font-size: 0.85rem;
+}
+
+/* Botones en tabla */
+.btn-group .btn {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.85rem;
+}
+
+/* Cabeceras de sección */
+.text-primary {
+  font-weight: 600;
+}
+
+/* Selector de pago más compacto */
+select.form-select-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+/* Botones principales */
+.btn {
+  font-size: 0.85rem;
+  padding: 0.35rem 0.9rem;
+}
+
+/* Tabla ajustada a altura */
+.table-responsive {
+  border: 1px solid #dee2e6;
+  border-radius: 0.25rem;
+}

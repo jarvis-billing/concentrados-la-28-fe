@@ -1,0 +1,60 @@
+<!-- Modal Clientes -->
+<div class="modal fade" id="userModal" tabindex="-1" aria-labelledby="userModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="clientModalLabel">Buscar Usuario</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="w-100 overflow-auto">
+  
+            <form autocomplete="off" [formGroup]="formUser" (ngSubmit)="searchUser()" class="d-flex gap-2 mb-2">
+  
+                <input class="form-control" type="text" placeholder="Buscar por nombre o numero de documento" formControlName="searchUser">
+  
+                <button class="btn btn-primary" type="submit">Buscar</button>
+                <button class="btn btn-info" type="button" (click)="clearUserSearchField()">Limpiar</button>
+  
+            </form>
+  
+            <table class="table text-center" style="vertical-align: middle;">
+  
+              <thead>
+                <tr class="table-primary">
+                  <th scope="col">ID</th>
+                  <th scope="col">Nombre completo</th>
+                  <th scope="col">Tipo Usuario</th>
+                  <th scope="col"></th>
+                </tr>
+  
+              </thead>
+  
+              <tbody>
+  
+                @for (user of users; track $index) {
+  
+                  <tr class="">
+  
+                    <td>{{user.numberIdentity}}</td>
+                    <td>{{user.fullName}}</td>
+                    <td>{{user.rol}}</td>
+                    <td>
+                      <button type="button" class="btn btn-success" (click)="selectUser(user)">Seleccionar</button>
+                    </td>
+                  </tr>
+                }
+  
+  
+              </tbody>
+  
+            </table>
+  
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>

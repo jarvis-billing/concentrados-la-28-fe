@@ -1,0 +1,138 @@
+<div class="container mb-5">
+    <h3 class="text-center mt-4 mb-5 text-primary">Persona</h3>
+
+    <form class="row gx-3">
+
+        <div class="col-md-6 mb-4">
+
+            <div class="form-floating">
+                <select class="form-select" id="exampleSelect1">
+                    <option selected>Cédula de Ciudadanía</option>
+                    <option>Pasaporte</option>
+                    <option>DNI</option>
+                    <option>NIT</option>
+                </select>
+                <label for="exampleSelect1">Tipo Documento</label>
+            </div>
+        </div>
+
+        <div class="col-md-6 mb-4">
+            <div class="form-floating">
+                <input type="number" class="form-control" id="tipoDocumento" placeholder="name@example.com">
+                <label for="tipoDocumento">Número Documento</label>
+            </div>
+        </div>
+
+        <div class="col-md-12 mb-4">
+            <div class="form-floating">
+                <input type="text" class="form-control" id="tipoDocumento" placeholder="name@example.com">
+                <label for="tipoDocumento">Nombre Completo</label>
+            </div>
+        </div>
+
+        <div class="col-md-6 mb-4">
+            <div class="form-floating">
+                <input type="number" class="form-control" id="tipoDocumento" placeholder="name@example.com">
+                <label for="tipoDocumento">Celular</label>
+            </div>
+        </div>
+
+        <div class="col-md-6 mb-4">
+            <div class="form-floating">
+                <select class="form-select" id="exampleSelect1">
+                    <option disabled selected>Seleccione</option>
+                    <option>Hombre</option>
+                    <option>Mujer</option>
+                    <option>No Binario</option>
+                    <option>Prefiero No Decirlo</option>
+                </select>
+                <label for="exampleSelect1">Sexo</label>
+            </div>
+        </div>
+
+        <div class="col-md-12 mb-4">
+            <div class="form-floating">
+                <input type="text" class="form-control" id="tipoDocumento" placeholder="name@example.com">
+                <label for="tipoDocumento">Dirección</label>
+            </div>
+        </div>
+
+        <div class="col-md-12 mb-4">
+            <div class="form-floating">
+                <input type="email" class="form-control" id="tipoDocumento" placeholder="name@example.com">
+                <label for="tipoDocumento">Correo Electrónico</label>
+            </div>
+        </div>
+
+
+        <div class="d-grid gap-2">
+            <button class="btn btn-primary" type="submit">Guardar</button>
+        </div>
+
+        
+    </form>
+
+    <!-- <form class="row g-3" #formulario="ngForm" (ngSubmit)="onSubmitPersona(formulario)">
+        <div class="col-md-6">
+            <label class="form-label" for="tipoDocumento">Tipo Documento</label>
+            <input type="text" class="form-control" id="tipoDocumento" name="tipoDocumento" [(ngModel)]="persona.tipoDocumento" #tipoDocumento="ngModel" required maxlength="10" placeholder="Ej: CC">
+            @if (tipoDocumento.invalid && (tipoDocumento.touched || formulario.submitted)) {
+                @if (tipoDocumento?.errors?.['required']) {
+                    <div class="alert alert-dismissible alert-danger mt-2">
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        <strong>Error:</strong> El campo es requerido.
+                    </div>
+                }
+                @if (tipoDocumento?.errors?.['maxlength']) {
+                    <div class="alert alert-dismissible alert-danger mt-2">
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        <strong>Error:</strong> El tamaño máximo es de 10 caracteres.
+                    </div>
+                }
+            }
+        </div>
+        <div class="d-grid gap-2">
+            <button class="btn btn-primary mt-3" [disabled]="formulario.invalid" type="submit">Guardar</button>
+        </div>
+    </form> -->
+</div>
+
+<!-- <div class="container mb-5">
+
+    <hr class="border border-primary">
+
+    <div class="container">
+
+        <h4 class="text-center text-primary">Items Guardados</h4>
+
+        <div class="mt-4 w-100 overflow-auto">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th scope="col">Tipo Documento</th>
+                        <th scope="col">Número Documento</th>
+                        <th scope="col">Nombre</th>
+                        <th scope="col">Sexo</th>
+                        <th scope="col">Celular</th>
+                        <th scope="col">Correo</th>
+                        <th scope="col">Direccion</th>
+                    </tr>
+                </thead>
+                <tbody class="table-group-divider">
+                    @for (persona of lstPersona; track $index) {
+                        <tr>
+                            <td>{{ persona.tipoDocumento }}</td>
+                            <td>{{ persona.numeroDocumento }}</td>
+                            <td>{{ persona.nombre }}</td>
+                            <td>{{ persona.sexo }}</td>
+                            <td>{{ persona.celular }}</td>
+                            <td>{{ persona.correo }}</td>
+                            <td>{{ persona.direccion }}</td>
+                        </tr>
+                    
+                    }
+                </tbody>
+              </table>
+        </div>
+    </div>
+</div> -->

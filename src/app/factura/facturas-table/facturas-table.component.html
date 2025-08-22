@@ -1,0 +1,218 @@
+<div class="container mb-5">
+  <h3 class="text-center mt-4 mb-5 text-primary">Listado de Facturas</h3>
+
+  <!-- FILTERS -->
+  <div class="accordion" id="accordionFiltros">
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="headingFiltros">
+        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFiltros" aria-expanded="false" aria-controls="collapseFiltros">
+          <h5>Filtros</h5>
+        </button>
+      </h2>
+      <div id="collapseFiltros" class="accordion-collapse collapse" aria-labelledby="headingFiltros" data-bs-parent="#accordionFiltros">
+        <div class="accordion-body">
+
+          <!-- DATES -->
+          <div class="">
+            <div class="col-md-12 text-primary">
+              <label class="fw-bold">Rango de fechas</label>
+            </div>
+
+            <div class="col-md-12 text-primary">
+              <label class="col-form-label">Desde</label>
+              <input type="date" class="form-control"  [(ngModel)]="filterReport.toDate" name="toDate" [max]="today"/>
+            </div>
+            <div class="col-md-12 text-primary">
+              <label class="col-form-label">Hasta</label>
+              <input type="date" class="form-control" [(ngModel)]="filterReport.fromDate" name="fromDate" [max]="today"/>
+            </div>
+          </div>
+
+          <!-- CLIENT
+          <div class="col-md-12 text-primary">
+            <button type="button" class="btn btn-primary p-2 m-5" data-bs-toggle="modal" data-bs-target="#clientModal">
+              Buscar cliente
+            </button>
+
+            @if (selectedClient) {
+              <div class="badge rounded-pill text-bg-info p-2 m-2">
+                {{ fullNameClient }} 
+                <button type="button" class="btn-close btn-sm ms-2" aria-label="Close" (click)="removeClientSelected()"></button>
+              </div>
+            }
+          </div>
+ -->
+          <!-- ORDER 
+          <div class="">
+            <div class="col-md-12 text-primary">
+              <button type="button" class="btn btn-warning p-2 m-5" data-bs-toggle="modal" data-bs-target="#userModal">
+                Buscar Vendedor
+              </button>
+
+              @if (selectedUser) {
+                <div class="badge rounded-pill text-bg-warning p-2 m-2">
+                  {{ selectedUser.fullName }} 
+                  <button type="button" class="btn-close btn-sm ms-2" aria-label="Close" (click)="removeUserSelected()"></button>
+                </div>
+              }
+            </div>
+          </div>
+-->
+          <!-- Billing 
+        <form [formGroup]="formFilter">
+          <div class="">
+            <div class="col-md-12 text-primary">
+              <label class="col-form-label fw-bold">Número de Factua</label>
+              <input type="text" class="form-control" placeholder="No. Factura" formControlName="billNumber">
+            </div>
+          </div>
+        </form>
+-->
+          <!-- BUTTONS -->
+          <div class="mb-3 mt-3">
+            <div class="row">
+              <div>
+                <button class="btn btn-success" type="button" (click)="findAllBilling()">Aplicar filtros</button>
+                <button class="ms-2 btn btn-warning">Limpiar filtros</button>
+              </div>
+            </div>
+          </div>
+          <!-- Modal for Clients and Users List 
+          <app-modal-clients-list (clientSelected)="handleClientSelected($event)"></app-modal-clients-list>
+          <app-modal-users-list (userSelected)="handleUserSelected($event)"></app-modal-users-list>
+          -->
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- INVOICES TABLE -->
+
+  <div class="w-100 overflow-auto mb-4 mt-4" >
+    <table class="table text-center table-striped table-wrapper" style="vertical-align: middle;">
+      <thead>
+        <tr class="table-primary">
+          <th scope="col">No. Factura</th>
+          <th scope="col">Fecha emisión</th>
+          <th scope="col">Cliente</th>
+          <th scope="col">Total venta</th>
+          <th scope="col">Total recibido</th>
+          <th scope="col">Total cambio</th>
+          <th scope="col">Total IVA</th>
+          <th scope="col">Medio de pago</th>
+          <th scope="col">Vendedor</th>
+          <th scope="col"></th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (!isLoading) {
+          @for (billing of reportBilling; track $index) {
+            <tr class="table-primary">
+              <td style="text-align: center;">
+                <span>{{billing.billNumber}}</span>
+              </td>
+
+              <td style="text-align: center;">
+                <span>{{formatDate(billing.dateTimeRecord)}}</span>
+              </td>
+
+              <td style="text-align: center;">
+                <span>{{billing.client.fullName}}</span>
+              </td>
+
+              <td style="text-align: center;">
+                <span>{{billing.subTotalSale | currency:'$ ':'symbol':'.0-0'}}</span>
+              </td>
+
+              <td style="text-align: center;">
+                <span>{{billing.receivedValue | currency:'$ ':'symbol':'.0-0'}}</span>
+              </td>
+
+              <td style="text-align: center;">
+                <span>{{billing.returnedValue | currency:'$ ':'symbol':'.0-0'}}</span>
+              </td>
+
+              <td style="text-align: center;">
+                <span>{{billing.totalIVAT | currency:'$ ':'symbol':'.0-0'}}</span>
+              </td>
+
+              <td style="text-align: center;">
+                <span>{{billing.paymentMethods[0]}}</span>
+              </td>
+
+              @if (billing.order && billing.order.orderNumber > 0) {
+                <td style="text-align: center;">
+                  <span>{{billing.order.creationUser?.fullName}}</span>
+                </td>
+              } @else {
+                <td style="text-align: center;">
+                  <span>{{billing.creationUser?.fullName}}</span>
+                </td>
+              }
+              <td style="text-align: center;">
+                <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Acciones</button>
+                <div class="dropdown-menu" style="background-color: white; border-color: black;">
+                  <button class="dropdown-item" (click)="openSaleDetailModal(billing)">Ver detalle</button>
+                  <button class="dropdown-item" (click)="printTicketBilling(billing)">Imprimir factura</button>
+                  <button class="dropdown-item">Enviar a la DIAN</button>
+                </div>
+              </td>
+          </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+  @if (!isLoading) {
+    <!-- TOTALS SECTION -->
+    <div class="container mt-4 ">
+
+      <div class="row g-3 justify-content-center">
+        <div class="col-md-2">
+          <div class="card text-white bg-primary">
+            <div class="card-header">Facturas:</div>
+            <div class="card-body">
+              <p class="card-text fw-bold">{{reportBilling.length}}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-3">
+          <div class="card text-white bg-primary">
+            <div class="card-header">Total Ventas:</div>
+            <div class="card-body">
+              <p class="card-text fw-bold">{{subTotal() | currency:'$ ':'symbol':'.0-0'}}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-3">
+          <div class="card text-white bg-primary">
+            <div class="card-header">Total Iva:</div>
+            <div class="card-body">
+              <p class="card-text fw-bold">{{totalIvat() | currency:'$ ':'symbol':'.0-0'}}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+  <app-modal-sale-detail
+    [saleDetails]="selectedBilling?.saleDetails"
+    [billingNumber]="selectedBilling?.billNumber">
+  </app-modal-sale-detail>
+
+  @if (isLoading) {
+    <!-- LOADING OVERLAY -->
+    <div class="fullscreen-loading bg-light bg-opacity-75">
+      <div class="text-center">
+        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+          <span class="visually-hidden">Cargando...</span>
+        </div>
+        <div class="mt-3 fw-semibold">Cargando datos {{ userLogin?.fullName }}, por favor espera...</div>
+      </div>
+    </div>
+  }
+</div>
