@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { EVat, Product } from './producto';
+import { Product } from './producto';
 import { BehaviorSubject, map, Observable, tap } from 'rxjs';
 import { urlConfig } from '../../config/config';
 import { PaginationDto } from '../util/PaginationDto';
