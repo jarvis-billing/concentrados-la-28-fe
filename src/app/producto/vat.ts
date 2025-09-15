@@ -1,7 +1,7 @@
-import { EVat } from "./producto";
+import { EVatType } from "./producto";
 
 export class Vat {
     id: string = '';
-    vatType: EVat = EVat.TARIFA_CERO;
+    vatType: EVatType = EVatType.TARIFA_CERO;
     percentage: number = 0;
 }

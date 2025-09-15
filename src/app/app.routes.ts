@@ -38,6 +38,9 @@ export const routes: Routes = [
             path:'crearproducto/:barcode', component: CrearProductoComponent
         },
         {
+            path: 'crearproducto', component: CrearProductoComponent
+        },
+        {
             path:'categoria', component: CategoriaComponent
         },
         {

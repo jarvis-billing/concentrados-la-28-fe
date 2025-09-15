@@ -41,4 +41,8 @@ export const urlConfig = {
     microservicioUserUrl: function() {
         return this.urlServer + '/api/user';
     },
+
+    microServiceCatalogUrl: function() {
+        return this.urlServer + '/api/catalog';
+    }
 };

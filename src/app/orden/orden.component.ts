@@ -106,7 +106,7 @@ export class OrdenComponent implements OnInit {
   buscarProductoPorCodigoBarras(barcode: string) {
     this.productoService.getProductByBarcode(barcode).subscribe({
       next: res => {
-        const existingProduct = this.lstProducto.find(producto => producto.barcode === barcode);
+       /* const existingProduct = this.lstProducto.find(producto => producto.barcode === barcode);
         if (existingProduct) {
           existingProduct.amount += 1;
           existingProduct.totalValue = existingProduct.amount * existingProduct.price;
@@ -120,7 +120,7 @@ export class OrdenComponent implements OnInit {
         this.totalOrden = this.lstProducto.reduce((total, producto) => total + producto.totalValue, 0);
 
         this.autoguardarOrden();
-
+*/
       },
       error: error => {
         this.hiddenBarcodeInput!.nativeElement.value = '';
@@ -142,7 +142,7 @@ export class OrdenComponent implements OnInit {
   }
 
   onCantidadChange(event: any, index: number) {
-    const nuevoValor = event.target.value;
+   /* const nuevoValor = event.target.value;
     this.producto = this.lstProducto[index];
     this.producto.amount = parseInt(nuevoValor);
     this.producto.totalValue = this.producto.amount * this.producto.price;
@@ -150,22 +150,22 @@ export class OrdenComponent implements OnInit {
 
     this.totalOrden = this.lstProducto.reduce((total, producto) => total + producto.totalValue, 0);
 
-    this.autoguardarOrden();
+    this.autoguardarOrden();*/
   }
 
   sumarCantidad(index: number) {
-    this.producto = this.lstProducto[index];
+   /* this.producto = this.lstProducto[index];
     this.producto.amount += 1;
     this.producto.totalValue = this.producto.amount * this.producto.price;
     this.lstProducto[index] = this.producto;
 
     this.totalOrden = this.lstProducto.reduce((total, producto) => total + producto.totalValue, 0);
 
-    this.autoguardarOrden();
+    this.autoguardarOrden();*/
   }
 
   restarCantidad(index: number) {
-    this.producto = this.lstProducto[index];
+   /* this.producto = this.lstProducto[index];
     if (this.producto.amount > 1 ){
       this.producto.amount = this.producto.amount - 1;
       this.producto.totalValue = this.producto.amount * this.producto.price;
@@ -173,12 +173,12 @@ export class OrdenComponent implements OnInit {
       this.totalOrden = this.lstProducto.reduce((total, producto) => total + producto.totalValue, 0);
     }
 
-    this.autoguardarOrden();
+    this.autoguardarOrden();*/
   }
 
   deleteProductOfList(index: number){
     this.lstProducto.splice(index, 1);
-    this.totalOrden = this.lstProducto.reduce((total, producto) => total + producto.totalValue, 0);
+ //   this.totalOrden = this.lstProducto.reduce((total, producto) => total + producto.totalValue, 0);
     this.autoguardarOrden();
   }
 

@@ -3,7 +3,7 @@ import { Client } from '../cliente/cliente';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { toast } from 'ngx-sonner';
 import { CurrencyPipe, DatePipe, } from '@angular/common';
-import { EVat, Product } from '../producto/producto';
+import { EVatType, Product } from '../producto/producto';
 import { FacturaService } from './factura.service';
 import { Billing } from './billing';
 import { ClienteService } from '../cliente/cliente.service';
@@ -46,11 +46,13 @@ export class FacturaComponent implements OnInit, AfterViewInit {
     this.productService.productos$.subscribe(productos => {
       this.completeProductsList = productos;
     });
+
     this.productService.fetchAll();
     this.getClients();
     this.getAllProductsPage();
     this.getAllProducts();
     this.onInitBilling();
+
   }
 
   client!: Client;
@@ -412,10 +414,10 @@ export class FacturaComponent implements OnInit, AfterViewInit {
     };
 
     // Suscribimos a `calculateVatPrice` y asignamos `totalVat` cuando esté listo
-    this.calculateVatPrice(selectProduct.price, selectProduct.amount, selectProduct.vatType)
-      .subscribe(totalVat => {
-        saleDetail.totalVat = totalVat;
-      });
+    /* this.calculateVatPrice(selectProduct.price, selectProduct.amount, selectProduct.vatType)
+       .subscribe(totalVat => {
+         saleDetail.totalVat = totalVat;
+       });*/
 
     return saleDetail;
   }
@@ -427,9 +429,9 @@ export class FacturaComponent implements OnInit, AfterViewInit {
       debugger
       //detail.amount += 1;
       detail.subTotal = detail.amount * product.price;
-      this.calculateVatPrice(product.price, detail.amount, product.vatType).subscribe(totalVat => {
-        detail.totalVat = totalVat;
-      });
+      /* this.calculateVatPrice(product.price, detail.amount, product.vatType).subscribe(totalVat => {
+         detail.totalVat = totalVat;
+       });*/
       return;
     }
 
@@ -443,13 +445,13 @@ export class FacturaComponent implements OnInit, AfterViewInit {
   }
 
   // Handle calculated vats total products
-  calculateVatPrice(price: number, quantity: number, vat: EVat): Observable<number> {
+  calculateVatPrice(price: number, quantity: number, vat: EVatType): Observable<number> {
     return new Observable((observer) => {
       // Recupera el array de IVA desde localStorage y lo convierte a JSON
       const vats = JSON.parse(localStorage.getItem("allTypeVats") || '[]');
 
       // Encuentra el tipo de IVA en el array
-      const vatData = vats.find((item: { vatType: EVat }) => item.vatType === vat);
+      const vatData = vats.find((item: { vatType: EVatType }) => item.vatType === vat);
 
       if (vatData) {
         // Calcula el precio con el IVA
@@ -582,7 +584,7 @@ export class FacturaComponent implements OnInit, AfterViewInit {
     if (modalEl) {
       const modal = new (window as any).bootstrap.Modal(modalEl);
       modal.show();
-      
+
       this.productService.productos$.subscribe(productos => {
         this.filteredListProducts = productos;
       });

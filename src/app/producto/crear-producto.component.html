@@ -1,139 +1,179 @@
 <div class="container mb-5">
-    <h3 class="text-center mt-4 mb-5 text-primary">Producto</h3>
-    <form class="row gx-3" #formulario="ngForm">
-        
-        <div class="text-left mt-4 mb-5">
-            <button class="btn btn-primary" type="reset" (click)="volverProducto()">Regresar</button>
+    <form [formGroup]="productoForm" (ngSubmit)="submit()" class="producto-form">
+        <h1 class="text-center mt-4 mb-5 text-primary">{{ isEditMode ? 'Editar Producto' : 'Crear Producto' }}</h1>
+        <hr />
+        <div class="text-start">
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-save"></i>
+                {{ isEditMode ? 'Guardar cambios' : 'Crear producto' }}
+            </button>
+            <button type="button" class="btn btn-outline-secondary ms-2" (click)="cancelar()">
+                <i class="bi bi-x-circle"></i>
+                Cancelar
+            </button>
         </div>
+        <div class="row" style="gap: 32px;">
+            <div class="col-4">
+                <!-- Columna izquierda: Datos básicos -->
+                <div class="col-md-5 p-4" style="background: #f8f9fa; border-radius: 12px; min-width: 420px;">
+                    <div class="row">
+                        <h3>Datos Básicos</h3>
+                        <div class="col-12 mb-4">
+                            <label>Descripción</label>
+                            <input formControlName="description" class="form-control" />
+                            <small
+                                *ngIf="productoForm.get('description')?.invalid && productoForm.get('description')?.touched">
+                                Campo requerido (máx 100 caracteres)
+                            </small>
+                        </div>
+                        <div class="col-6 mb-4">
+                            <label>Tipo de venta</label>
+                            <select formControlName="saleType" class="form-control">
+                                <option *ngFor="let st of saleTypes" [value]="st">{{ saleTypeLabels[st] }}</option>
+                            </select>
+                        </div>
+                        <div class="col-6 mb-4">
+                            <label>Código de producto</label>
+                            <input formControlName="productCode" class="form-control" />
+                        </div>
+                        <!-- Categoría -->
+                        <div class="mb-4">
+                            <label>Categoría</label>
+                            <div class="input-group">
+                                <select formControlName="category" class="form-control">
+                                    <option *ngFor="let category of categories$ | async" [value]="category">
+                                        {{ category }}
+                                    </option>
+                                </select>
+                                <input type="text" class="form-control" placeholder="Nueva categoría" #newCategoryInput
+                                    (keydown.enter)="addCategory(newCategoryInput.value); productoForm.get('category')?.setValue(newCategoryInput.value); newCategoryInput.value='';">
+                                <button type="button" class="btn btn-outline-secondary"
+                                    (click)="addCategory(newCategoryInput.value); productoForm.get('category')?.setValue(newCategoryInput.value); newCategoryInput.value='';">
+                                    <i class="bi bi-plus-circle"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <!-- Marca -->
+                        <div class="mb-4">
+                            <label>Marca</label>
+                            <div class="input-group">
+                                <select formControlName="brand" class="form-control">
+                                    <option *ngFor="let brand of brands$ | async" [value]="brand">
+                                        {{ brand }}
+                                    </option>
+                                </select>
+                                <input type="text" class="form-control" placeholder="Nueva marca" #newBrandInput
+                                    (keydown.enter)="addBrand(newBrandInput.value); productoForm.get('brand')?.setValue(newBrandInput.value); newBrandInput.value='';">
+                                <button type="button" class="btn btn-outline-secondary"
+                                    (click)="addBrand(newBrandInput.value); productoForm.get('brand')?.setValue(newBrandInput.value); newBrandInput.value='';">
+                                    <i class="bi bi-plus-circle"></i>
+                                </button>
+                            </div>
+                        </div>
 
-        <div class="col-md-12">
-            <div class="form-floating">
-                <input type="text" class="form-control" id="barcode" name="barcode" placeholder="name@example.com" [(ngModel)]="producto.barcode" #barcode="ngModel" required maxlength="100" (change)="buscarProductoPorCodigoBarras()">
-                <label for="barcode">Código de Barras</label>
-                @if (barcode.invalid && (barcode.touched || formulario.submitted)) {
-                    @if (barcode?.errors?.['required']) {
-                        <div class="alert alert-dismissible alert-danger mt-2">
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            <strong>Error:</strong> El campo es requerido.
+                        <fieldset class="mb-4 p-3" style="border:1px solid #e0e0e0; border-radius:8px;">
+                            <legend class="w-auto px-2" style="font-size:1rem;">Stock</legend>
+                            <hr />
+                            <div class="row">
+                                <div class="col-6 mb-3" formGroupName="stock">
+                                    <label>Cantidad</label>
+                                    <input type="number" formControlName="quantity" min="0" class="form-control" />
+                                </div>
+                                <div class="col-6 mb-3" formGroupName="stock">
+                                    <label>Unidad de medida</label>
+                                    <select formControlName="unitMeasure" class="form-control">
+                                        <option *ngFor="let um of unitMeasures" [value]="um">{{ unitMeasureLabels[um] }}
+                                        </option>
+                                    </select>
+                                </div>
+                            </div>
+                        </fieldset>
+                        <div class="col-6 mb-4">
+                            <label>IVA (%)</label>
+                            <input type="number" formControlName="vatValue" min="0" class="form-control" />
                         </div>
-                    }
-                }
-            </div>
-        </div>
-
-        <div class="col-md-12 mb-4">
-            <label for="descripcion" class="form-label mt-4">Descripción</label>
-            <textarea class="form-control" id="descripcion" name="descripcion" rows="3" [(ngModel)]="producto.description"></textarea>
-        </div>
-
-        <div class="col-md-6 mb-4">
-            <div class="form-floating">
-                <input type="number" class="form-control" id="precio" name="precio" [(ngModel)]="producto.price" #precio="ngModel" required [min]="minPrecio" [max]="maxPrecio">
-                <label for="precio">Precio Venta</label>
-                @if (precio.invalid && (precio.touched || formulario.submitted)) {
-                    @if (precio?.errors?.['required']) {
-                        <div class="alert alert-dismissible alert-danger mt-2">
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            <strong>Error:</strong> El campo es requerido.
+                        <div class="col-6 mb-4">
+                            <label>Tipo de IVA</label>
+                            <select formControlName="vatType" class="form-control">
+                                <option [value]="null">Sin IVA</option>
+                                <option *ngFor="let vt of vatTypes" [value]="vt">{{ vt }}</option>
+                            </select>
                         </div>
-                    }
-                    @if (precio?.errors?.['min']) {
-                        <div class="alert alert-dismissible alert-danger mt-2">
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            <strong>Error:</strong> Debe ingresar un valor superior a {{minPrecio}}.
-                        </div>
-                    }
-                    @if (precio?.errors?.['max']) {
-                        <div class="alert alert-dismissible alert-danger mt-2">
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            <strong>Error:</strong> Debe ingresar un valor inferior a {{maxPrecio}}.
-                        </div>
-                    }
-                }
-            </div>
-        </div>
-
-        <div class="col-md-6 mb-4">
-            <div class="form-floating">
-                <input type="number" class="form-control" id="costo" name="costo" placeholder="0" [(ngModel)]="producto.cost" #costo="ngModel" required [min]="minPrecio" [max]="maxPrecio">
-                <label for="precio">Costo Compra</label>
-                @if (costo.invalid && (costo.touched || formulario.submitted)) {
-                    @if (costo?.errors?.['required']) {
-                        <div class="alert alert-dismissible alert-danger mt-2">
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            <strong>Error:</strong> El campo es requerido.
-                        </div>
-                    }
-                    @if (costo?.errors?.['min']) {
-                        <div class="alert alert-dismissible alert-danger mt-2">
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            <strong>Error:</strong> Debe ingresar un valor superior a {{minPrecio}}.
-                        </div>
-                    }
-                    @if (costo?.errors?.['max']) {
-                        <div class="alert alert-dismissible alert-danger mt-2">
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            <strong>Error:</strong> Debe ingresar un valor inferior a {{maxPrecio}}.
-                        </div>
-                    }
-                }
-            </div>            
-        </div>
-
-        <div class="col-md-6 mb-4">
-            <div class="form-floating">
-                <select class="form-select" id="tipoIva" [(ngModel)]="producto.vatType" name="tipoIva" #tipoIva="ngModel" required>
-                    <option disabled selected>Seleccione</option>
-                    <option value="TARIFA_CERO">Sin Iva</option>
-                    <option value="TARIFA_REDUCIDA">Reducida</option>
-                    <option value="TARIFA_GENERAL">General</option>
-                </select>
-                <label for="tipoIva">Tipo IVA</label>
-                @if (tipoIva.invalid && (tipoIva.touched || formulario.submitted)) {
-                    @if (tipoIva?.errors?.['required']) {
-                        <div class="alert alert-dismissible alert-danger mt-2">
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            <strong>Error:</strong> El campo es requerido.
-                        </div>
-                    }
-                }
-            </div>
-        </div>
-
-        <div class="col-md-6 mb-4">
-            <div class="form-floating">
-                <select class="form-select" id="tipoVenta" [(ngModel)]="producto.saleType" name="tipoVenta" #tipoVenta="ngModel" required>
-                    <option disabled selected>Seleccione</option>
-                    <option value="PESO">Peso</option>
-                    <option value="UNIDAD">Unidad</option>
-                </select>
-                <label for="exampleSelect1">Tipo Venta</label>
-                @if (tipoVenta.invalid && (tipoVenta.touched || formulario.submitted)) {
-                    @if (tipoVenta?.errors?.['required']) {
-                        <div class="alert alert-dismissible alert-danger mt-2">
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            <strong>Error:</strong> El campo es requerido.
-                        </div>
-                    }
-                }
-            </div>
-        </div>
-
-        <div class="d-flex justify-content-between">
-            <div class="d-grid gap-2">
-                <button class="btn btn-danger" type="reset" (click)="limpiarForm()">Limpiar</button>
-            </div>
-
-            @if (producto.id) {
-                <div class="d-grid gap-2 me-2">
-                    <button class="btn btn-success" (click)="editarProducto(formulario)">Editar</button>
+                    </div>
                 </div>
-            } 
-            @if (!producto.id) {
-                <div class="d-grid gap-2 me-2">
-                    <button class="btn btn-success" (click)="guardarProducto(formulario)">Guardar</button>
+            </div>
+            <div class="col">
+                <div class="row mb-2">
+                    <h3>Presentaciones</h3>
+                    <button type="button" class="btn btn-secondary mb-3 mt-2" (click)="addPresentation()">
+                        <i class="bi bi-plus-circle"></i>
+                        Agregar presentación
+                    </button>
                 </div>
-            }
+                <div formArrayName="presentations" class="presentation-item"
+                    style="max-height: 600px; min-height: 350px; overflow-y: auto; overflow-x: auto; padding: 6px;">
+                    <div class="row g-4">
+                        <div *ngFor="let pres of presentations.controls; let i = index" [formGroupName]="i"
+                            class="col-12 col-md-6">
+                            <div class="card shadow-sm mb-4" style="min-width: 320px; border-radius: 12px;">
+                                <div class="card-body">
+                                    <!-- ...dentro de la card-body de cada presentación... -->
+                                    <div class="row">
+                                        <!-- Primera fila: Barcode + botón -->
+                                        <div class="col-12 mb-3 d-flex align-items-end">
+                                            <div style="flex: 1;">
+                                                <label>Barcode</label>
+                                                <input formControlName="barcode" class="form-control" />
+                                            </div>
+                                            <button type="button" class="btn btn-outline-secondary ms-2 mb-2"
+                                                (click)="generateBarcode(i)">
+                                                <i class="bi bi-upc-scan"></i>
+                                                Generar
+                                            </button>
+                                        </div>
+                                        <!-- Segunda fila: Etiqueta -->
+                                        <div class="col-12 mb-3">
+                                            <label>Etiqueta</label>
+                                            <input formControlName="label" class="form-control" />
+                                        </div>
+                                        <!-- Resto de los campos -->
+                                        <div class="col-6 mb-3">
+                                            <label>Precio venta</label>
+                                            <input type="text" formControlName="salePrice" min="0"
+                                                class="form-control text-rigth" appCurrencyFormat />
+                                        </div>
+                                        <div class="col-6 mb-3">
+                                            <label>Precio costo</label>
+                                            <input type="text" formControlName="costPrice" min="0"
+                                                class="form-control" appCurrencyFormat />
+                                        </div>
+                                        <div class="col-6 mb-3">
+                                            <label>Unidad medida</label>
+                                            <select formControlName="unitMeasure" class="form-control">
+                                                <option *ngFor="let um of unitMeasures" [value]="um">
+                                                    {{ unitMeasureLabels[um] }}
+                                                </option>
+                                            </select>
+                                        </div>
+                                        <div class="col-6 mb-3">
+                                            <label>Factor conversión</label>
+                                            <input type="number" formControlName="conversionFactor" min="0.01"
+                                                step="0.01" class="form-control" />
+                                        </div>
+                                        <div class="col-12 text-end">
+                                            <button type="button" class="btn btn-danger btn-sm mt-2"
+                                                (click)="removePresentation(i)">
+                                                <i class="bi bi-trash"></i>
+                                                Eliminar
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </form>
 </div>
