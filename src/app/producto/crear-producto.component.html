@@ -28,7 +28,7 @@
                         </div>
                         <div class="col-6 mb-4">
                             <label>Tipo de venta</label>
-                            <select formControlName="saleType" class="form-control">
+                            <select formControlName="saleType" class="form-control" (change)="onSaleTypeChange($event)" >
                                 <option *ngFor="let st of saleTypes" [value]="st">{{ saleTypeLabels[st] }}</option>
                             </select>
                         </div>

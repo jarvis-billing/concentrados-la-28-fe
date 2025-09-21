@@ -78,7 +78,22 @@ export class CrearProductoComponent implements OnInit {
     return this.productoForm.get('presentations') as FormArray;
   }
 
+  isValidBasicData(): boolean | undefined {
+    return this.productoForm.get('description')?.valid &&
+      this.productoForm.get('saleType')?.valid &&
+      this.productoForm.get('brand')?.valid &&
+      this.productoForm.get('category')?.valid &&
+      this.productoForm.get('productCode')?.valid &&
+      this.productoForm.get('stock.quantity')?.valid &&
+      this.productoForm.get('stock.unitMeasure')?.valid;
+  }
+
   addPresentation(presentation?: any) {
+    if (!this.isValidBasicData()) {
+      toast.warning('Complete los datos básicos del producto antes de agregar una presentación.');
+      return;
+    }
+
     if (this.presentations.length > 0) {
       let lastPresentation = this.presentations.at(this.presentations.length - 1);
       if (lastPresentation.invalid) {
@@ -95,6 +110,12 @@ export class CrearProductoComponent implements OnInit {
       unitMeasure: [presentation?.unitMeasure || '', Validators.required],
       conversionFactor: [presentation?.conversionFactor || 1, [Validators.min(0.01)]]
     }));
+    
+    const saleType = this.productoForm.get('saleType')?.value;
+    
+    if (saleType === ESaleType.WEIGHT && this.presentations.length >= 1) {
+      this.presentations.at(this.presentations.length - 1).get('unitMeasure')?.setValue(UnitMeasure.KILOGRAMOS);
+    }
   }
 
   removePresentation(index: number) {
@@ -131,8 +152,8 @@ export class CrearProductoComponent implements OnInit {
       ...presentation,
       productCode: this.productoForm.value.productCode,
       label: presentation.label.trim().toUpperCase(),
-      salePrice: Number(presentation.salePrice.toString().replace("$ ","").replace(".","")),
-      costPrice: Number(presentation.costPrice.toString().replace("$ ","").replace(".","")),
+      salePrice: Number(presentation.salePrice.toString()),
+      costPrice: Number(presentation.costPrice.toString()),
     }));
 
     if (this.isEditMode && this.idProducto) {
@@ -209,5 +230,38 @@ export class CrearProductoComponent implements OnInit {
         toast.error('Error al agregar la marca')
       }
     });
+  }
+
+onSaleTypeChange(event: any) {
+    const stockUnitMeasureControl = this.productoForm.get('stock.unitMeasure');
+    stockUnitMeasureControl?.setValue(this.getUnitMeasureBySaleType());
+    stockUnitMeasureControl?.updateValueAndValidity();
+    stockUnitMeasureControl?.markAsTouched();
+
+      // Actualizar las presentaciones existentes
+    if (this.presentations.length > 0) {
+        this.presentations.controls.forEach((presentationControl, index) => {
+            const unitMeasureControl = presentationControl.get('unitMeasure');
+            unitMeasureControl?.setValue(this.getUnitMeasureBySaleType());
+            unitMeasureControl?.updateValueAndValidity();
+            unitMeasureControl?.markAsTouched();
+        });
+    }
+  }
+
+  getUnitMeasureBySaleType(): UnitMeasure | '' {
+    const saleType = this.productoForm.get('saleType')?.value;
+    switch (saleType) {
+      case ESaleType.WEIGHT:
+        return UnitMeasure.KILOGRAMOS;
+      case ESaleType.UNIT:
+        return UnitMeasure.UNIDAD;
+      case ESaleType.LONGITUDE:
+        return UnitMeasure.CENTIMETROS;
+      case ESaleType.VOLUME:
+        return UnitMeasure.LITROS;
+      default:
+        return '';
+    }
   }
 }
