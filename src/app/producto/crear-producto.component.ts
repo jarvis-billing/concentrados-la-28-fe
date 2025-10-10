@@ -1,13 +1,15 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, AfterViewInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, FormArray } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { toast } from 'ngx-sonner';
 import { ProductoService } from './producto.service';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { ESaleType, EVatType, SaleTypeLabels, UnitMeasure, UnitMeasureLabels } from './producto';
+import { ESaleType, EVatType, SaleTypeLabels, UnitMeasure, UnitMeasureLabels, DisplayStock } from './producto';
 import { CatalogService } from './catalog.service';
 import { CurrencyFormatDirective } from '../directive/currency-format.directive';
+import { combineLatest } from 'rxjs';
+import { take } from 'rxjs/operators';
 
 
 @Component({
@@ -17,10 +19,12 @@ import { CurrencyFormatDirective } from '../directive/currency-format.directive'
   templateUrl: './crear-producto.component.html',
   styleUrls: ['./crear-producto.component.css']
 })
-export class CrearProductoComponent implements OnInit {
+export class CrearProductoComponent implements OnInit, AfterViewInit {
   productoForm: FormGroup;
   isEditMode = false;
   idProducto?: string;
+  // Stock legible del backend (packs/rollos) cuando estamos en modo edición
+  loadedDisplayStock?: DisplayStock;
 
   saleTypes = Object.values(ESaleType);
   vatTypes = Object.values(EVatType);
@@ -32,7 +36,14 @@ export class CrearProductoComponent implements OnInit {
   categories$ = this.catalogService.categories$;
   brands$ = this.catalogService.brands$;
 
+  // Listas locales para asegurar que se muestre el valor seleccionado
+  categoriesList: string[] = [];
+  brandsList: string[] = [];
+
   productCode$ = this.productoService.productCode$;
+
+  // Control de ayuda/tooltip por presentación (índices abiertos)
+  private saleModeInfoOpen = new Set<number>();
 
   constructor(
     private fb: FormBuilder,
@@ -57,18 +68,112 @@ export class CrearProductoComponent implements OnInit {
     });
   }
 
+  // Toma el mayor barcode (numérico) entre las presentaciones del formulario y devuelve el siguiente, preservando el padding
+  private getNextBarcodeSeed(): string | null {
+    try {
+      const values: string[] = (this.presentations?.controls || [])
+        .map(c => (c.get('barcode')?.value ?? '').toString().trim())
+        .filter(v => v.length > 0);
+      if (!values.length) return null;
+      // Preferir el último no vacío, si hay varios
+      const last = values[values.length - 1];
+      // Si es numérico, incrementar preservando padding
+      if (/^\d+$/.test(last)) {
+        const width = last.length;
+        const nextNum = (BigInt(last) + 1n).toString();
+        return nextNum.padStart(width, '0');
+      }
+      // Si no es numérico, intentar encontrar el mayor numérico en la lista
+      const numerics = values.filter(v => /^\d+$/.test(v)).map(v => BigInt(v));
+      if (numerics.length) {
+        const max = numerics.reduce((a, b) => (a > b ? a : b));
+        const width = values.find(v => v === max.toString())?.length ?? max.toString().length;
+        const nextNum = (max + 1n).toString();
+        return nextNum.padStart(width, '0');
+      }
+      // Fallback: no numérico; intentar añadir sufijo incremental
+      const base = last.replace(/\d+$/, '');
+      const match = last.match(/(\d+)$/);
+      if (match) {
+        const width = match[1].length;
+        const nextNum = (parseInt(match[1], 10) + 1).toString().padStart(width, '0');
+        return base + nextNum;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  ngAfterViewInit(): void {
+    this.initTooltips();
+  }
+
+  private initTooltips() {
+    try {
+      const tooltipTriggerList = Array.from(document.querySelectorAll('[data-bs-toggle="tooltip"]')) as HTMLElement[];
+      tooltipTriggerList.forEach((el) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const Tip = (window as any)?.bootstrap?.Tooltip;
+        if (Tip) new Tip(el);
+      });
+    } catch {
+      // noop si bootstrap no está disponible aún
+    }
+  }
+
+  // Devuelve los modos ya usados por otras presentaciones (excluye NORMAL)
+  getUsedSaleModes(): Set<string> {
+    const used = new Set<string>();
+    this.presentations.controls.forEach((ctrl) => {
+      const mode = (ctrl.get('saleMode')?.value || '') as string;
+      if (mode && mode !== 'NORMAL') used.add(mode);
+    });
+    return used;
+  }
+
+  // Indica si un modo está disponible para la presentación i (permite mantener el modo ya seleccionado en i)
+  isModeAvailable(mode: 'BULK'|'FIXED_HALF'|'FIXED_FULL'|'NORMAL', i: number): boolean {
+    if (mode === 'NORMAL') return true;
+    const ctrl = this.presentations.at(i);
+    const current = ctrl.get('saleMode')?.value as string | null;
+    const used = this.getUsedSaleModes();
+    if (!used.has(mode)) return true;
+    return current === mode; // disponible si es el que ya tiene seleccionado
+  }
+
+  // Toggle del texto de ayuda por presentación
+  toggleSaleModeInfo(i: number) {
+    if (this.saleModeInfoOpen.has(i)) this.saleModeInfoOpen.delete(i); else this.saleModeInfoOpen.add(i);
+  }
+  isSaleModeInfoOpen(i: number): boolean { return this.saleModeInfoOpen.has(i); }
+
   ngOnInit(): void {
+    // Mantener listas locales sincronizadas con catálogos
+    this.categories$.subscribe(cats => this.categoriesList = [...(cats || [])]);
+    this.brands$.subscribe(br => this.brandsList = [...(br || [])]);
+
     this.route.paramMap.subscribe(params => {
-      const id = params.get('id');
-      if (id) {
+      const barcode = params.get('barcode');
+      if (barcode) {
+        this.isEditMode = true;
+        this.idProducto = barcode;
+        this.loadProduct(barcode);
+      }
+    });
+
+    // Fallback: si no viene barcode, intentar con query param 'id'
+    this.route.queryParamMap.subscribe(qp => {
+      const id = qp.get('id');
+      if (id && !this.isEditMode) {
         this.isEditMode = true;
         this.idProducto = id;
-        this.loadProduct(id);
+        this.loadProductById(id);
       }
     });
 
     this.productoService.productCode$.subscribe(code => {
-      if (code) {
+      if (code && !this.isEditMode) {
         this.productoForm.patchValue({ productCode: code });
       }
     });
@@ -90,29 +195,129 @@ export class CrearProductoComponent implements OnInit {
 
   addPresentation(presentation?: any) {
     if (!this.isValidBasicData()) {
-      toast.warning('Complete los datos básicos del producto antes de agregar una presentación.');
+      toast.warning('Por favor, complete los datos básicos del producto antes de agregar una presentación.');
       return;
     }
 
     if (this.presentations.length > 0) {
       let lastPresentation = this.presentations.at(this.presentations.length - 1);
       if (lastPresentation.invalid) {
-        toast.warning('Complete la presentación antes de agregar una nueva.');
+        toast.warning('Por favor, complete la presentación antes de agregar una nueva.');
         return;
       }
     }
-    this.presentations.push(this.fb.group({
+    const group = this.fb.group({
       barcode: [presentation?.barcode || '', Validators.required],
       productCode: [presentation?.productCode || ''],
       label: [presentation?.label || '', Validators.required],
       salePrice: [presentation?.salePrice || 0, [Validators.required, Validators.min(0)]],
       costPrice: [presentation?.costPrice || 0, [Validators.required, Validators.min(0)]],
       unitMeasure: [presentation?.unitMeasure || '', Validators.required],
-      conversionFactor: [presentation?.conversionFactor || 1, [Validators.min(0.01)]]
-    }));
-    
+      // Nuevos flags explícitos por presentación
+      isBulk: [presentation?.isBulk ?? false],
+      isFixedAmount: [presentation?.isFixedAmount ?? false],
+      fixedAmount: [presentation?.fixedAmount ?? null],
+      // Tamaño del bulto (peso fijo) para calcular medio bulto o bulto completo
+      packSize: [presentation?.fixedAmount ?? null],
+      // Control de modo para UI (NORMAL | BULK | FIXED_HALF | FIXED_FULL)
+      saleMode: [
+        presentation?.isBulk
+          ? 'BULK'
+          : (presentation?.isFixedAmount ? 'FIXED_FULL' : 'NORMAL')
+      ]
+    });
+
+    // Validación dinámica: fixedAmount requerido y > 0 cuando isFixedAmount = true
+    const isFixedCtrl = group.get('isFixedAmount');
+    const isBulkCtrl = group.get('isBulk');
+    const fixedCtrl = group.get('fixedAmount');
+    const packSizeCtrl = group.get('packSize');
+    const saleModeCtrl = group.get('saleMode');
+    const applyFixedValidators = (enabled: boolean) => {
+      if (!fixedCtrl) return;
+      if (enabled) {
+        fixedCtrl.setValidators([Validators.required, Validators.min(0.01)]);
+      } else {
+        fixedCtrl.clearValidators();
+        fixedCtrl.setValue(null);
+      }
+      fixedCtrl.updateValueAndValidity();
+    };
+    const applyPackSizeValidators = (enabled: boolean) => {
+      if (!packSizeCtrl) return;
+      if (enabled) {
+        packSizeCtrl.setValidators([Validators.required, Validators.min(0.01)]);
+      } else {
+        packSizeCtrl.clearValidators();
+        packSizeCtrl.setValue(null);
+      }
+      packSizeCtrl.updateValueAndValidity();
+    };
+    applyFixedValidators(!!isFixedCtrl?.value);
+    isFixedCtrl?.valueChanges.subscribe((val: boolean) => applyFixedValidators(!!val));
+
+    // Mantener flags sincronizados con saleMode (mutuamente excluyentes)
+    saleModeCtrl?.valueChanges.subscribe((mode: string | null) => {
+      if (!mode) {
+        // reset a NORMAL si llega nulo
+        isBulkCtrl?.setValue(false, { emitEvent: false });
+        isFixedCtrl?.setValue(false, { emitEvent: false });
+        applyFixedValidators(false);
+        applyPackSizeValidators(false);
+        return;
+      }
+      switch (mode) {
+        case 'BULK':
+          isBulkCtrl?.setValue(true, { emitEvent: false });
+          isFixedCtrl?.setValue(false, { emitEvent: false });
+          applyFixedValidators(false);
+          applyPackSizeValidators(false);
+          // Reset explícito de campos de pack
+          packSizeCtrl?.setValue(null, { emitEvent: false });
+          fixedCtrl?.setValue(null, { emitEvent: false });
+          break;
+        case 'FIXED_HALF':
+        case 'FIXED_FULL':
+          isBulkCtrl?.setValue(false, { emitEvent: false });
+          isFixedCtrl?.setValue(true, { emitEvent: false });
+          applyFixedValidators(true);
+          applyPackSizeValidators(true);
+          // Derivar fixedAmount desde packSize
+          const size = Number(packSizeCtrl?.value) || 0;
+          if (size > 0) {
+            const amount = mode === 'FIXED_FULL' ? size : size / 2;
+            fixedCtrl?.setValue(amount, { emitEvent: false });
+          } else {
+            fixedCtrl?.setValue(null, { emitEvent: false });
+          }
+          break;
+        default: // NORMAL
+          isBulkCtrl?.setValue(false, { emitEvent: false });
+          isFixedCtrl?.setValue(false, { emitEvent: false });
+          applyFixedValidators(false);
+          applyPackSizeValidators(false);
+          // Reset explícito de campos de pack
+          packSizeCtrl?.setValue(null, { emitEvent: false });
+          fixedCtrl?.setValue(null, { emitEvent: false });
+      }
+    });
+
+    // Si cambia packSize con modo fijo seleccionado, recalcular fixedAmount
+    packSizeCtrl?.valueChanges.subscribe((val) => {
+      const mode = saleModeCtrl?.value as string | null;
+      const size = Number(val) || 0;
+      if (mode === 'FIXED_FULL' || mode === 'FIXED_HALF') {
+        const amount = size > 0 ? (mode === 'FIXED_FULL' ? size : size / 2) : null;
+        fixedCtrl?.setValue(amount, { emitEvent: false });
+      }
+    });
+
+    this.presentations.push(group);
+    // Re-inicializar tooltips porque el DOM cambió
+    setTimeout(() => this.initTooltips());
+
     const saleType = this.productoForm.get('saleType')?.value;
-    
+
     if (saleType === ESaleType.WEIGHT && this.presentations.length >= 1) {
       this.presentations.at(this.presentations.length - 1).get('unitMeasure')?.setValue(UnitMeasure.KILOGRAMOS);
     }
@@ -120,31 +325,87 @@ export class CrearProductoComponent implements OnInit {
 
   removePresentation(index: number) {
     this.presentations.removeAt(index);
+    setTimeout(() => this.initTooltips());
   }
 
   loadProduct(id: string) {
     this.productoService.getProductByBarcode(id).subscribe({
-      next: (product) => {
-        this.productoForm.patchValue({
-          description: product.description,
-          saleType: product.saleType,
-          brand: product.brand,
-          category: product.category,
-          productCode: product.productCode,
-          vatValue: product.vatValue,
-          vatType: product.vatType,
-          stock: product.stock
-        });
-        this.presentations.clear();
-        product.presentations.forEach((p: any) => this.addPresentation(p));
-      },
+      next: (product) => this.patchProductWhenCatalogsReady(product),
       error: () => toast.error('No se pudo cargar el producto')
+    });
+  }
+
+  loadProductById(id: string) {
+    this.productoService.get(id).subscribe({
+      error: () => toast.error('No se pudo cargar el producto por ID')
+    });
+  }
+
+  private  patchProductWhenCatalogsReady(product: any) {
+    combineLatest([this.categories$, this.brands$]).pipe(take(1)).subscribe(([cats, brands]) => {
+      // Asegurar que existan opciones para la categoría y marca actual (evita que el select quede en blanco)
+      const category = product.category;
+      const brand = product.brand;
+      const catsSafe = Array.isArray(cats) ? cats : [];
+      const brandsSafe = Array.isArray(brands) ? brands : [];
+      this.categoriesList = category && !catsSafe.includes(category) ? [...catsSafe, category] : [...catsSafe];
+      this.brandsList = brand && !brandsSafe.includes(brand) ? [...brandsSafe, brand] : [...brandsSafe];
+
+      this.productoForm.patchValue({
+        description: product.description,
+        saleType: product.saleType,
+        brand: product.brand,
+        category: product.category,
+        productCode: product.productCode,
+        vatValue: product.vatValue,
+        vatType: product.vatType,
+        stock: product.stock
+      });
+      // Guardar displayStock para mostrar badge informativo en la UI
+      this.loadedDisplayStock = product?.displayStock;
+      this.presentations.clear();
+      (product.presentations || []).forEach((p: any) => this.addPresentation(p));
+      // Ajustar saleMode y packSize en base a los fixedAmount existentes
+      this.normalizeFixedModesFromForm();
+    });
+  }
+
+  // Deduce saleMode (FIXED_FULL / FIXED_HALF) y packSize a partir de los fixedAmount ya guardados
+  private normalizeFixedModesFromForm() {
+    const ctrls = this.presentations.controls;
+    if (!ctrls?.length) return;
+    const fixedValues = ctrls
+      .map(c => Number(c.get('fixedAmount')?.value) || 0)
+      .filter(v => v > 0);
+    if (!fixedValues.length) return;
+    const max = Math.max(...fixedValues);
+    const eps = 1e-6;
+    ctrls.forEach(c => {
+      const isFixed = !!c.get('isFixedAmount')?.value;
+      const amt = Number(c.get('fixedAmount')?.value) || 0;
+      if (!isFixed || amt <= 0) {
+        // Mantener BULK o estado actual si no es fijo
+        return;
+      }
+      if (Math.abs(amt - max) <= eps) {
+        // Bulto completo: packSize es el tamaño completo
+        c.get('saleMode')?.setValue('FIXED_FULL');
+        c.get('packSize')?.setValue(max, { emitEvent: false });
+      } else if (Math.abs(amt - (max / 2)) <= eps) {
+        // Medio bulto: packSize es el doble del fixedAmount
+        c.get('saleMode')?.setValue('FIXED_HALF');
+        c.get('packSize')?.setValue(max, { emitEvent: false });
+      } else {
+        // Desconocido: asumir FULL con pack=amt
+        c.get('saleMode')?.setValue('FIXED_FULL');
+        c.get('packSize')?.setValue(amt, { emitEvent: false });
+      }
     });
   }
 
   submit() {
     if (this.productoForm.invalid) {
-      toast.error('Formulario inválido');
+      toast.warning('Por favor, diligencia los datos basicos y agrega minimo una presentación.');
       return;
     }
     const productData = this.productoForm.value;
@@ -152,8 +413,12 @@ export class CrearProductoComponent implements OnInit {
       ...presentation,
       productCode: this.productoForm.value.productCode,
       label: presentation.label.trim().toUpperCase(),
-      salePrice: Number(presentation.salePrice.toString()),
-      costPrice: Number(presentation.costPrice.toString()),
+      salePrice: Number(presentation.salePrice),
+      costPrice: Number(presentation.costPrice),
+      // Enviar flags explícitos
+      isBulk: !!presentation.isBulk,
+      isFixedAmount: !!presentation.isFixedAmount,
+      fixedAmount: presentation.isFixedAmount ? Number(presentation.fixedAmount) : null,
     }));
 
     if (this.isEditMode && this.idProducto) {
@@ -180,46 +445,27 @@ export class CrearProductoComponent implements OnInit {
   }
 
   generateBarcode(index: number): void {
-    if (index === 0) {
-      const currentBarcode = this.presentations.at(index).get('barcode')?.value || '';
-      const newBarcode = currentBarcode.trim() === '' ? undefined : currentBarcode.trim();
-      if (currentBarcode.trim() === '') {
-        this.productoService.getValidatedOrGenerateBarcode(newBarcode).subscribe({
-          next: (validatedBarcode) => {
-            this.presentations.at(index).get('barcode')?.setValue(validatedBarcode);
-            toast.success('Código de barras generado: ' + validatedBarcode);
-          },
-          error: (err) => {
-            toast.error('Error al generar el código de barras: ' + err.message);
-            this.presentations.at(index).get('barcode')?.setValue('');
-          }
-        });
-      }
-    } else {
-      let currentBarcode = this.presentations.at(index - 1).get('barcode')?.value || '';
-      let newBarcode = parseInt(currentBarcode) + 1;
-      this.presentations.at(index).get('barcode')?.setValue(newBarcode.toString());
-    }
-  }
+    const presentationControl = this.presentations.at(index);
+    const currentBarcodeRaw = presentationControl.get('barcode')?.value || '';
+    const trimmed = currentBarcodeRaw.toString().trim();
+    // Si está vacío, intentar sembrar a partir del último barcode en el formulario
+    const candidate = trimmed === '' ? (this.getNextBarcodeSeed() || undefined) : trimmed;
 
-  addCategory(newCategory: string) {
-    if (newCategory.trim() === '' || newCategory.trim().length < 3) {
-      toast.error('Ingrese un nombre válido para la categoría');
-      return;
-    }
-
-    this.catalogService.addCategory(newCategory).subscribe({
-      next: () => toast.success('Categoría agregada correctamente'),
-      error: (error) => {
-        console.error(error);
-        toast.error('Error al agregar la categoría')
+    this.productoService.getValidatedOrGenerateBarcode(candidate).subscribe({
+      next: (validatedBarcode: string) => {
+        presentationControl.get('barcode')?.setValue(validatedBarcode);
+        toast.success('Código de barras listo: ' + validatedBarcode);
+      },
+      error: (err: any) => {
+        toast.error('Error al validar/generar el código de barras: ' + (err?.message || err));
+        presentationControl.get('barcode')?.setValue('');
       }
     });
   }
 
   addBrand(newBrand: string) {
     if (newBrand.trim() === '' || newBrand.trim().length < 3) {
-      toast.error('Ingrese un nombre válido para la marca');
+      toast.warning('Por favor, ingrese un nombre válido para la marca');
       return;
     }
 
@@ -232,20 +478,35 @@ export class CrearProductoComponent implements OnInit {
     });
   }
 
-onSaleTypeChange(event: any) {
+  addCategory(newCategory: string) {
+    if (newCategory.trim() === '' || newCategory.trim().length < 3) {
+      toast.warning('Por favor, ingrese un nombre válido para la categoría');
+      return;
+    }
+
+    this.catalogService.addCategory(newCategory).subscribe({
+      next: () => toast.success('Categoría agregada correctamente'),
+      error: (error) => {
+        console.error(error);
+        toast.error('Error al agregar la categoría')
+      }
+    });
+  }
+
+  onSaleTypeChange(event: any) {
     const stockUnitMeasureControl = this.productoForm.get('stock.unitMeasure');
     stockUnitMeasureControl?.setValue(this.getUnitMeasureBySaleType());
     stockUnitMeasureControl?.updateValueAndValidity();
     stockUnitMeasureControl?.markAsTouched();
 
-      // Actualizar las presentaciones existentes
+    // Actualizar las presentaciones existentes
     if (this.presentations.length > 0) {
-        this.presentations.controls.forEach((presentationControl, index) => {
-            const unitMeasureControl = presentationControl.get('unitMeasure');
-            unitMeasureControl?.setValue(this.getUnitMeasureBySaleType());
-            unitMeasureControl?.updateValueAndValidity();
-            unitMeasureControl?.markAsTouched();
-        });
+      this.presentations.controls.forEach((presentationControl, index) => {
+        const unitMeasureControl = presentationControl.get('unitMeasure');
+        unitMeasureControl?.setValue(this.getUnitMeasureBySaleType());
+        unitMeasureControl?.updateValueAndValidity();
+        unitMeasureControl?.markAsTouched();
+      });
     }
   }
 

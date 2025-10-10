@@ -14,6 +14,15 @@ export class Product {
     amount: number = 0;
     price: number = 0;
     barcode: string = "";
+    // Set at runtime when the chosen presentation is bulk ("granel")
+    isBulk?: boolean;
+    // Unit measure of the selected presentation (for display/calculations)
+    selectedUnitMeasure?: UnitMeasure;
+    // Fixed amount flag for pack-sized presentations (e.g., bulto/medio bulto)
+    hasFixedAmount?: boolean;
+    fixedAmount?: number;
+    // Backend-computed stock presentation (packs/rollos + remainder)
+    displayStock?: DisplayStock;
 }
 
 export class Presentation {
@@ -23,7 +32,10 @@ export class Presentation {
     salePrice: number = 0;
     costPrice: number = 0;
     unitMeasure: UnitMeasure = UnitMeasure.UNIDAD;
-    conversionFactor: number = 1;
+    // Explicit flags to define behavior (flexible, scalable)
+    isBulk?: boolean;            // true when this presentation is sold in bulk (granel)
+    isFixedAmount?: boolean;     // true when this presentation has a fixed amount (e.g., bulto)
+    fixedAmount?: number;        // the fixed amount (e.g., 40 kg for bulto, 20 kg for medio bulto)
 }
 
 export class Stock {
@@ -34,7 +46,7 @@ export class Stock {
 export enum ESaleType {
     WEIGHT = 'WEIGHT',
     UNIT = 'UNIT',
-    LONGITUDE = 'LONGITUD',
+    LONGITUDE = 'LONGITUDE',
     VOLUME = 'VOLUME',
     OTHER = 'OTHER'
 }
@@ -85,4 +97,15 @@ export const SaleTypeLabels: { [key in ESaleType]: string } = {
 
 export interface ProductCodeResponse {
   value: string;
+}
+
+// Backend-computed stock presentation helper
+export interface DisplayStock {
+  kind: 'WEIGHT' | 'LONGITUDE' | null;
+  packSize: number | null;
+  packs: number | null;
+  remainder: number | null;
+  unit: string;
+  label: string;       // e.g., "12 bultos + 8 kg" or fallback "248 kg"
+  computedAt?: string; // ISO timestamp
 }

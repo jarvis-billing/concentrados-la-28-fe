@@ -1,9 +1,9 @@
-import { AfterViewInit, Component, ElementRef, HostListener, inject, Input, OnInit, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, HostListener, ViewChild, inject, Input, OnInit } from '@angular/core';
 import { Client } from '../cliente/cliente';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { toast } from 'ngx-sonner';
-import { CurrencyPipe, DatePipe, } from '@angular/common';
-import { EVatType, Product } from '../producto/producto';
+import { CurrencyPipe, DatePipe, CommonModule } from '@angular/common';
+import { EVatType, ESaleType, Product } from '../producto/producto';
 import { FacturaService } from './factura.service';
 import { Billing } from './billing';
 import { ClienteService } from '../cliente/cliente.service';
@@ -16,43 +16,44 @@ import { CurrencyFormatDirective } from '../directive/currency-format.directive'
 import { StorageService } from '../services/localStorage.service';
 import { LoginUserService } from '../auth/login/loginUser.service';
 import { Company } from './company';
+import { ProductsSearchModalComponent } from '../producto/components/products-search-modal/products-search-modal.component';
 
 @Component({
   selector: 'app-factura',
   standalone: true,
   imports: [ReactiveFormsModule,
+    CommonModule,
     DatePipe,
     CurrencyPipe,
-    CurrencyFormatDirective],
+    CurrencyFormatDirective,
+    ProductsSearchModalComponent],
   templateUrl: './factura.component.html',
   styleUrl: './factura.component.css'
 })
 export class FacturaComponent implements OnInit, AfterViewInit {
-
-  @ViewChild('productsModal', { static: false }) productsModalRef!: ElementRef;
   @ViewChild('productsAmountModal', { static: false }) productsAmountModalRef!: ElementRef;
   @ViewChild('amountProductInput', { static: false }) amountProductInput!: ElementRef<HTMLInputElement>;
-  @ViewChild('searchProductInput', { static: false }) searchProductInput!: ElementRef<HTMLInputElement>;
+  @ViewChild(ProductsSearchModalComponent, { static: false }) productsSearchModalComp!: ProductsSearchModalComponent;
 
   ngAfterViewInit() {
     // Configuración para el modal "Cantidad a vender"
     this.setFocusOnModal('productsAmountModal', this.amountProductInput);
-
-    // Configuración para el modal "Buscar producto"
-    this.setFocusOnModal('productsModal', this.searchProductInput);
   }
 
+  // Handler al seleccionar una presentación desde el modal hijo
+  onPresentationSelected(mappedProduct: Product) {
+    this.ProductToSell(mappedProduct);
+    // Abrir modal para ingresar cantidad (packs o unidades) o total en caso de granel
+    setTimeout(() => {
+      this.openProductsAmountModal();
+    }, 300);
+  }
+
+  // Selección de presentación viene del modal hijo vía onPresentationSelected
+
   ngOnInit(): void {
-    this.productService.productos$.subscribe(productos => {
-      this.completeProductsList = productos;
-    });
-
-    this.productService.fetchAll();
     this.getClients();
-    this.getAllProductsPage();
-    this.getAllProducts();
     this.onInitBilling();
-
   }
 
   client!: Client;
@@ -67,27 +68,22 @@ export class FacturaComponent implements OnInit, AfterViewInit {
   loginUserService = inject(LoginUserService);
 
   saleDetails: SaleDetail[] = [];
+  // Vista previa en modo granel/peso
+  bulkComputedAmount: number = 0;
 
   originalListClients: Client[] = [];
   filteredListClients: Client[] = [];
 
-  originalListProducts: Product[] = [];
-  filteredListProducts: Product[] = [];
-  completeProductsList: Product[] = [];
-  selectedProducts: Product[] = [];
+  // Listado y búsqueda de productos ahora es responsabilidad del componente hijo
   productToSell: Product = new Product();
-
-  productMatch: Boolean = false;
-  paginaActual: number = 1;
-  elementosPorPagina: number = 10;
-  totalElementos: number = 0;
-  totalPaginas: number = 0;
 
   totalBilling: number = 0;
   totalVatBilling: number = 0;
   totalMoneyChange: number = 0;
   totalRecivedValue: number = 0;
   paymentMethod: string = 'EFECTIVO';
+  // Tipo de venta: CONTADO o CREDITO
+  paymentType: 'CONTADO' | 'CREDITO' = 'CONTADO';
 
   reciveValue = new FormControl('');
 
@@ -101,9 +97,7 @@ export class FacturaComponent implements OnInit, AfterViewInit {
     searchClient: new FormControl('')
   });
 
-  formProduct = new FormGroup({
-    searchProduct: new FormControl('')
-  });
+  // Formulario de búsqueda de productos eliminado (lo maneja el hijo)
 
   formProductAmount = new FormGroup({
     amountProduct: new FormControl('')
@@ -121,6 +115,40 @@ export class FacturaComponent implements OnInit, AfterViewInit {
     }
   }
 
+  // Cambia tipo de venta (contado/crédito)
+  setPaymentType(type: 'CONTADO' | 'CREDITO') {
+    this.paymentType = type;
+    if (type === 'CREDITO') {
+      // En crédito no exigimos dinero recibido y no hay vueltas
+      this.reciveValue.setValue('');
+      this.totalRecivedValue = 0;
+      this.totalMoneyChange = 0;
+      // No permitir "consumidor final" para crédito
+      if (this.client && this.isConsumidorFinal(this.client)) {
+        toast.warning('Para ventas a CRÉDITO debe seleccionar un cliente distinto a "Consumidor Final".');
+        this.client = new Client();
+      }
+    } else {
+      // En contado, restablecer
+      this.reciveValue.setValue('');
+      this.totalRecivedValue = 0;
+      this.totalMoneyChange = 0;
+    }
+  }
+
+  // Heurística para identificar consumidor final. Ajustar según sus datos.
+  private isConsumidorFinal(client: Client): boolean {
+    // Detección por documento (fuente de verdad)
+    const id = (client?.idNumber || '').trim();
+    if (id === '22222222222') return true;
+
+    // Fallback por nombre/razón social/apodo
+    const name = `${(client?.name || '').trim()} ${(client?.surname || '').trim()}`.trim().toUpperCase();
+    const business = (client?.businessName || '').trim().toUpperCase();
+    const nick = (client?.nickname || '').trim().toUpperCase();
+    return name === 'CONSUMIDOR FINAL' || business === 'CONSUMIDOR FINAL' || nick === 'CONSUMIDOR FINAL';
+  }
+
   ProductToSell(product: Product) {
     this.productToSell = product;
   }
@@ -136,26 +164,46 @@ export class FacturaComponent implements OnInit, AfterViewInit {
 
 
   addAmountProduct() {
-    const amountProduct = this.formProductAmount.controls.amountProduct.value ?? '';
+    const rawInput = (this.formProductAmount.controls.amountProduct.value ?? '').toString().trim();
 
-    if (isNaN(Number(amountProduct))) {
-      toast.warning('El valor ingresado debe ser numérico.');
+    if (rawInput === '') {
+      toast.warning('Debe ingresar un valor.');
       return;
     }
 
-    let amount = parseInt(amountProduct);
+    const numeric = Number(rawInput.replace(/,/g, '.'));
+    if (isNaN(numeric) || numeric <= 0) {
+      toast.warning('El valor ingresado debe ser numérico y mayor a 0.');
+      return;
+    }
 
-    if (amount > 0) {
-      this.productToSell.amount = amount;
+    // Si es granel, el usuario ingresa el TOTAL vendido (dinero) y calculamos la cantidad
+    let resolvedAmount = 0;
+    if (this.productToSell?.isBulk) {
+      const unitPrice = Number(this.productToSell.price) || 0;
+      if (unitPrice <= 0) {
+        toast.error('Precio unitario inválido para calcular cantidad por granel.');
+        return;
+      }
+      const totalMoney = numeric;
+      resolvedAmount = +(totalMoney / unitPrice).toFixed(1); // 2 decimales para claridad
+    } else {
+      // Caso normal: el usuario ingresa la CANTIDAD
+      resolvedAmount = numeric;
+    }
+
+    if (resolvedAmount > 0) {
+      this.productToSell.amount = resolvedAmount;
+      // Actualizar si ya existe en el detalle
       this.saleDetails.map(detail => {
         if (detail.product.barcode === this.productToSell.barcode) {
-          detail.amount = amount;
+          detail.amount = resolvedAmount;
         }
       });
       this.addProduct(this.productToSell);
       this.clearProductAmountField();
     } else {
-      toast.warning('La cantidad debe ser mayor a 0.');
+      toast.warning('La cantidad calculada debe ser mayor a 0.');
     }
 
     this.closeProductAmountModal();
@@ -163,6 +211,7 @@ export class FacturaComponent implements OnInit, AfterViewInit {
 
   clearProductAmountField() {
     this.formProductAmount.reset();
+    this.bulkComputedAmount = 0;
     const prodductAmountModal = document.getElementById('productsAmountModal');
     (prodductAmountModal?.getElementsByClassName('btn-close').item(0) as HTMLElement)?.click();
   }
@@ -246,13 +295,21 @@ export class FacturaComponent implements OnInit, AfterViewInit {
   }
 
   isValidBillingData() {
-    if (this.totalRecivedValue < this.totalBilling) {
-      toast.warning('El dinero recibido debe ser mayor o igual al SubTotal.');
+    // Validación de dinero recibido solo aplica para CONTADO
+    if (this.paymentType === 'CONTADO' && this.totalRecivedValue < this.totalBilling) {
+      toast.warning('En ventas de CONTADO, el dinero recibido debe ser mayor o igual al total.');
       return;
     }
 
+    // Validación de cliente
     if (!this.client || !this.client.id) {
       toast.warning('Por favor selecciona un cliente.');
+      return;
+    }
+
+    // Para crédito no se permite "consumidor final"
+    if (this.paymentType === 'CREDITO' && this.isConsumidorFinal(this.client)) {
+      toast.warning('Para ventas a CRÉDITO debe seleccionar un cliente distinto a "Consumidor Final".');
       return;
     }
 
@@ -303,21 +360,7 @@ export class FacturaComponent implements OnInit, AfterViewInit {
     this.filteredListClients = [...this.originalListClients];
   }
 
-  getAllProducts() {
-    this.productService.getAll().subscribe({
-      next: res => {
-        this.completeProductsList = res;
-      },
-      error: error => {
-        if (error.error) {
-          toast.error(error.error);
-        } else {
-          toast.error('Ocurrió un error al buscar los productos');
-        }
-      }
-    });
-
-  }
+  // Eliminado: getAllProducts (lo maneja el hijo)
 
   orderSelect(order: Order) {
     this.facturaService.importOrdenToSale(order.orderNumber).subscribe({
@@ -336,69 +379,19 @@ export class FacturaComponent implements OnInit, AfterViewInit {
     });
   }
 
-  getAllProductsPage() {
-    this.productService.getAllPage(this.paginaActual - 1, this.elementosPorPagina).subscribe(product => {
-      this.originalListProducts = product.content;
-      this.totalElementos = product.totalElements;
-      this.totalPaginas = product.quantityPage;
-      this.filteredListProducts = [...this.originalListProducts];
-    });
-  }
+  // Eliminado: paginación de productos (lo maneja el hijo)
 
-  changePage(pagina: number) {
-    if (pagina >= 1 && pagina <= this.totalPaginas) {
-      this.paginaActual = pagina;
-      this.getAllProductsPage();
-    }
-  }
-
-  searchProduct() {
-    const searchProduct = this.formProduct.controls.searchProduct.value?.toLowerCase() ?? '';
-
-    if (searchProduct.length < 3) {
-      toast.warning('El criterio de búsqueda debe tener al menos 3 caracteres.');
-      return;
-    }
-
-    this.filteredListProducts = this.completeProductsList.filter(product => {
-      try {
-        return (
-          product.barcode?.toLowerCase().includes(searchProduct) ||
-          product.description?.toLowerCase().includes(searchProduct)
-        );
-      } catch (err) {
-        console.error("❌ Error con producto:", product, err);
-        return false;
-      }
-    });
-
-
-    this.productMatch = true;
-
-    if (this.filteredListProducts.length === 0) {
-      toast.info('No se encontró ningún producto con ese criterio');
-      return;
-    }
-
-    if (this.filteredListProducts.length === 1) {
-      this.ProductToSell(this.filteredListProducts[0]);
-      this.closeProductModal();
-      setTimeout(() => {
-        this.openProductsAmountModal();
-      }, 300);
-    }
-  }
-
-  clearProductSearchField() {
-    this.formProduct.reset();
-    this.filteredListProducts = [...this.originalListProducts];
-    this.productMatch = false;
-  }
+  // Eliminado: búsqueda de productos (lo maneja el hijo)
 
   // Ends of product logic
 
   // Handle selected client
   selectClient(client: Client) {
+    // Evitar seleccionar consumidor final cuando el tipo de venta es CRÉDITO
+    if (this.paymentType === 'CREDITO' && this.isConsumidorFinal(client)) {
+      toast.warning('No se puede seleccionar "Consumidor Final" para ventas a CRÉDITO.');
+      return;
+    }
     this.client = client;
   }
 
@@ -580,25 +573,7 @@ export class FacturaComponent implements OnInit, AfterViewInit {
   }
 
   openProductsModal() {
-    const modalEl = this.productsModalRef?.nativeElement;
-    if (modalEl) {
-      const modal = new (window as any).bootstrap.Modal(modalEl);
-      modal.show();
-
-      this.productService.productos$.subscribe(productos => {
-        this.filteredListProducts = productos;
-      });
-
-
-      this.filteredListProducts = [...this.originalListProducts];
-      this.productMatch = false;
-      this.formProduct.get('searchProduct')?.reset();
-
-      setTimeout(() => {
-        this.searchProductInput?.nativeElement.focus();
-        this.searchProductInput?.nativeElement.select();
-      }, 300);
-    }
+    this.productsSearchModalComp?.openModal();
   }
 
   returnToProductsModal() {
@@ -611,6 +586,8 @@ export class FacturaComponent implements OnInit, AfterViewInit {
   openProductsAmountModal() {
     const modalEl = this.productsAmountModalRef?.nativeElement;
     if (modalEl) {
+      // Resetear vista previa antes de abrir
+      this.bulkComputedAmount = 0;
       const modal = new (window as any).bootstrap.Modal(modalEl);
       modal.show();
 
@@ -629,8 +606,30 @@ export class FacturaComponent implements OnInit, AfterViewInit {
 
 
   closeProductModal() {
-    const modalEl = this.productsModalRef?.nativeElement;
-    const modalInstance = (window as any).bootstrap?.Modal.getInstance(modalEl);
-    modalInstance?.hide();
+    this.productsSearchModalComp?.closeModal();
+  }
+
+  // Handler para el input monetario en modo granel/peso
+  onBulkTotalInput(value: unknown) {
+    // Normalizar a número aunque venga formateado como string ("$ 5.000,00")
+    let numeric = NaN;
+    if (typeof value === 'number') {
+      numeric = value;
+    } else if (typeof value === 'string') {
+      const raw = value
+        .toString()
+        .replace(/[^\d.,-]/g, '')      // quitar símbolos
+        .replace(/\.(?=\d{3}(\D|$))/g, '') // quitar puntos de miles
+        .replace(',', '.');             // usar punto como decimal
+      numeric = Number(raw);
+    }
+
+    if (!isNaN(numeric)) {
+      this.formProductAmount.controls.amountProduct.setValue(numeric.toString());
+      const unitPrice = Number(this.productToSell?.price) || 0;
+      this.bulkComputedAmount = unitPrice > 0 ? +(numeric / unitPrice).toFixed(1) : 0; // 2 decimales en preview
+    } else {
+      this.bulkComputedAmount = 0;
+    }
   }
 }

@@ -26,14 +26,64 @@ export class ProductoService {
 
   private urlVatProduct: string = urlConfig.microservicioVatProductUrl();
 
+  // Cross-tab communication
+  private productsChannel?: BroadcastChannel;
+  private pollerId?: number;
 
-  constructor(private http: HttpClient) { this.fetchProductCode(); }
+  constructor(private http: HttpClient) {
+    this.fetchProductCode();
+    // Inicializar listeners cross-tab (BroadcastChannel + storage events)
+    try {
+      const anyWindow = window as any;
+      if (anyWindow && anyWindow.BroadcastChannel) {
+        const channel = new anyWindow.BroadcastChannel('products') as BroadcastChannel;
+        channel.onmessage = (ev: MessageEvent) => {
+          if (ev?.data === 'changed') {
+            this.fetchAll();
+          }
+        };
+        this.productsChannel = channel;
+      }
+      window.addEventListener('storage', (e: StorageEvent) => {
+        if (e.key === 'products:changed') {
+          this.fetchAll();
+        }
+      });
+    } catch {
+      // Noop en entornos sin window (SSR) o sin soporte
+    }
+  }
 
   // Inicializa o refresca la lista
   fetchAll(): void {
     this.http.get<Product[]>(this.url).subscribe(productos => {
       this.productosSubject.next(productos);
     });
+  }
+
+  // Polling entre máquinas: refresca periódicamente cuando la pestaña está visible
+  startPolling(intervalMs: number = 15000): void {
+    try {
+      this.stopPolling();
+      const tick = () => {
+        if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+          this.fetchAll();
+        }
+      };
+      tick();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      this.pollerId = (window as any).setInterval(tick, intervalMs);
+    } catch { /* noop */ }
+  }
+
+  stopPolling(): void {
+    try {
+      if (this.pollerId) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (window as any).clearInterval(this.pollerId);
+        this.pollerId = undefined;
+      }
+    } catch { /* noop */ }
   }
 
 
@@ -63,7 +113,7 @@ export class ProductoService {
 
   create(product: Product): Observable<Product> {
     return this.http.post<Product>(this.url, product).pipe(
-      tap(() => this.fetchAll()) // recarga el listado
+      tap(() => { this.fetchAll(); this.notifyExternalChange(); }) // recarga + notificar a otras pestañas
     );
   }
 
@@ -72,15 +122,21 @@ export class ProductoService {
   }
 
   update(product: Product, id?: string): Observable<Product> {
-    return this.http.put<Product>(`${this.url}/${id}`, product);
+    return this.http.put<Product>(`${this.url}/${id}`, product).pipe(
+      tap(() => { this.fetchAll(); this.notifyExternalChange(); }) // refrescar + notificar
+    );
   }
 
   updatePriceByIds(productPrice: ProductPrice): Observable<Product> {
-    return this.http.post<Product>(`${this.url}/updatePrice`, productPrice);
+    return this.http.post<Product>(`${this.url}/updatePrice`, productPrice).pipe(
+      tap(() => { this.fetchAll(); this.notifyExternalChange(); }) // refrescar + notificar
+    );
   }
 
   delete(id: string): Observable<Product> {
-    return this.http.delete<Product>(`${this.url}/${id}`);
+    return this.http.delete<Product>(`${this.url}/${id}`).pipe(
+      tap(() => { this.fetchAll(); this.notifyExternalChange(); }) // refrescar + notificar
+    );
   }
 
   getAllVatProduct(): Observable<Vat[]> {
@@ -112,5 +168,18 @@ export class ProductoService {
       next: (productCode) => this.productCodeSubject.next(productCode.value),
       error: (error) => toast.error('Error loading el codigo del producto:', error)
     });
+  }
+
+  // Notifica a otras pestañas/ventanas que hubo cambios en productos
+  private notifyExternalChange(): void {
+    try {
+      if (this.productsChannel) {
+        this.productsChannel.postMessage('changed');
+      }
+      // Disparar evento storage cross-tab
+      localStorage.setItem('products:changed', Date.now().toString());
+    } catch {
+      // Silenciar errores de entornos restringidos
+    }
   }
 }

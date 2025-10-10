@@ -1,79 +1,94 @@
-<div class="modal fade" id="productsModal" tabindex="-1" aria-labelledby="productsModalLabel" aria-hidden="true">
+<div class="modal fade" id="productsModal" #productsModal tabindex="-1" aria-labelledby="productsModalLabel" aria-hidden="true">
 
     <div class="modal-dialog modal-lg">
   
       <div class="modal-content">
   
         <div class="modal-header">
-  
           <h5 class="modal-title" id="productsModalLabel">Buscar producto</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" (click)="closeProductModal()"></button>
         </div>
   
         <div class="modal-body">
   
           <div class="w-100 overflow-auto">
-  
+            
             <form autocomplete="off" [formGroup]="formProduct" (ngSubmit)="searchProduct()" class="d-flex gap-2 mb-3">
               <input class="form-control" type="text" placeholder="Buscar por código o descripción" formControlName="searchProduct" #searchProductInput>
               <button class="btn btn-primary" type="submit">Buscar</button>
               <button class="btn btn-info" type="button" (click)="clearProductSearchField()">Limpiar</button>
             </form>
   
-            <table class="table text-center" style="vertical-align: middle;">
-  
-              <thead>
-                  <tr class="table-primary">
-                      <th scope="col">Código Barra</th>
-                      <th scope="col">Descripción</th>
-                      <th scope="col w-auto">Precio</th>
-                      <th scope="col">Tipo</th>
-                      <th scope="col"></th>
-                  </tr>
-              </thead>
-  
-              <tbody>
-  
-                @for (producto of filteredListProducts; track $index) {
-                <tr>
-                    <td>
-                        <span>{{producto.barcode}}</span>
-                    </td>
-  
-                    <td>
-                        <span>{{producto.description}}</span>
-                    </td>
-  
-                    <td>
-                        <span>{{producto.price | currency:'$ ':'symbol':'.0-0'}}</span>
-                    </td>
-  
-                    <td>
-                        <span>{{producto.saleType}}</span>
-                    </td>
-  
-                    <td>
-                      <button type="button" (click)="ProductToSell(producto)" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#productsAmountModal">
-                        Agregar
-                      </button>
-                    </td>
-  
-                </tr>
-                }
-  
-              </tbody>
-  
-            </table>
-  
-          </div>
-  
-          @if (!productMatch) {
-            <div class="text-center mt-4 d-flex align-items-center justify-content-center">
+            <div class="accordion" id="productsAccordion">
+              <div class="accordion-item" *ngFor="let producto of filteredListProducts; let i = index" [attr.id]="'product-' + producto.id" [class.highlight-pulse]="highlightProductId === producto.id">
+                <h2 class="accordion-header" [id]="'heading-' + i">
+                  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" [attr.data-bs-target]="'#collapse-' + i" aria-expanded="false" [attr.aria-controls]="'collapse-' + i">
+                    <div class="w-100 d-flex justify-content-between align-items-center">
+                      <div>
+                        <span class="fw-bold">{{ producto.description }}</span>
+                        <span class="text-muted ms-2">{{ producto.brand }} • {{ producto.category }}</span>
+                      </div>
+                      <div>
+                        <span *ngIf="producto.displayStock?.label; else baseStockA" class="badge bg-secondary"
+                          [attr.title]="producto.displayStock?.packSize ? ('Tamaño pack: ' + producto.displayStock?.packSize + ' ' + producto.displayStock?.unit) : null">
+                          Stock: {{ producto.displayStock?.label }}
+                        </span>
+                        <ng-template #baseStockModal>
+                          <span class="badge bg-secondary">Stock: {{ producto.stock?.quantity }} {{ producto.stock?.unitMeasure }}</span>
+                        </ng-template>
+                      </div>
+                    </div>
+                  </button>
+                </h2>
+                <div [id]="'collapse-' + i" class="accordion-collapse collapse" [attr.aria-labelledby]="'heading-' + i" data-bs-parent="#productsAccordion">
+                  <div class="accordion-body">
+                    <div class="table-responsive">
+                      <table class="table table-sm align-middle text-center">
+                        <thead class="table-light">
+                          <tr>
+                            <th>Código Barra</th>
+                            <th>Presentación</th>
+                            <th>Precio de Venta</th>
+                            <th>Modo de venta</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr *ngFor="let pres of producto.presentations; let pIndex = index">
+                            <td class="text-nowrap">{{ pres.barcode }}</td>
+                            <td class="text-start">{{ pres.label }}</td>
+                            <td class="text-nowrap">{{ pres.salePrice | currency:'$ ':'symbol':'.0-0' }}</td>
+                            <td>
+                              <ng-container *ngIf="pres.isFixedAmount; else nonFixedA">
+                                <ng-container [ngSwitch]="getFixedRole(producto, pres)">
+                                    <span *ngSwitchCase="'FULL'" class="badge bg-success">Bulto completo ({{ pres.fixedAmount }} {{ pres.unitMeasure }})</span>
+                                    <span *ngSwitchCase="'HALF'" class="badge bg-success">Medio bulto ({{ pres.fixedAmount }} {{ pres.unitMeasure }})</span>
+                                    <span *ngSwitchDefault class="badge bg-success">Fijo: {{ pres.fixedAmount }} {{ pres.unitMeasure }}</span>
+                                </ng-container>
+                            </ng-container>
+                            <ng-template #nonFixedA>
+                                <span *ngIf="pres.isBulk" class="badge bg-warning text-dark">Granel</span>
+                                <span *ngIf="!pres.isBulk" class="badge bg-secondary">Normal</span>
+                            </ng-template>
+                            </td>
+                            <td>
+                              <button type="button" class="btn btn-primary btn-sm" (click)="ProductToSellFromPresentation(producto, pres)">
+                                Agregar
+                              </button>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            </div>
+            <div *ngIf="!productMatch" class="text-center mt-4 d-flex align-items-center justify-content-center">
               <button class="btn btn-secondary mx-1" (click)="changePage(paginaActual - 1)" [disabled]="paginaActual === 1">Anterior</button>
               <span>{{ paginaActual }} de {{ totalPaginas }}</span>
               <button class="btn btn-secondary mx-1" (click)="changePage(paginaActual + 1)" [disabled]="paginaActual === totalPaginas">Siguiente</button>
             </div>
-          }
   
   
           <div class="modal-footer">

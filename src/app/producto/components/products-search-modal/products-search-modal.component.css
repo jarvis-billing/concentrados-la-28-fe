@@ -1,0 +1,11 @@
+/* Efecto de resaltado temporal para un producto recién agregado */
+.highlight-pulse {
+  animation: highlightPulse 2.5s ease-in-out 1;
+}
+
+@keyframes highlightPulse {
+  0% { box-shadow: 0 0 0 rgba(13, 110, 253, 0); background-color: rgba(13, 110, 253, 0.05); }
+  30% { box-shadow: 0 0 0.75rem rgba(13, 110, 253, 0.35); background-color: rgba(13, 110, 253, 0.10); }
+  60% { box-shadow: 0 0 0.35rem rgba(13, 110, 253, 0.25); background-color: rgba(13, 110, 253, 0.06); }
+  100% { box-shadow: 0 0 0 rgba(13, 110, 253, 0); background-color: transparent; }
+}

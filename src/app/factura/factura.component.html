@@ -55,6 +55,11 @@
     <h6 class="text-primary mb-2">
       <i class="bi bi-person-vcard me-1"></i> Cliente
     </h6>
+    <div class="mb-2">
+      <span class="badge" [ngClass]="paymentType === 'CREDITO' ? 'bg-warning text-dark' : 'bg-success'">
+        {{ paymentType === 'CREDITO' ? 'Venta a CRÉDITO' : 'Venta de CONTADO' }}
+      </span>
+    </div>
     <div class="mb-1">
       <strong>Doc:</strong>
       <span class="float-end">{{ client?.documentType }} {{ client?.idNumber }}</span>
@@ -81,6 +86,11 @@
       <strong>Email:</strong>
       <span class="float-end">{{ client?.email }}</span>
     </div>
+    @if (paymentType === 'CREDITO') {
+    <div class="alert alert-warning p-1 mb-2" role="alert">
+      Para ventas a CRÉDITO debe seleccionar un cliente distinto a "Consumidor Final".
+    </div>
+    }
     <button
       type="button"
       class="btn btn-sm btn-outline-primary w-100"
@@ -106,6 +116,15 @@
           </div>
         </div>
         <div class="mb-2">
+          <label for="paymentType" class="form-label fw-bold text-primary">
+            <i class="bi bi-ui-radios me-1"></i> Tipo de Venta:
+          </label>
+          <select id="paymentType" class="form-select form-select-sm" [value]="paymentType" (change)="setPaymentType($event.target.value === 'CREDITO' ? 'CREDITO' : 'CONTADO')">
+            <option value="CONTADO">CONTADO</option>
+            <option value="CREDITO">CRÉDITO</option>
+          </select>
+        </div>
+        <div class="mb-2">
           <label for="paymentMethod" class="form-label fw-bold text-primary">
             <i class="bi bi-credit-card me-1"></i> Método de Pago:
           </label>
@@ -127,6 +146,7 @@
             type="text"
             class="form-control form-control-lg border-primary text-end fw-bold fs-5"
             appCurrencyFormat
+            [disabled]="paymentType === 'CREDITO'"
             (formattedValue)="onCalculateMoneyChange($event)">
         </div>
         <div class="mb-2 text-muted">
@@ -150,9 +170,9 @@
               <th class="text-nowrap">#</th>
               <th class="text-nowrap">Código</th>
               <th class="text-start">Descripción</th>
-              <th class="text-nowrap">Cantidad</th>
-              <th class="text-nowrap">Precio</th>
-              <th class="text-nowrap">Total</th>
+              <th class="text-nowrap">Cantidad vendida</th>
+              <th class="text-nowrap">Precio de venta</th>
+              <th class="text-nowrap">Total vendido</th>
               <th class="text-nowrap"></th>
             </tr>
           </thead>
@@ -203,66 +223,8 @@
   
 
 
-  <!-- Modal de productos -->
-  <div class="modal fade" id="productsModal" #productsModal tabindex="-1" aria-labelledby="productsModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-xl-custom">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Buscar producto</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" (click)="closeProductModal()" aria-label="Close"></button>
-      </div>
-
-      <div class="modal-body">
-        <form [formGroup]="formProduct" (ngSubmit)="searchProduct()" class="d-flex gap-2 mb-3" autocomplete="off">
-          <input class="form-control" type="text" placeholder="Buscar por código o descripción" formControlName="searchProduct" #searchProductInput>
-          <button class="btn btn-primary" type="submit"><i class="bi bi-search me-1"></i>Buscar</button>
-          <button class="btn btn-info" type="button" (click)="clearProductSearchField()"><i class="bi bi-eraser me-1"></i> Limpiar</button>
-        </form>
-
-        <div class="table-responsive">
-          <table class="table text-center align-middle">
-            <thead class="table-primary">
-              <tr>
-                <th>Código Barra</th>
-                <th>Descripción</th>
-                <th>Precio</th>
-                <th>Tipo</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (producto of filteredListProducts; track $index) {
-              <tr>
-                <td>{{producto.barcode}}</td>
-                <td>{{producto.description}}</td>
-                <td>{{producto.price | currency:'$ ':'symbol':'.0-0'}}</td>
-                <td>{{producto.saleType}}</td>
-                <td>
-                  <button type="button" class="btn btn-primary" (click)="onAddProductFromList(producto)">
-                    <i class="bi bi-check-circle me-1"></i> Agregar
-                  </button>
-                </td>
-              </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-
-        @if (!productMatch) {
-        <div class="text-center mt-4 d-flex align-items-center justify-content-center">
-          <button class="btn btn-secondary mx-1" (click)="changePage(paginaActual - 1)" [disabled]="paginaActual === 1">Anterior</button>
-          <span>{{ paginaActual }} de {{ totalPaginas }}</span>
-          <button class="btn btn-secondary mx-1" (click)="changePage(paginaActual + 1)" [disabled]="paginaActual === totalPaginas">Siguiente</button>
-        </div>
-        }
-
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><i class="bi bi-x-circle me-1"></i>Cerrar</button>
-        </div>
-      </div>
-    </div>
-  </div>
-  </div>
+  <!-- Modal de productos (componente unificado) -->
+  <app-products-search-modal (selectPresentation)="onPresentationSelected($event)"></app-products-search-modal>
 
 <!-- Modal cantidad -->
 <div class="modal fade" id="productsAmountModal" #productsAmountModal tabindex="-1" aria-labelledby="productsAmountModalLabel" aria-hidden="true">
@@ -273,17 +235,46 @@
         <button type="button" class="btn-close" (click)="closeProductAmountModal()" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        <form [formGroup]="formProductAmount" (ngSubmit)="addAmountProduct()" class="d-flex gap-2 mb-3" autocomplete="off">
-          <input class="form-control" type="text" placeholder="Ingresar la Cantidad" formControlName="amountProduct" #amountProductInput>
-          <button class="btn btn-primary" type="submit">
-            <i class="bi bi-check-circle me-1"></i> Aceptar
-          </button>
-          <button class="btn btn-info" type="button" (click)="clearProductAmountField()"><i class="bi bi-eraser me-1"></i> Limpiar</button>
+        <form [formGroup]="formProductAmount" (ngSubmit)="addAmountProduct()" class="d-flex flex-column gap-2 mb-3" autocomplete="off">
+          <div class="input-group">
+            <!-- Modo granel/peso: ingresar Total $ con formato moneda -->
+            <input *ngIf="productToSell?.isBulk && productToSell?.saleType === 'WEIGHT'"
+                   class="form-control" type="text"
+                   placeholder="Ingresar Total $ vendido"
+                   formControlName="amountProduct" #amountProductInput
+                   appCurrencyFormat
+                   (formattedValue)="onBulkTotalInput($event)"
+                   (input)="onBulkTotalInput($event.target.value)">
+            <!-- Modo normal: ingresar cantidad -->
+            <input *ngIf="!(productToSell?.isBulk || productToSell?.saleType === 'WEIGHT') || productToSell?.hasFixedAmount"
+                   class="form-control" type="text"
+                   placeholder="Ingresar la Cantidad"
+                   formControlName="amountProduct" #amountProductInput>
+            <button class="btn btn-primary" type="submit">
+              <i class="bi bi-check-circle me-1"></i> Aceptar
+            </button>
+            <button class="btn btn-info" type="button" (click)="clearProductAmountField()"><i class="bi bi-eraser me-1"></i> Limpiar</button>
+          </div>
+          <div *ngIf="productToSell?.isBulk && productToSell?.saleType === 'WEIGHT'" class="form-text">
+            Modo granel: ingrese el <strong>total $ vendido</strong>. La cantidad será calculada como <em>total / precio unitario</em>.
+            Precio unitario: <strong>{{ productToSell?.price | currency:'$ ':'symbol':'.0-0' }}</strong> por {{ productToSell?.barcode ? 'presentación' : 'unidad' }}.
+          </div>
+          <div *ngIf="productToSell?.isBulk && productToSell?.saleType === 'WEIGHT'" class="mt-2">
+            <div class="card border-success text-center">
+              <div class="card-body">
+                <div class="text-muted">Cantidad calculada</div>
+                <div class="display-4 fw-bold text-success">
+                  {{ bulkComputedAmount | number:'1.1-1' }}
+                  <span class="fs-4 text-secondary">{{ productToSell?.selectedUnitMeasure || productToSell?.stock?.unitMeasure || 'KILOGRAMOS' }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </form>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-outline-info" (click)="returnToProductsModal()">
-          <i class="bi bi-arrow-left-circle me-1"></i> al listado de productos
+          <i class="bi bi-arrow-left-circle me-1"></i>Volver al listado de productos
         </button>
       </div>
     </div>

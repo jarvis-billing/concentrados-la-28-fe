@@ -1,13 +1,24 @@
 import { Component } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { Router, RouterOutlet, NavigationStart, NavigationEnd, NavigationCancel, NavigationError } from '@angular/router';
 import { MenuComponent } from '../menu/menu.component';
+import { LoadingOverlayComponent } from '../loading/loading-overlay.component';
+import { LoadingService } from '../loading/loading.service';
 
 @Component({
   selector: 'app-main',
   standalone: true,
-  imports: [RouterOutlet, MenuComponent],
+  imports: [RouterOutlet, MenuComponent, LoadingOverlayComponent],
   templateUrl: './main.component.html'
 })
 export class MainComponent {
-
+  constructor(private router: Router, private loading: LoadingService) {
+    this.router.events.subscribe(evt => {
+      if (evt instanceof NavigationStart) {
+        this.loading.start();
+      }
+      if (evt instanceof NavigationEnd || evt instanceof NavigationCancel || evt instanceof NavigationError) {
+        this.loading.stop();
+      }
+    });
+  }
 }

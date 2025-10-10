@@ -29,57 +29,114 @@
                 </div>
             </div>
 
-            <div class="w-100 overflow-auto mb-4" >
-                <table class="table text-center" style="vertical-align: middle;">
-                    <thead>
-                        <tr class="table-primary">
-                            <th scope="col">
-                                <input type="checkbox" [(ngModel)]="selectAll" id="checkbox-all" name="checkbox-all" (change)="checkAll()" />
-                            </th>
-                            <th scope="col">Código Barra</th>
-                            <th scope="col">Descripción</th>
-                            <th scope="col">Precio</th>
-                            <th scope="col">Tipo</th>
-                            <th scope="col">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @for (producto of lstProductos; track $index) {
-                        <tr>
-                            <td>
-                                <input type="checkbox" id="checkbox-{{producto.id}}" name="checkbox-{{producto.id}}" [(ngModel)]="producto.selected" (click)="checkOne(producto)"/>
-                            </td>
-                            
-                            <td style="text-align: right;">
-                                <span>{{producto.barcode}}</span>
-                            </td>
-                            
-                            <td style="text-align: left;">
-                                <span>{{producto.description}}</span>
-                            </td>
-                            
-                            <td style="text-align: right;">
-                                <span>{{producto.price | currency: '$ ':'symbol':'1.2-2' }}</span>
-                            </td>
-                            
-                            <td style="text-align: left;">
-                                <span>{{producto.saleType}}</span>
-                            </td>
-                            
-                            <td>
-                                <button type="button" class="btn btn-success mx-1"
-                                    (click)="editarProducto(producto.barcode)">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button type="button" class="btn btn-danger"
-                                    (click)="eliminarProducto(producto.id)">
-                                    <i class="fas fa-trash-alt"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        }
-                    </tbody>
-                </table>
+            <div class="w-100 mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <input type="checkbox" [(ngModel)]="selectAll" id="checkbox-all" name="checkbox-all" (change)="checkAll()" />
+                        <label class="ms-1" for="checkbox-all">Seleccionar todos</label>
+                    </div>
+                    <small class="text-muted">{{ totalElementos }} resultados</small>
+                </div>
+
+                <div class="accordion" id="productosAccordion">
+                    @for (producto of lstProductos; track $index) {
+                    <div class="accordion-item mb-2">
+                        <h2 class="accordion-header" id="heading-{{$index}}">
+                            <button class="accordion-button collapsed d-flex gap-3" type="button" data-bs-toggle="collapse" [attr.data-bs-target]="'#collapse-'+$index" aria-expanded="false" [attr.aria-controls]="'collapse-'+$index">
+                                <input type="checkbox" class="form-check-input mt-0" [(ngModel)]="producto.selected" [name]="'checkbox-'+producto.id" [id]="'checkbox-'+producto.id" [ngModelOptions]="{standalone: true}" (click)="$event.stopPropagation(); checkOne(producto)" />
+                                <div class="d-flex flex-column flex-md-row w-100 justify-content-between align-items-md-center">
+                                    <div class="fw-semibold">{{ producto.description }}</div>
+                                    <div class="text-muted small">Marca: {{ producto.brand }} · Cat: {{ producto.category }}</div>
+                                    <div class="small">
+                                        <span class="badge bg-info text-dark me-2">{{ producto.saleType }}</span>
+                                        <span *ngIf="producto.displayStock?.label; else baseStockA"
+                                              class="badge bg-secondary"
+                                              [attr.title]="producto.displayStock?.packSize ? ('Tamaño pack: ' + producto.displayStock?.packSize + ' ' + producto.displayStock?.unit) : null">
+                                            Stock: {{ producto.displayStock?.label }}
+                                        </span>
+                                        <ng-template #baseStockA>
+                                            <span class="badge bg-secondary">Stock: {{ producto.stock?.quantity }} {{ producto.stock?.unitMeasure }}</span>
+                                        </ng-template>
+                                    </div>
+                                    <div class="ms-md-3 text-nowrap">
+                                        <span class="text-muted small">Desde</span>
+                                        <strong>
+                                            {{ getMinPrice(producto) != null ? (getMinPrice(producto) | currency:'$ ':'symbol':'1.0-0') : '-' }}
+                                        </strong>
+                                    </div>
+                                </div>
+                            </button>
+                        </h2>
+                        <div [id]="'collapse-'+$index" class="accordion-collapse collapse" [attr.aria-labelledby]="'heading-'+$index" data-bs-parent="#productosAccordion">
+                            <div class="accordion-body">
+                                <div class="d-flex justify-content-end mb-3">
+                                    <button type="button" class="btn btn-success btn-sm me-2" (click)="editProduct(producto)" [disabled]="!(producto.presentations?.length || producto.id)">
+                                        <i class="fas fa-edit"></i> Editar
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary btn-sm me-2" data-bs-toggle="offcanvas" data-bs-target="#productoDetails" (click)="viewDetails(producto)">
+                                        <i class="fas fa-eye"></i> Detalles
+                                    </button>
+                                    <button type="button" class="btn btn-danger btn-sm" (click)="eliminarProducto(producto.id)">
+                                        <i class="fas fa-trash-alt"></i> Eliminar
+                                    </button>
+                                </div>
+
+                                <div class="table-responsive">
+                                    <table class="table table-sm align-middle">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Código Barra</th>
+                                                <th>Etiqueta</th>
+                                                <th class="text-end">Precio de venta</th>
+                                                <th class="text-end">Costo</th>
+                                                <th>U. medida</th>
+                                                <th>
+                                                    Modo de venta
+                                                    <i class="bi bi-info-circle text-info ms-1" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true"
+                                                       title="<div class='text-start m-0 p-0'>
+                                                         <div>• Normal (otros tipos): ingresar cantidad</div>
+                                                         <div>• Granel (peso): total $ → calcula cantidad</div>
+                                                         <div>• Medio bulto/Bulto (peso): 1/2 o tamaño completo</div>
+                                                       </div>">
+                                                    </i>
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @for (pres of (producto.presentations || []); track $index) {
+                                            <tr>
+                                                <td class="text-nowrap">{{ pres.barcode }}</td>
+                                                <td>{{ pres.label }}</td>
+                                                <td class="text-end">
+                                                    {{ pres.salePrice != null ? (pres.salePrice | currency:'$ ':'symbol':'1.0-0') : '—' }}
+                                                </td>
+                                                <td class="text-end">
+                                                    {{ pres.costPrice != null ? (pres.costPrice | currency:'$ ':'symbol':'1.0-0') : '—' }}
+                                                </td>
+                                                <td>{{ pres.unitMeasure }}</td>
+                                                <td>
+                                                    <ng-container *ngIf="pres.isFixedAmount; else nonFixedA">
+                                                        <ng-container [ngSwitch]="getFixedRole(producto, pres)">
+                                                            <span *ngSwitchCase="'FULL'" class="badge bg-success">Bulto completo ({{ pres.fixedAmount }} {{ pres.unitMeasure }})</span>
+                                                            <span *ngSwitchCase="'HALF'" class="badge bg-success">Medio bulto ({{ pres.fixedAmount }} {{ pres.unitMeasure }})</span>
+                                                            <span *ngSwitchDefault class="badge bg-success">Fijo: {{ pres.fixedAmount }} {{ pres.unitMeasure }}</span>
+                                                        </ng-container>
+                                                    </ng-container>
+                                                    <ng-template #nonFixedA>
+                                                        <span *ngIf="pres.isBulk" class="badge bg-warning text-dark">Granel</span>
+                                                        <span *ngIf="!pres.isBulk" class="badge bg-secondary">Normal</span>
+                                                    </ng-template>
+                                                </td>
+                                            </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    }
+                </div>
             </div>
 
             @if (showChangePrice) {
@@ -133,6 +190,100 @@
                     <option value="50">50</option>
                     <option value="100">100</option>
                 </select>
+            </div>
+
+            <!-- Offcanvas Detalles de Producto -->
+            <div class="offcanvas offcanvas-end" tabindex="-1" id="productoDetails" aria-labelledby="productoDetailsLabel" style="width: 520px;">
+                <div class="offcanvas-header">
+                    <h5 class="offcanvas-title" id="productoDetailsLabel">Detalles del Producto</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+                </div>
+                <div class="offcanvas-body" *ngIf="selectedProduct as p">
+                    <div class="mb-3">
+                        <h5 class="mb-1">{{ p.description }}</h5>
+                        <div class="text-muted small">Marca: {{ p.brand }} · Categoría: {{ p.category }} · Tipo: {{ p.saleType }}</div>
+                        <div class="text-muted small">Código: {{ p.productCode }}</div>
+                        <div class="mt-2">
+                            <span *ngIf="p.displayStock?.label; else baseStockB"
+                                  class="badge bg-secondary"
+                                  [attr.title]="p.displayStock?.packSize ? ('Tamaño pack: ' + p.displayStock?.packSize + ' ' + p.displayStock?.unit) : null">
+                                Stock: {{ p.displayStock?.label }}
+                            </span>
+                            <ng-template #baseStockB>
+                                <span class="badge bg-secondary">Stock: {{ p.stock?.quantity }} {{ p.stock?.unitMeasure }}</span>
+                            </ng-template>
+                        </div>
+                    </div>
+
+                    <hr>
+                    <h6 class="mb-2">Presentaciones <span class="text-muted small">({{ (p.presentations || []).length }})</span></h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Código Barra</th>
+                                    <th>Etiqueta</th>
+                                    <th class="text-end">P. Venta</th>
+                                    <th class="text-end">P. Costo</th>
+                                    <th>U/M</th>
+                                    <th>
+                                        Modo
+                                        <i class="bi bi-info-circle text-info ms-1" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true"
+                                           title="<div class='text-start m-0 p-0'>
+                                             <div>• Normal (otros tipos): ingresar cantidad</div>
+                                             <div>• Granel (peso): total $ → calcula cantidad</div>
+                                             <div>• Medio bulto/Bulto (peso): 1/2 o tamaño completo</div>
+                                           </div>"></i>
+                                    </th>
+                                    <th class="text-end">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (pres of (p.presentations || []); track $index) {
+                                <tr>
+                                    <td class="text-nowrap">{{ pres.barcode }}</td>
+                                    <td>{{ pres.label }}</td>
+                                    <td class="text-end">{{ pres.salePrice != null ? (pres.salePrice | currency:'$ ':'symbol':'1.0-0') : '—' }}</td>
+                                    <td class="text-end">{{ pres.costPrice != null ? (pres.costPrice | currency:'$ ':'symbol':'1.0-0') : '—' }}</td>
+                                    <td>{{ pres.unitMeasure }}</td>
+                                    <td>
+                                        <ng-container *ngIf="pres.isFixedAmount; else nonFixedB">
+                                            <ng-container [ngSwitch]="getFixedRole(p, pres)">
+                                                <span *ngSwitchCase="'FULL'" class="badge bg-success">Bulto completo ({{ pres.fixedAmount }})</span>
+                                                <span *ngSwitchCase="'HALF'" class="badge bg-success">Medio bulto ({{ pres.fixedAmount }})</span>
+                                                <span *ngSwitchDefault class="badge bg-success">Fijo: {{ pres.fixedAmount }}</span>
+                                            </ng-container>
+                                        </ng-container>
+                                        <ng-template #nonFixedB>
+                                            <span *ngIf="pres.isBulk" class="badge bg-warning text-dark">Granel</span>
+                                            <span *ngIf="!pres.isBulk" class="badge bg-secondary">Normal</span>
+                                        </ng-template>
+                                    </td>
+                                    <td class="text-end">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm me-1" (click)="copyToClipboard(pres.barcode)" title="Copiar código">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-success btn-sm" (click)="editPresentation(pres.barcode)" title="Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" (click)="selectPrevProduct()">
+                            <i class="fas fa-chevron-left"></i> Anterior
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" (click)="selectNextProduct()">
+                            Siguiente <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="offcanvas-body" *ngIf="!selectedProduct">
+                    <div class="text-muted">Selecciona un producto para ver sus detalles.</div>
+                </div>
             </div>
 
         </div>

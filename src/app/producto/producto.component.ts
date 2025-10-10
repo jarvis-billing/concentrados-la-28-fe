@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, AfterViewInit, inject } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { Product } from './producto';
@@ -14,7 +14,7 @@ import { ProductPrice } from './productoPrice';
   imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './producto.component.html'
 })
-export class ProductoComponent implements OnInit {
+export class ProductoComponent implements OnInit, AfterViewInit {
 
   private searchTerms = new Subject<string>();
 
@@ -28,20 +28,53 @@ export class ProductoComponent implements OnInit {
   newPrice: number | null = null;
   selectAll = false;
   showChangePrice = false;
-  
+
   minPrecio: number = 1;
+  selectedProduct: Product | null = null;
   maxPrecio: number = 10000000;
 
   constructor(private service: ProductoService) {
     this.searchTerms.pipe(
       debounceTime(500) // Espera 500 ms después de la última pulsación de tecla
-    ).subscribe(term => this.getAllProductsPageSearch()); 
+    ).subscribe(term => this.getAllProductsPageSearch());
   }
 
-  router= inject(Router);
+  // Determina si una presentación fija es "Bulto completo" o "Medio bulto" comparando contra el mayor fixedAmount del producto
+  getFixedRole(product: Product | null | undefined, pres: any): 'FULL' | 'HALF' | null {
+    if (!product || !pres?.isFixedAmount) return null;
+    const fixed = (product.presentations || [])
+      .filter(p => p?.isFixedAmount && typeof p.fixedAmount === 'number' && p.fixedAmount > 0)
+      .map(p => Number(p.fixedAmount));
+    if (fixed.length === 0) return null;
+    const max = Math.max(...fixed);
+    const amt = Number(pres.fixedAmount) || 0;
+    const eps = 1e-6;
+    if (Math.abs(amt - max) <= eps) return 'FULL';
+    if (Math.abs(amt - (max / 2)) <= eps) return 'HALF';
+    return null;
+  }
+
+  router = inject(Router);
 
   ngOnInit(): void {
     this.getAllProductsPage();
+  }
+
+  ngAfterViewInit(): void {
+    this.initTooltips();
+  }
+
+  private initTooltips() {
+    try {
+      const tooltipTriggerList = Array.from(document.querySelectorAll('[data-bs-toggle="tooltip"]')) as HTMLElement[];
+      tooltipTriggerList.forEach((el) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const Tip = (window as any)?.bootstrap?.Tooltip;
+        if (Tip) new Tip(el);
+      });
+    } catch {
+      // noop
+    }
   }
 
   limpiarFiltro(): void {
@@ -53,7 +86,7 @@ export class ProductoComponent implements OnInit {
     this.searchTerms.next(searchTerm);
   }
 
-  updateAllPrice(){
+  updateAllPrice() {
     if (this.validateSelected() && this.newPrice != null && this.newPrice > 0) {
       toast('¿Está seguro que quiere actualizar los registros seleccionados?', {
         action: {
@@ -83,7 +116,7 @@ export class ProductoComponent implements OnInit {
                 }
               }
             })
-          } 
+          }
         },
       });
     } else {
@@ -109,6 +142,7 @@ export class ProductoComponent implements OnInit {
       this.lstProductos = data.content;
       this.totalElementos = data.totalElements;
       this.totalPaginas = data.quantityPage;
+      setTimeout(() => this.initTooltips());
     });
   }
 
@@ -118,16 +152,31 @@ export class ProductoComponent implements OnInit {
         this.lstProductos = data.content;
         this.totalElementos = data.totalElements;
         this.totalPaginas = data.quantityPage;
+        setTimeout(() => this.initTooltips());
       });
     } else {
       this.getAllProductsPage();
     }
   }
 
-  editarProducto(barcode: string){
+  editarProducto(barcode: string) {
     if (barcode) {
       this.router.navigate(['/main/crearproducto', barcode]);
     }
+  }
+
+  editProduct(product: Product) {
+    const firstBarcode = product?.presentations?.[0]?.barcode as string | undefined;
+    if (firstBarcode) {
+      this.editarProducto(firstBarcode);
+      return;
+    }
+    if (product?.id) {
+      toast.warning('Este producto no tiene presentaciones con código de barras, abriendo edición por ID');
+      this.router.navigate(['/main/crearproducto'], { queryParams: { id: product.id } });
+      return;
+    }
+    toast.warning('No es posible editar: no hay barcode ni ID');
   }
 
   eliminarProducto(id: string) {
@@ -152,13 +201,13 @@ export class ProductoComponent implements OnInit {
               }
             }
           });
-        } 
+        }
       },
     });
   }
 
   crearProducto() {
-    this.router.navigate(['/main/crearproducto', ""]);
+    this.router.navigate(['/main/crearproducto']);
   }
 
   cambiarPagina(pagina: number) {
@@ -184,7 +233,7 @@ export class ProductoComponent implements OnInit {
 
   checkAll() {
     this.lstProductos.forEach(producto => {
-      if(this.selectAll) {
+      if (this.selectAll) {
         this.showChangePrice = true;
         producto.selected = true;
       } else {
@@ -209,6 +258,55 @@ export class ProductoComponent implements OnInit {
 
   onSubmit(event: Event) {
     event.preventDefault();
+  }
+
+  viewDetails(product: Product) {
+    this.selectedProduct = product;
+    setTimeout(() => this.initTooltips());
+  }
+
+  getMinPrice(product: Product): number | null {
+    if (!product?.presentations || product.presentations.length === 0) return null;
+    const prices = product.presentations
+      .map(p => p?.salePrice)
+      .filter((v): v is number => typeof v === 'number' && !isNaN(v));
+    if (prices.length === 0) return null;
+    return Math.min(...prices);
+  }
+
+  async copyToClipboard(text: string | number | null | undefined) {
+    try {
+      const value = text != null ? String(text) : '';
+      await navigator.clipboard.writeText(value);
+      toast.success('Copiado al portapapeles');
+    } catch (e) {
+      console.error(e);
+      toast.error('No se pudo copiar');
+    }
+  }
+
+  selectPrevProduct() {
+    if (!this.selectedProduct) return;
+    const idx = this.lstProductos.findIndex(p => p.id === this.selectedProduct?.id);
+    if (idx > 0) {
+      this.selectedProduct = this.lstProductos[idx - 1];
+    }
+  }
+
+  selectNextProduct() {
+    if (!this.selectedProduct) return;
+    const idx = this.lstProductos.findIndex(p => p.id === this.selectedProduct?.id);
+    if (idx > -1 && idx < this.lstProductos.length - 1) {
+      this.selectedProduct = this.lstProductos[idx + 1];
+    }
+  }
+
+  editPresentation(barcode: string | undefined | null) {
+    if (barcode) {
+      this.editarProducto(barcode);
+    } else {
+      toast.warning('No hay código de barras para editar');
+    }
   }
 
 }
