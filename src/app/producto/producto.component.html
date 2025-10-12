@@ -48,14 +48,13 @@
                                     <div class="fw-semibold">{{ producto.description }}</div>
                                     <div class="text-muted small">Marca: {{ producto.brand }} · Cat: {{ producto.category }}</div>
                                     <div class="small">
-                                        <span class="badge bg-info text-dark me-2">{{ producto.saleType }}</span>
                                         <span *ngIf="producto.displayStock?.label; else baseStockA"
-                                              class="badge bg-secondary"
+                                              class="badge bg-primary"
                                               [attr.title]="producto.displayStock?.packSize ? ('Tamaño pack: ' + producto.displayStock?.packSize + ' ' + producto.displayStock?.unit) : null">
                                             Stock: {{ producto.displayStock?.label }}
                                         </span>
                                         <ng-template #baseStockA>
-                                            <span class="badge bg-secondary">Stock: {{ producto.stock?.quantity }} {{ producto.stock?.unitMeasure }}</span>
+                                            <span class="badge bg-primary">Stock: {{ producto.stock?.quantity }} {{ producto.stock?.unitMeasure }}</span>
                                         </ng-template>
                                     </div>
                                     <div class="ms-md-3 text-nowrap">
@@ -289,3 +288,7 @@
         </div>
     </form>
 </div>
+
+
+<!-- Floating Expenses FAB (reusable) -->
+<app-expenses-fab [source]="'producto'"></app-expenses-fab>

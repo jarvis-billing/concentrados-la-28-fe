@@ -80,8 +80,6 @@ export class ProductsSearchModalComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.productosSub?.unsubscribe();
-    // Asegurar detener polling si el componente se destruye
-    this.productService.stopPolling();
   }
 
   // Determina si una presentación fija es "Bulto completo" o "Medio bulto" comparando contra el mayor fixedAmount del producto
@@ -106,8 +104,6 @@ export class ProductsSearchModalComponent implements OnInit, OnDestroy {
   openModal() {
     const modalEl = this.productsModalRef?.nativeElement;
     if (modalEl) {
-      // Iniciar polling mientras el modal esté abierto (refresco entre máquinas)
-      this.productService.startPolling(10000);
       // Enfocar cuando el modal termine de mostrarse
       modalEl.addEventListener('shown.bs.modal', () => {
         this.searchProductInput?.nativeElement.focus();
@@ -123,8 +119,6 @@ export class ProductsSearchModalComponent implements OnInit, OnDestroy {
     const modalEl = this.productsModalRef?.nativeElement;
     const modalInstance = (window as any).bootstrap?.Modal.getInstance(modalEl);
     modalInstance?.hide();
-    // Detener polling al cerrar modal
-    this.productService.stopPolling();
   }
 
   ProductToSell(product: Product) {

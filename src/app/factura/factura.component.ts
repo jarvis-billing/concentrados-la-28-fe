@@ -1,32 +1,39 @@
 import { AfterViewInit, Component, ElementRef, HostListener, ViewChild, inject, Input, OnInit } from '@angular/core';
-import { Client } from '../cliente/cliente';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { toast } from 'ngx-sonner';
 import { CurrencyPipe, DatePipe, CommonModule } from '@angular/common';
-import { EVatType, ESaleType, Product } from '../producto/producto';
+import { EVatType, Product } from '../producto/producto';
 import { FacturaService } from './factura.service';
-import { Billing } from './billing';
+import { Billing, saleTypeFromString, saleType } from './billing';
+import { formatInTimeZone } from 'date-fns-tz';
+import { Client } from '../cliente/cliente';
+import { Order } from '../orden/orden';
 import { ClienteService } from '../cliente/cliente.service';
 import { ProductoService } from '../producto/producto.service';
 import { SaleDetail } from './saleDetail';
 import { Router } from '@angular/router';
-import { Order } from '../orden/orden';
 import { Observable } from 'rxjs';
 import { CurrencyFormatDirective } from '../directive/currency-format.directive';
 import { StorageService } from '../services/localStorage.service';
 import { LoginUserService } from '../auth/login/loginUser.service';
 import { Company } from './company';
 import { ProductsSearchModalComponent } from '../producto/components/products-search-modal/products-search-modal.component';
+import { ModalClientsListComponent } from '../cliente/components/modal-clients-list/modal-clients-list.component';
+import { ExpensesFabComponent } from '../expenses/expenses-fab.component';
 
 @Component({
   selector: 'app-factura',
   standalone: true,
-  imports: [ReactiveFormsModule,
+  imports: [
+    ReactiveFormsModule,
     CommonModule,
     DatePipe,
     CurrencyPipe,
     CurrencyFormatDirective,
-    ProductsSearchModalComponent],
+    ProductsSearchModalComponent,
+    ModalClientsListComponent,
+    ExpensesFabComponent,
+  ],
   templateUrl: './factura.component.html',
   styleUrl: './factura.component.css'
 })
@@ -34,6 +41,7 @@ export class FacturaComponent implements OnInit, AfterViewInit {
   @ViewChild('productsAmountModal', { static: false }) productsAmountModalRef!: ElementRef;
   @ViewChild('amountProductInput', { static: false }) amountProductInput!: ElementRef<HTMLInputElement>;
   @ViewChild(ProductsSearchModalComponent, { static: false }) productsSearchModalComp!: ProductsSearchModalComponent;
+  @ViewChild(ModalClientsListComponent, { static: false }) clientsModalComp!: ModalClientsListComponent;
 
   ngAfterViewInit() {
     // Configuración para el modal "Cantidad a vender"
@@ -54,6 +62,10 @@ export class FacturaComponent implements OnInit, AfterViewInit {
   ngOnInit(): void {
     this.getClients();
     this.onInitBilling();
+    // Recalcular vueltos cuando cambia el control de dinero recibido
+    this.reciveValue.valueChanges.subscribe((val) => {
+      this.onCalculateMoneyChange(val as unknown);
+    });
   }
 
   client!: Client;
@@ -133,6 +145,8 @@ export class FacturaComponent implements OnInit, AfterViewInit {
       this.reciveValue.setValue('');
       this.totalRecivedValue = 0;
       this.totalMoneyChange = 0;
+      // Asegurar cliente por defecto para CONTADO
+      this.ensureDefaultClientForContado();
     }
   }
 
@@ -221,11 +235,12 @@ export class FacturaComponent implements OnInit, AfterViewInit {
     this.paymentMethod = event.target.value;
 
     if (this.paymentMethod != 'EFECTIVO') {
+      // Asignar como string para cumplir tipado actual del control
       this.reciveValue.setValue(this.totalBilling.toString());
-      this.totalRecivedValue = parseInt(this.reciveValue.value?.toString() || '0');
+      this.totalRecivedValue = Number(this.totalBilling) || 0;
       this.totalMoneyChange = 0;
     } else {
-      this.reciveValue.setValue('');
+      this.reciveValue.setValue('0');
       this.totalRecivedValue = 0;
       this.totalMoneyChange = 0;
     }
@@ -249,7 +264,8 @@ export class FacturaComponent implements OnInit, AfterViewInit {
         paymentMethods: [this.paymentMethod],
         company: userLogin.company,
         billingType: billingType,
-        dateTimeRecord: this.factura.dateTimeRecord
+        dateTimeRecord: formatInTimeZone(new Date(), 'America/Bogota', "yyyy-MM-dd'T'HH:mm:ssXXX"),
+        saleType: saleTypeFromString(this.paymentType) ?? saleType.CONTADO,
       };
 
       console.log('Guardar esta factura: ', this.factura);
@@ -259,7 +275,8 @@ export class FacturaComponent implements OnInit, AfterViewInit {
           onClick: () => {
             this.facturaService.save(this.factura).subscribe(factura => {
               if (factura.id) {
-                toast.success('La Factura registrada correctamente.');
+                toast.success('La Factura fue registrada correctamente.');
+                this.onInitBilling();
               }
             });
 
@@ -290,35 +307,70 @@ export class FacturaComponent implements OnInit, AfterViewInit {
           toast.error('Ocurrió un error al buscar la factura.', error);
         }
       }
-
-    });
+    }).unsubscribe(); // Close the subscribe
   }
 
   isValidBillingData() {
-    // Validación de dinero recibido solo aplica para CONTADO
-    if (this.paymentType === 'CONTADO' && this.totalRecivedValue < this.totalBilling) {
-      toast.warning('En ventas de CONTADO, el dinero recibido debe ser mayor o igual al total.');
-      return;
-    }
+    // Recalcular totales antes de validar
+    this.calculateTotalBilling();
 
-    // Validación de cliente
+    // Validación: Cliente requerido
     if (!this.client || !this.client.id) {
-      toast.warning('Por favor selecciona un cliente.');
-      return;
+      if (this.paymentType === 'CONTADO') {
+        // Intentar auto-asignar Consumidor Final y revalidar
+        this.ensureDefaultClientForContado();
+        if (!this.client || !this.client.id) {
+          toast.warning('Para ventas de CONTADO debe seleccionar un cliente (sugerido: Consumidor Final).');
+          return false;
+        }
+      } else {
+        toast.warning('Por favor selecciona un cliente.');
+        return false;
+      }
     }
 
-    // Para crédito no se permite "consumidor final"
+    // Validación: En crédito no se permite "Consumidor Final"
     if (this.paymentType === 'CREDITO' && this.isConsumidorFinal(this.client)) {
       toast.warning('Para ventas a CRÉDITO debe seleccionar un cliente distinto a "Consumidor Final".');
-      return;
+      return false;
     }
 
+    // Validación: Dinero recibido (solo CONTADO)
+    if (this.paymentType === 'CONTADO' && (this.totalRecivedValue || 0) < (this.totalBilling || 0)) {
+      toast.warning('En ventas de CONTADO, el dinero recibido debe ser mayor o igual al total.');
+      return false;
+    }
+
+    // Validación: Debe haber al menos un producto
     if (!this.saleDetails || this.saleDetails.length < 1) {
       toast.warning('Por favor selecciona un producto.');
-      return;
+      return false;
     }
 
     return true;
+  }
+
+  // Asigna cliente "Consumidor Final" si estamos en CONTADO y no hay cliente seleccionado
+  private ensureDefaultClientForContado() {
+    if (this.paymentType !== 'CONTADO') return;
+    if (this.client && this.client.id) return;
+    const cf = this.findConsumidorFinal();
+    if (cf) {
+      this.client = cf;
+    }
+  }
+
+  // Busca Consumidor Final en el listado
+  private findConsumidorFinal(): Client | undefined {
+    if (!this.originalListClients?.length) return undefined;
+    const byId = this.originalListClients.find(c => (c.idNumber || '').trim() === '22222222222');
+    if (byId) return byId;
+    const upper = (s: string | undefined) => (s || '').trim().toUpperCase();
+    return this.originalListClients.find(c =>
+      upper(`${c.name} ${c.surname}`) === 'CONSUMIDOR FINAL' ||
+      upper(c.businessName) === 'CONSUMIDOR FINAL' ||
+      upper(c.nickname) === 'CONSUMIDOR FINAL'
+    );
   }
 
   // Client Logic Section
@@ -327,6 +379,8 @@ export class FacturaComponent implements OnInit, AfterViewInit {
       next: res => {
         this.originalListClients = res;
         this.filteredListClients = [...this.originalListClients];
+        // Si estamos en CONTADO y no hay cliente seleccionado, asignar Consumidor Final si existe
+        this.ensureDefaultClientForContado();
       },
       error: error => {
         if (error.error) {
@@ -522,26 +576,43 @@ export class FacturaComponent implements OnInit, AfterViewInit {
     return this.totalVatBilling;
   }
 
-  onCalculateMoneyChange(receivedValue: number) {
-    this.totalMoneyChange = 0;
-    if (receivedValue > 0 && this.totalBilling > 0 && receivedValue >= this.totalBilling) {
-      this.totalMoneyChange = receivedValue - this.totalBilling;
-      this.totalRecivedValue = receivedValue;
+  // Normaliza entradas monetarias a número (acepta number o string con formato)
+  private normalizeToNumber(value: unknown): number {
+    if (typeof value === 'number') return isFinite(value) ? value : 0;
+    if (typeof value === 'string') {
+      const raw = value
+        .toString()
+        .replace(/[\s$\u00A0]/g, '')        // espacios y símbolos de moneda
+        .replace(/\.(?=\d{3}(\D|$))/g, '') // puntos de miles
+        .replace(/,/g, '.')                   // coma decimal a punto
+        .replace(/[^0-9.\-]/g, '');          // limpiar residuos
+      const n = Number(raw);
+      return isNaN(n) ? 0 : n;
     }
+    return 0;
   }
 
+  // Actualiza dinero recibido y calcula vueltos (residuo positivo)
+  onCalculateMoneyChange(value: unknown) {
+    const received = this.normalizeToNumber(value);
+    this.totalRecivedValue = received > 0 ? received : 0;
+    const diff = this.totalRecivedValue - (this.totalBilling || 0);
+    // Vueltos solo si supera o iguala el total; en caso contrario, 0
+    this.totalMoneyChange = diff >= 0 ? diff : 0;
+  }
   onInitBilling() {
     this.facturaService.getLastBillingNumber().subscribe(res => {
       this.factura = new Billing();
       this.saleDetails = [];
       this.totalRecivedValue = 0;
       this.totalMoneyChange = 0;
-      this.reciveValue.setValue('$ 0');
+      // Iniciar como '0' para cumplir tipado actual del control
+      this.reciveValue.setValue('0');
       this.pdfSrc = '';
       this.factura = {
         ...this.factura,
         billNumber: res.billingNumber,
-        dateTimeRecord: new Date().toISOString(),
+        dateTimeRecord: formatInTimeZone(new Date(), 'America/Bogota', "yyyy-MM-dd'T'HH:mm:ssXXX"),
         order: new Order(),
         company: new Company(),
       }
@@ -574,6 +645,10 @@ export class FacturaComponent implements OnInit, AfterViewInit {
 
   openProductsModal() {
     this.productsSearchModalComp?.openModal();
+  }
+
+  openClientsModal() {
+    this.clientsModalComp?.openModal();
   }
 
   returnToProductsModal() {

@@ -7,11 +7,12 @@ import { ProductoService } from './producto.service';
 import { Router, RouterModule } from '@angular/router';
 import { debounceTime, Subject } from 'rxjs';
 import { ProductPrice } from './productoPrice';
+import { ExpensesFabComponent } from '../expenses/expenses-fab.component';
 
 @Component({
   selector: 'app-producto',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, ExpensesFabComponent],
   templateUrl: './producto.component.html'
 })
 export class ProductoComponent implements OnInit, AfterViewInit {

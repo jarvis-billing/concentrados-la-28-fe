@@ -3,15 +3,14 @@ import { Client } from "../cliente/cliente";
 import { Order } from "../orden/orden";
 import { Company } from "./company";
 import { SaleDetail } from "./saleDetail";
-import { format } from 'date-fns-tz';
+import { formatInTimeZone } from 'date-fns-tz';
 
-// en el componente donde armas la factura
-const now = new Date();
+// Fecha por defecto en GMT-5 (America/Bogota)
 
 export class Billing {
     id: any;
     billNumber: string = "";
-    dateTimeRecord: string = new Date().toISOString();
+    dateTimeRecord: string = formatInTimeZone(new Date(), 'America/Bogota', "yyyy-MM-dd'T'HH:mm:ssXXX");
     client: Client = new Client();
     order: Order = new Order();
     company: Company = new Company();
@@ -25,6 +24,7 @@ export class Billing {
     billingType: string = "";
     paymentMethods: string[] = [];
     isReportInvoice: boolean = false;
+    saleType: saleType = saleType.CONTADO;
 }
 
 export class BillingReportFilter {
@@ -42,3 +42,27 @@ export class ProductSalesSummary {
     description: string = '';
     unitPrice: number = 0;
 }
+
+export enum saleType {
+    CONTADO = 'CONTADO',
+    CREDITO = 'CREDITO'
+}
+
+export function saleTypeFromString(value: unknown): saleType | undefined {
+    if (typeof value !== 'string') return undefined;
+    const normalized = value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toUpperCase();
+    switch (normalized) {
+        case 'CONTADO':
+            return saleType.CONTADO;
+        case 'CRÉDITO': // in case coming already upper with accent
+        case 'CREDITO':
+            return saleType.CREDITO;
+        default:
+            return undefined;
+    }
+}
+    

@@ -28,7 +28,7 @@
                         <span class="text-muted ms-2">{{ producto.brand }} • {{ producto.category }}</span>
                       </div>
                       <div>
-                        <span *ngIf="producto.displayStock?.label; else baseStockA" class="badge bg-secondary"
+                        <span *ngIf="producto.displayStock?.label; else baseStockA" class="badge bg-primary"
                           [attr.title]="producto.displayStock?.packSize ? ('Tamaño pack: ' + producto.displayStock?.packSize + ' ' + producto.displayStock?.unit) : null">
                           Stock: {{ producto.displayStock?.label }}
                         </span>

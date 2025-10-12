@@ -1,0 +1,198 @@
+<!-- Floating Action Button: Speed Dial -->
+<div class="expenses-fab">
+  <button type="button" class="btn btn-primary fab-main" (click)="toggleMenu()" title="Gastos">
+    <i class="bi bi-cash-coin"></i>
+  </button>
+  <div class="fab-menu" [class.open]="menuOpen">
+    <button type="button" class="btn btn-success fab-item" (click)="open()" title="Registrar gasto">
+      <i class="bi bi-plus-circle"></i>
+    </button>
+    <button type="button" class="btn btn-dark fab-item" (click)="openList()" title="Ver gastos">
+      <i class="bi bi-list-ul"></i>
+    </button>
+  </div>
+
+<!-- Modal Detalle/Edición de Gasto -->
+<div class="modal fade" id="expensesDetailModal" #expensesDetailModal tabindex="-1" aria-labelledby="expensesDetailModalLabel" aria-hidden="true" data-bs-backdrop="false">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="expensesDetailModalLabel">Detalle de Gasto</h5>
+        <button type="button" class="btn-close" (click)="closeDetail()" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form [formGroup]="editForm" (ngSubmit)="submitUpdate()" class="d-flex flex-column gap-2">
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label">Monto</label>
+              <input #editAmountInput type="text" class="form-control text-end" formControlName="amount" appCurrencyFormat>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Medio de Pago</label>
+              <select class="form-select" formControlName="paymentMethod">
+                <option value="EFECTIVO">EFECTIVO</option>
+                <option value="TRANSFERENCIA">TRANSFERENCIA</option>
+                <option value="TARJETA_CREDITO">TARJETA CREDITO</option>
+                <option value="TARJETA_DEBITO">TARJETA DEBITO</option>
+                <option value="CHEQUE">CHEQUE</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="form-label">Categoría</label>
+            <input type="text" class="form-control" formControlName="category" list="expCats">
+          </div>
+          <div>
+            <label class="form-label">Descripción</label>
+            <textarea class="form-control" rows="3" formControlName="description"></textarea>
+          </div>
+          <div>
+            <label class="form-label">Referencia</label>
+            <input type="text" class="form-control" formControlName="reference">
+          </div>
+          <div class="text-end mt-2">
+            <button type="button" class="btn btn-outline-secondary me-2" (click)="closeDetail()">Cerrar</button>
+            <button type="submit" class="btn btn-primary">Guardar cambios</button>
+          </div>
+        </form>
+        <div class="text-end mt-2">
+          <button class="btn btn-outline-danger" (click)="deleteSelected()">
+            <i class="bi bi-trash me-1"></i> Eliminar gasto
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+  <div class="fab-backdrop" *ngIf="menuOpen" (click)="toggleMenu()"></div>
+  
+</div>
+
+<!-- Datalist de categorías (en MAYÚSCULAS) -->
+<datalist id="expCats">
+  <option *ngFor="let c of categories" [value]="c"></option>
+  <!-- El browser muestra el value directamente, ya normalizado a MAYÚSCULAS -->
+  
+</datalist>
+<!-- Modal Registrar Gasto -->
+<div class="modal fade" id="expenseModal" #expenseModal tabindex="-1" aria-labelledby="expenseModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="expenseModalLabel">Registrar Gasto</h5>
+        <button type="button" class="btn-close" (click)="close()" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form [formGroup]="form" (ngSubmit)="submit()" autocomplete="off" class="d-flex flex-column gap-2">
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label">Monto</label>
+              <input #amountInput type="text" class="form-control text-end" formControlName="amount" appCurrencyFormat>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Medio de Pago</label>
+              <select class="form-select" formControlName="paymentMethod">
+                <option value="EFECTIVO">EFECTIVO</option>
+                <option value="TRANSFERENCIA">TRANSFERENCIA</option>
+                <option value="TARJETA_CREDITO">TARJETA CREDITO</option>
+                <option value="TARJETA_DEBITO">TARJETA DEBITO</option>
+                <option value="CHEQUE">CHEQUE</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="form-label">Categoría</label>
+            <input type="text" class="form-control" placeholder="Ej: Transporte, SERVICIOS" formControlName="category" list="expCats">
+          </div>
+
+          <div>
+            <label class="form-label">Descripción</label>
+            <textarea class="form-control" rows="3" formControlName="description" placeholder="Detalle del gasto"></textarea>
+          </div>
+
+          <div>
+            <label class="form-label">Referencia (opcional)</label>
+            <input type="text" class="form-control" formControlName="reference" placeholder="N° de soporte, nota...">
+          </div>
+
+          <div class="text-end mt-2">
+            <button type="button" class="btn btn-outline-secondary me-2" (click)="close()">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Guardar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Listar Gastos (movido fuera del modal de registro) -->
+<div class="modal fade" id="expensesListModal" #expensesListModal tabindex="-1" aria-labelledby="expensesListModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="expensesListModalLabel">Gastos Registrados</h5>
+        <button type="button" class="btn-close" (click)="closeList()" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form class="row g-2 align-items-end mb-2" [formGroup]="listForm" (ngSubmit)="applyFilters()">
+          <div class="col-12 col-md-3">
+            <label class="form-label">Desde</label>
+            <input type="date" class="form-control" formControlName="fromDate">
+          </div>
+          <div class="col-12 col-md-3">
+            <label class="form-label">Hasta</label>
+            <input type="date" class="form-control" formControlName="toDate">
+          </div>
+          <div class="col-12 col-md-4">
+            <label class="form-label">Categoría</label>
+            <input type="text" class="form-control" formControlName="category" placeholder="CATEGORÍA" list="expCats">
+          </div>
+          <div class="col-12 col-md-2 text-end">
+            <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+          </div>
+        </form>
+
+        <div class="table-responsive" style="max-height: 60vh; overflow-y:auto;">
+          <table class="table table-sm table-bordered align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Fecha</th>
+                <th>Medio de Pago</th>
+                <th>Categoría</th>
+                <th>Descripción</th>
+                <th class="text-end">Monto</th>
+                <th class="text-center" style="width:110px">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let e of listed">
+                <td>{{ e.dateTimeRecord | date:'dd/MM/yyyy HH:mm':'America/Bogota' }}</td>
+                <td>{{ e.paymentMethod }}</td>
+                <td>{{ e.category }}</td>
+                <td>{{ e.description }}</td>
+                <td class="text-end">{{ e.amount | currency:'$ ':'symbol':'.0-0' }}</td>
+                <td class="text-center">
+                  <button class="btn btn-sm btn-outline-primary me-1" (click)="openDetail(e)" title="Ver/Editar">
+                    <i class="bi bi-pencil-square"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-danger" (click)="selected = e; deleteSelected()" title="Eliminar">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </td>
+              </tr>
+              <tr *ngIf="!listed.length">
+                <td colspan="5" class="text-center text-muted">Sin resultados</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <th colspan="4" class="text-end">Total</th>
+                <th class="text-end">{{ listedTotal | currency:'$ ':'symbol':'.0-0' }}</th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

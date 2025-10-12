@@ -30,9 +30,10 @@
             </button>
           </li>
         </ul>
-      </div>
+          </div>
   </div>
-</div>
+  </div>
+
   <hr class="my-3">
   <!-- Cabecera: Cliente, Totales, Productos Vendidos -->
   <div class="container-fluid px-3 pt-2 pb-3">
@@ -59,6 +60,11 @@
       <span class="badge" [ngClass]="paymentType === 'CREDITO' ? 'bg-warning text-dark' : 'bg-success'">
         {{ paymentType === 'CREDITO' ? 'Venta a CRÉDITO' : 'Venta de CONTADO' }}
       </span>
+    </div>
+    <div class="mb-2">
+      <button type="button" class="btn btn-outline-primary btn-sm w-100" (click)="openClientsModal()">
+        <i class="bi bi-people me-1"></i> Buscar cliente
+      </button>
     </div>
     <div class="mb-1">
       <strong>Doc:</strong>
@@ -87,19 +93,12 @@
       <span class="float-end">{{ client?.email }}</span>
     </div>
     @if (paymentType === 'CREDITO') {
-    <div class="alert alert-warning p-1 mb-2" role="alert">
-      Para ventas a CRÉDITO debe seleccionar un cliente distinto a "Consumidor Final".
-    </div>
+      <div class="alert alert-warning p-1 mb-2" role="alert">
+        Para ventas a CRÉDITO debe seleccionar un cliente distinto a "Consumidor Final".
+      </div>
     }
-    <button
-      type="button"
-      class="btn btn-sm btn-outline-primary w-100"
-      data-bs-toggle="modal"
-      data-bs-target="#clientModal">
-      <i class="bi bi-person-search me-1"></i> Buscar cliente
-    </button>
   </div>
-</div>
+  </div>
 
 
     <!-- Totales -->
@@ -147,7 +146,7 @@
             class="form-control form-control-lg border-primary text-end fw-bold fs-5"
             appCurrencyFormat
             [disabled]="paymentType === 'CREDITO'"
-            (formattedValue)="onCalculateMoneyChange($event)">
+            >
         </div>
         <div class="mb-2 text-muted">
           <strong>Vueltas:</strong>
@@ -281,49 +280,8 @@
   </div>
 </div>
 
-<!-- Modal clientes -->
-<div class="modal fade" id="clientModal" tabindex="-1" aria-labelledby="clientModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Buscar cliente</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <form [formGroup]="formClient" (ngSubmit)="searchClient()" class="d-flex gap-2 mb-3" autocomplete="off">
-          <input class="form-control" type="text" placeholder="Buscar por nombre o número de documento" formControlName="searchClient">
-          <button class="btn btn-primary" type="submit"><i class="bi bi-search me-1"></i>Buscar</button>
-          <button class="btn btn-info" type="button" (click)="clearClientSearchField()"><i class="bi bi-eraser me-1"></i> Limpiar</button>
-        </form>
+<!-- Clientes modal handled by reusable component -->
+<app-modal-clients-list (clientSelected)="selectClient($event)"></app-modal-clients-list>
 
-        <div class="table-responsive">
-          <table class="table text-center align-middle">
-            <thead class="table-primary">
-              <tr>
-                <th>ID</th>
-                <th>Nombre completo</th>
-                <th>Tipo cliente</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (client of filteredListClients; track $index) {
-              <tr>
-                <td>{{client.idNumber}}</td>
-                <td>{{client.name}} {{client.surname}}</td>
-                <td>{{client.clientType}}</td>
-                <td>
-                  <button type="button" class="btn btn-success" (click)="selectClient(client)">Seleccionar</button>
-                </td>
-              </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><i class="bi bi-x-circle me-1"></i>Cerrar</button>
-      </div>
-    </div>
-  </div>
-</div>
+<!-- Floating Expenses FAB (reusable) -->
+<app-expenses-fab [source]="'factura'"></app-expenses-fab>

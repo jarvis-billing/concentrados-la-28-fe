@@ -1,5 +1,5 @@
 <!-- Modal Clientes -->
-<div class="modal fade" id="clientModal" tabindex="-1" aria-labelledby="clientModalLabel" aria-hidden="true">
+<div class="modal fade" id="clientModal" #clientModal tabindex="-1" aria-labelledby="clientModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
       <div class="modal-content">
         <div class="modal-header">
@@ -8,18 +8,18 @@
         </div>
         <div class="modal-body">
           <div class="w-100 overflow-auto">
-  
+
             <form autocomplete="off" [formGroup]="formClient" (ngSubmit)="searchClient()" class="d-flex gap-2 mb-2">
-  
+
                 <input class="form-control" type="text" placeholder="Buscar por nombre o numero de documento" formControlName="searchClient">
-  
+
                 <button class="btn btn-primary" type="submit">Buscar</button>
                 <button class="btn btn-info" type="button" (click)="clearClientSearchField()">Limpiar</button>
-  
+
             </form>
-  
+
             <table class="table text-center" style="vertical-align: middle;">
-  
+
               <thead>
                 <tr class="table-primary">
                   <th scope="col">ID</th>
@@ -27,29 +27,29 @@
                   <th scope="col">Tipo cliente</th>
                   <th scope="col"></th>
                 </tr>
-  
+
               </thead>
-  
+
               <tbody>
-  
+
                 @for (client of filteredListClients; track $index) {
-  
+
                   <tr class="">
-  
+
                     <td>{{client.idNumber}}</td>
                     <td>{{client.fullName}}</td>
                     <td>{{client.clientType}}</td>
                     <td>
-                      <button type="button" class="btn btn-success" (click)="selectClient(client)">Seleccionar</button>
+                      <button type="button" class="btn btn-success" data-bs-dismiss="modal" (click)="selectClient(client)">Seleccionar</button>
                     </td>
                   </tr>
                 }
-  
-  
+
+
               </tbody>
-  
+
             </table>
-  
+
           </div>
         </div>
         <div class="modal-footer">

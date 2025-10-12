@@ -1,4 +1,4 @@
-import { Component, EventEmitter, inject, OnInit, Output } from '@angular/core';
+import { Component, ElementRef, EventEmitter, inject, OnInit, Output, ViewChild } from '@angular/core';
 import { ClienteService } from '../../cliente.service';
 import { Client } from '../../cliente';
 import { toast } from 'ngx-sonner';
@@ -14,6 +14,8 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 export class ModalClientsListComponent implements OnInit {
 
   @Output() clientSelected = new EventEmitter<Client>();
+
+  @ViewChild('clientModal', { static: false }) clientModalRef!: ElementRef;
 
   ngOnInit(): void {
     this.getClients();
@@ -70,6 +72,41 @@ export class ModalClientsListComponent implements OnInit {
   // Handle selected client
   selectClient(client: Client) {
     this.clientSelected.emit(client);
+    this.closeModal();
+  }
+
+  openModal() {
+    const modalEl = this.clientModalRef?.nativeElement;
+    if (modalEl) {
+      const modal = new (window as any).bootstrap.Modal(modalEl);
+      modal.show();
+    }
+  }
+
+  closeModal() {
+    const modalEl = this.clientModalRef?.nativeElement as HTMLElement | undefined;
+    if (!modalEl) return;
+
+    const bs = (window as any).bootstrap;
+    try {
+      if (bs?.Modal) {
+        const instance = bs.Modal.getInstance(modalEl) || bs.Modal.getOrCreateInstance(modalEl);
+        instance?.hide();
+        return;
+      }
+    } catch { /* noop */ }
+
+    // Fallback manual si no hay instancia de Bootstrap
+    try {
+      modalEl.classList.remove('show');
+      modalEl.style.display = 'none';
+      modalEl.setAttribute('aria-hidden', 'true');
+      modalEl.removeAttribute('aria-modal');
+      document.body.classList.remove('modal-open');
+      // Eliminar backdrop si quedó presente
+      const backdrops = document.querySelectorAll('.modal-backdrop');
+      backdrops.forEach(el => el.remove());
+    } catch { /* noop */ }
   }
 
 }
