@@ -1,0 +1,6 @@
+/* Clickable rows: show hand cursor and subtle hover */
+.row-clickable { cursor: pointer; }
+.row-clickable:hover { background-color: rgba(9, 53, 197, 0.925); }
+
+/* Selected row highlight (paired with [class.table-active]) */
+tr.table-active { background-color:  rgba(9, 53, 197, 0.925) !important; }

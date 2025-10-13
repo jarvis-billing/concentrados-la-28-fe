@@ -139,7 +139,7 @@
           <label for="reciveValue" class="form-label text-primary fw-bold">
             <i class="bi bi-cash-coin me-1"></i> Dinero Recibido:
           </label>
-          <input
+          <input #reciveValueInput
             id="reciveValue"
             [formControl]="reciveValue"
             type="text"
@@ -285,3 +285,22 @@
 
 <!-- Floating Expenses FAB (reusable) -->
 <app-expenses-fab [source]="'factura'"></app-expenses-fab>
+
+<!-- Confirm Save Billing Modal -->
+<div class="modal fade" id="confirmSaveModal" #confirmSaveModal tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Confirmar guardado</h5>
+        <button type="button" class="btn-close" (click)="cancelSaveBilling()" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>¿Desea guardar la factura?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" (click)="cancelSaveBilling()" title="N / Esc">Cancelar</button>
+        <button type="button" class="btn btn-primary" (click)="confirmSaveBilling()" title="Y / Enter">Confirmar</button>
+      </div>
+    </div>
+  </div>
+</div>

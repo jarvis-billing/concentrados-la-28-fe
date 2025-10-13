@@ -42,6 +42,8 @@ export class FacturaComponent implements OnInit, AfterViewInit {
   @ViewChild('amountProductInput', { static: false }) amountProductInput!: ElementRef<HTMLInputElement>;
   @ViewChild(ProductsSearchModalComponent, { static: false }) productsSearchModalComp!: ProductsSearchModalComponent;
   @ViewChild(ModalClientsListComponent, { static: false }) clientsModalComp!: ModalClientsListComponent;
+  @ViewChild('reciveValueInput', { static: false }) reciveValueInput!: ElementRef<HTMLInputElement>;
+  @ViewChild('confirmSaveModal', { static: false }) confirmSaveModalRef!: ElementRef;
 
   ngAfterViewInit() {
     // Configuración para el modal "Cantidad a vender"
@@ -268,21 +270,8 @@ export class FacturaComponent implements OnInit, AfterViewInit {
         saleType: saleTypeFromString(this.paymentType) ?? saleType.CONTADO,
       };
 
-      console.log('Guardar esta factura: ', this.factura);
-      toast('¿Esta seguro que desea guardar la factura?', {
-        action: {
-          label: 'Confirmar',
-          onClick: () => {
-            this.facturaService.save(this.factura).subscribe(factura => {
-              if (factura.id) {
-                toast.success('La Factura fue registrada correctamente.');
-                this.onInitBilling();
-              }
-            });
-
-          }
-        },
-      });
+      // Abrir modal de confirmación (control por teclado)
+      this.openConfirmSaveModal();
 
     }
   }
@@ -622,7 +611,7 @@ export class FacturaComponent implements OnInit, AfterViewInit {
   @HostListener('document:keydown', ['$event'])
   handleKeyboardEvent(event: KeyboardEvent) {
 
-    if (event.ctrlKey && event.key.toLowerCase() === 'p') {
+    if (event.ctrlKey && event.key.toLowerCase() === 'F9') {
       event.preventDefault();
       this.printTicketBilling();
     }
@@ -641,6 +630,75 @@ export class FacturaComponent implements OnInit, AfterViewInit {
       event.preventDefault();
       this.saveBilling();
     }
+debugger;
+    // Evitar atajos cuando se está escribiendo en algún control
+    const target = event.target as HTMLElement | null;
+    const tag = (target?.tagName || '').toLowerCase();
+    const isTyping = tag === 'input' || tag === 'textarea' || tag === 'select' || (target?.isContentEditable ?? false);
+    if (!isTyping) {
+      // Confirm modal keyboard handling
+      if (this.isConfirmOpen()) {
+        if (event.key === 'Enter' || event.key.toLowerCase() === 'y') {
+          event.preventDefault();
+          this.confirmSaveBilling();
+          return;
+        }
+        if (event.key === 'Escape' || event.key.toLowerCase() === 'n') {
+          event.preventDefault();
+          this.cancelSaveBilling();
+          return;
+        }
+      }
+      // Atajo de una sola tecla: R para enfocar "Dinero Recibido"
+      if (event.key === 'F8') {
+        event.preventDefault();
+        try {
+          const el = this.reciveValueInput?.nativeElement;
+          el?.focus();
+          el?.select();
+        } catch { /* noop */ }
+      }
+    }
+  }
+
+  private openConfirmSaveModal() {
+    try {
+      const el = this.confirmSaveModalRef?.nativeElement;
+      if (!el) return;
+      const Modal = (window as any).bootstrap?.Modal;
+      const instance = Modal?.getOrCreateInstance(el);
+      instance?.show();
+    } catch { /* noop */ }
+  }
+
+  private closeConfirmSaveModal() {
+    try {
+      const el = this.confirmSaveModalRef?.nativeElement;
+      if (!el) return;
+      const Modal = (window as any).bootstrap?.Modal;
+      const instance = Modal?.getInstance(el) || Modal?.getOrCreateInstance(el);
+      instance?.hide();
+    } catch { /* noop */ }
+  }
+
+  private isConfirmOpen(): boolean {
+    const el = this.confirmSaveModalRef?.nativeElement as HTMLElement | undefined;
+    return !!el && el.classList.contains('show');
+  }
+
+  confirmSaveBilling() {
+    // Ejecutar guardado real
+    this.closeConfirmSaveModal();
+    this.facturaService.save(this.factura).subscribe(factura => {
+      if (factura.id) {
+        toast.success('La Factura fue registrada correctamente.');
+        this.onInitBilling();
+      }
+    });
+  }
+
+  cancelSaveBilling() {
+    this.closeConfirmSaveModal();
   }
 
   openProductsModal() {

@@ -24,4 +24,13 @@ export class ClienteService {
   findByDocument(searchCriteriaClient: SearchCriteriaClient): Observable<Client> {
     return this.http.post<Client>(`${this.url}/findByDocument`, searchCriteriaClient);
   }
+
+  create(client: Client): Observable<Client> {
+    return this.http.post<Client>(`${this.url}`, client);
+  }
+
+  update(client: Client): Observable<Client> {
+    const id = client.id || client.idNumber;
+    return this.http.put<Client>(`${this.url}/${id}`, client);
+  }
 }

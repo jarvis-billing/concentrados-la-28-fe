@@ -1,60 +1,146 @@
-<!-- Modal Clientes -->
+<!-- Modal Clientes (Buscar, Registrar y Editar) -->
 <div class="modal fade" id="clientModal" #clientModal tabindex="-1" aria-labelledby="clientModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="clientModalLabel">Buscar cliente</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <div class="w-100 overflow-auto">
-
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="clientModalLabel">Clientes</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <!-- Columna izquierda: Buscar y Listado -->
+          <div class="col-12 col-lg-7">
             <form autocomplete="off" [formGroup]="formClient" (ngSubmit)="searchClient()" class="d-flex gap-2 mb-2">
-
-                <input class="form-control" type="text" placeholder="Buscar por nombre o numero de documento" formControlName="searchClient">
-
-                <button class="btn btn-primary" type="submit">Buscar</button>
-                <button class="btn btn-info" type="button" (click)="clearClientSearchField()">Limpiar</button>
-
+              <input class="form-control" type="text" placeholder="Buscar por nombre o numero de documento" formControlName="searchClient">
+              <button class="btn btn-primary" type="submit">Buscar</button>
+              <button class="btn btn-info" type="button" (click)="clearClientSearchField()">Limpiar</button>
             </form>
 
-            <table class="table text-center" style="vertical-align: middle;">
-
-              <thead>
-                <tr class="table-primary">
-                  <th scope="col">ID</th>
-                  <th scope="col">Nombre completo</th>
-                  <th scope="col">Tipo cliente</th>
-                  <th scope="col"></th>
-                </tr>
-
-              </thead>
-
-              <tbody>
-
-                @for (client of filteredListClients; track $index) {
-
-                  <tr class="">
-
-                    <td>{{client.idNumber}}</td>
-                    <td>{{client.fullName}}</td>
-                    <td>{{client.clientType}}</td>
-                    <td>
-                      <button type="button" class="btn btn-success" data-bs-dismiss="modal" (click)="selectClient(client)">Seleccionar</button>
-                    </td>
+            <div class="table-responsive" style="max-height: 55vh; overflow-y: auto;">
+              <table class="table table-sm table-bordered text-center align-middle">
+                <thead class="table-primary sticky-top">
+                  <tr>
+                    <th>ID</th>
+                    <th>Nombre completo</th>
+                    <th>Telefono</th>
+                    <th>Dirección</th>
+                    <th></th>
                   </tr>
-                }
-
-
-              </tbody>
-
-            </table>
-
+                </thead>
+                <tbody>
+                  @for (client of filteredListClients; track $index) {
+                    <tr class="row-clickable" (click)="onRowClick(client)" [class.table-active]="selectedClientId===client.id">
+                      <td class="text-nowrap">{{client.idNumber}}</td>
+                      <td class="text-start">{{client.fullName}}</td>
+                      <td class="text-nowrap">{{client.phone}}</td>
+                      <td class="text-nowrap">{{client.address}}</td>
+                      <td class="text-nowrap">
+                        <button type="button" class="btn btn-success btn-sm" data-bs-dismiss="modal" (click)="$event.stopPropagation(); selectClient(client)">
+                          <i class="bi bi-check2-circle me-1"></i> Seleccionar
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+
+          <!-- Columna derecha: Registrar / Editar -->
+          <div class="col-12 col-lg-5">
+            <div class="card border-primary h-100">
+              <div class="card-header bg-primary text-white py-2">Registrar / Editar Cliente</div>
+              <div class="card-body">
+                <form [formGroup]="clientForm" autocomplete="off" (ngSubmit)="saveClient()" class="d-flex flex-column gap-2">
+                  <div class="row g-2">
+                    <div class="col-6">
+                      <label class="form-label">Tipo Documento</label>
+                      <select class="form-select" formControlName="documentType">
+                        <option value="CEDULA_CIUDADANIA">CÉDULA CIUDADANÍA</option>
+                        <option value="NIT">NIT</option>
+                        <option value="PASAPORTE">PASAPORTE</option>
+                        <option value="CEDULA EXTRANJERIA">CÉDULA EXTRANJERIA</option>
+                      </select>
+                    </div>
+                    <div class="col-6">
+                      <label class="form-label">N° Documento</label>
+                      <input class="form-control" type="text" formControlName="idNumber" placeholder="Documento">
+                    </div>
+                  </div>
+
+                  <div class="row g-2">
+                    <div class="col-6">
+                      <label class="form-label">Nombre</label>
+                      <input class="form-control" type="text" formControlName="name">
+                    </div>
+                    <div class="col-6">
+                      <label class="form-label">Apellido</label>
+                      <input class="form-control" type="text" formControlName="surname">
+                    </div>
+                  </div>
+
+                  <div>
+                    <label class="form-label">Razón Social</label>
+                    <input class="form-control" type="text" formControlName="businessName" placeholder="Si aplica">
+                  </div>
+
+                  <div class="row g-2">
+                    <div class="col-6">
+                      <label class="form-label">Apodo</label>
+                      <input class="form-control" type="text" formControlName="nickname">
+                    </div>
+                    <div class="col-6">
+                      <label class="form-label">Tipo Cliente</label>
+                      <select class="form-select" formControlName="clientType">
+                        <option value="NATURAL">NATURAL</option>
+                        <option value="JURIDICO">JURIDICO</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="row g-2">
+                    <div class="col-12">
+                      <label class="form-label">Dirección</label>
+                      <input class="form-control" type="text" formControlName="address">
+                    </div>
+                    <div class="col-6">
+                      <label class="form-label">Teléfono</label>
+                      <input class="form-control" type="text" formControlName="phone">
+                    </div>
+                    <div class="col-6">
+                      <label class="form-label">Email</label>
+                      <input class="form-control" type="email" formControlName="email">
+                    </div>
+                  </div>
+
+                  <div class="form-check mt-2">
+                    <input id="autoReportBilling" class="form-check-input" type="checkbox" formControlName="autoReportBilling">
+                    <label for="autoReportBilling" class="form-check-label">Reportar ventas automáticamente</label>
+                  </div>
+
+                  <div class="d-flex justify-content-end gap-2 mt-2">
+                    <!-- Modo edición: mostrar Actualizar + Cancelar -->
+                    <ng-container *ngIf="editMode; else saveActions">
+                      <button type="button" class="btn btn-outline-primary" (click)="updateClient()" title="Ctrl+U">
+                        <i class="bi bi-arrow-repeat me-1"></i> Actualizar
+                      </button>
+                      <button type="button" class="btn btn-secondary" (click)="cancelEdit()" title="Esc">Cancelar</button>
+                    </ng-container>
+                    <!-- Modo crear: Guardar + Cancelar -->
+                    <ng-template #saveActions>
+                      <button type="submit" class="btn btn-success" title="Ctrl+S">
+                        <i class="bi bi-save me-1"></i> Guardar
+                      </button>
+                      <button type="button" class="btn btn-secondary" (click)="cancelEdit()" title="Esc">Cancelar</button>
+                    </ng-template>
+                  </div>
+                  <div class="form-text text-end text-muted">Atajos: Guardar Ctrl+S · Actualizar Ctrl+U · Cancelar Esc</div>
+                </form>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </div>
+</div>
