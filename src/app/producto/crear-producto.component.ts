@@ -183,6 +183,23 @@ export class CrearProductoComponent implements OnInit, AfterViewInit {
     return this.productoForm.get('presentations') as FormArray;
   }
 
+  // Devuelve unidades permitidas según tipo de venta
+  getAllowedUnitMeasures(): UnitMeasure[] {
+    const saleType = this.productoForm.get('saleType')?.value as ESaleType | undefined;
+    switch (saleType) {
+      case ESaleType.WEIGHT:
+        return [UnitMeasure.KILOGRAMOS];
+      case ESaleType.UNIT:
+        return [UnitMeasure.UNIDAD];
+      case ESaleType.LONGITUDE:
+        return [UnitMeasure.CENTIMETROS];
+      case ESaleType.VOLUME:
+        return [UnitMeasure.MILILITROS, UnitMeasure.LITROS];
+      default:
+        return this.unitMeasures as UnitMeasure[];
+    }
+  }
+
   isValidBasicData(): boolean | undefined {
     return this.productoForm.get('description')?.valid &&
       this.productoForm.get('saleType')?.valid &&
@@ -233,6 +250,35 @@ export class CrearProductoComponent implements OnInit, AfterViewInit {
     const fixedCtrl = group.get('fixedAmount');
     const packSizeCtrl = group.get('packSize');
     const saleModeCtrl = group.get('saleMode');
+    const labelCtrl = group.get('label');
+    const unitCtrl = group.get('unitMeasure');
+    const buildAutoLabel = () => {
+      const desc = (this.productoForm.get('description')?.value || '').toString().trim();
+      const saleType = this.productoForm.get('saleType')?.value as ESaleType | undefined;
+      const unitKey = unitCtrl?.value as keyof typeof UnitMeasureLabels;
+      let unitLabel = (this.unitMeasureLabels as any)?.[unitKey] || unitKey || '';
+      const mode = saleModeCtrl?.value as string | null;
+      if (mode === 'BULK') {
+        // Para volumen, representar siempre en mililitros
+        if (saleType === ESaleType.VOLUME) {
+          unitLabel = this.unitMeasureLabels[UnitMeasure.MILILITROS];
+        }
+        return `${desc} - GRANEL ${unitLabel}`.trim();
+      }
+      if (mode === 'FIXED_FULL') {
+        let size = Number(packSizeCtrl?.value) || 0;
+        // Convertir a mL cuando sea volumen
+        if (saleType === ESaleType.VOLUME && size > 0) {
+          if (unitKey === UnitMeasure.LITROS) {
+            size = size * 1000;
+          }
+          unitLabel = this.unitMeasureLabels[UnitMeasure.MILILITROS];
+        }
+        if (size > 0) return `${desc} ${size} ${unitLabel}`.trim();
+        return desc;
+      }
+      return labelCtrl?.value;
+    };
     const applyFixedValidators = (enabled: boolean) => {
       if (!fixedCtrl) return;
       if (enabled) {
@@ -275,6 +321,7 @@ export class CrearProductoComponent implements OnInit, AfterViewInit {
           // Reset explícito de campos de pack
           packSizeCtrl?.setValue(null, { emitEvent: false });
           fixedCtrl?.setValue(null, { emitEvent: false });
+          labelCtrl?.setValue(buildAutoLabel(), { emitEvent: false });
           break;
         case 'FIXED_HALF':
         case 'FIXED_FULL':
@@ -290,6 +337,7 @@ export class CrearProductoComponent implements OnInit, AfterViewInit {
           } else {
             fixedCtrl?.setValue(null, { emitEvent: false });
           }
+          labelCtrl?.setValue(buildAutoLabel(), { emitEvent: false });
           break;
         default: // NORMAL
           isBulkCtrl?.setValue(false, { emitEvent: false });
@@ -299,6 +347,7 @@ export class CrearProductoComponent implements OnInit, AfterViewInit {
           // Reset explícito de campos de pack
           packSizeCtrl?.setValue(null, { emitEvent: false });
           fixedCtrl?.setValue(null, { emitEvent: false });
+          labelCtrl?.setValue((labelCtrl?.value || '').toString(), { emitEvent: false });
       }
     });
 
@@ -310,6 +359,16 @@ export class CrearProductoComponent implements OnInit, AfterViewInit {
         const amount = size > 0 ? (mode === 'FIXED_FULL' ? size : size / 2) : null;
         fixedCtrl?.setValue(amount, { emitEvent: false });
       }
+      if (mode === 'FIXED_FULL') {
+        labelCtrl?.setValue(buildAutoLabel(), { emitEvent: false });
+      }
+    });
+
+    unitCtrl?.valueChanges.subscribe(() => {
+      const mode = saleModeCtrl?.value as string | null;
+      if (mode === 'BULK' || mode === 'FIXED_FULL') {
+        labelCtrl?.setValue(buildAutoLabel(), { emitEvent: false });
+      }
     });
 
     this.presentations.push(group);
@@ -317,9 +376,16 @@ export class CrearProductoComponent implements OnInit, AfterViewInit {
     setTimeout(() => this.initTooltips());
 
     const saleType = this.productoForm.get('saleType')?.value;
-
-    if (saleType === ESaleType.WEIGHT && this.presentations.length >= 1) {
-      this.presentations.at(this.presentations.length - 1).get('unitMeasure')?.setValue(UnitMeasure.KILOGRAMOS);
+    const lastIdx = this.presentations.length - 1;
+    if (lastIdx >= 0) {
+      const unitCtrl = this.presentations.at(lastIdx).get('unitMeasure');
+      if (saleType === ESaleType.WEIGHT) {
+        unitCtrl?.setValue(UnitMeasure.KILOGRAMOS);
+      } else if (saleType === ESaleType.VOLUME) {
+        unitCtrl?.setValue(UnitMeasure.LITROS);
+      } else if (saleType === ESaleType.LONGITUDE) {
+        unitCtrl?.setValue(UnitMeasure.CENTIMETROS);
+      }
     }
   }
 
@@ -374,29 +440,53 @@ export class CrearProductoComponent implements OnInit, AfterViewInit {
   private normalizeFixedModesFromForm() {
     const ctrls = this.presentations.controls;
     if (!ctrls?.length) return;
+    const saleType = this.productoForm.get('saleType')?.value;
     const fixedValues = ctrls
       .map(c => Number(c.get('fixedAmount')?.value) || 0)
       .filter(v => v > 0);
     if (!fixedValues.length) return;
+
+    if (saleType !== ESaleType.WEIGHT) {
+      // Para VOLUME y LONGITUDE: cualquier fijo es "Completo" y se reconstruye la etiqueta
+      const desc = (this.productoForm.get('description')?.value || '').toString().trim();
+      ctrls.forEach(c => {
+        const isFixed = !!c.get('isFixedAmount')?.value;
+        const isBulk = !!c.get('isBulk')?.value;
+        const unitKey = c.get('unitMeasure')?.value as keyof typeof UnitMeasureLabels;
+        const unitLabel = (this.unitMeasureLabels as any)?.[unitKey] || unitKey || '';
+        const amt = Number(c.get('fixedAmount')?.value) || 0;
+        if (isBulk) {
+          c.get('saleMode')?.setValue('BULK');
+          c.get('label')?.setValue(`${desc} - GRANEL ${unitLabel}`.trim(), { emitEvent: false });
+          // bulk no usa packSize
+          c.get('packSize')?.setValue(null, { emitEvent: false });
+          return;
+        }
+        if (isFixed && amt > 0) {
+          c.get('saleMode')?.setValue('FIXED_FULL');
+          c.get('packSize')?.setValue(amt, { emitEvent: false });
+          c.get('label')?.setValue(`${desc} ${amt} ${unitLabel}`.trim(), { emitEvent: false });
+        }
+      });
+      return;
+    }
+
+    // Para WEIGHT conservar lógica de FULL/HALF
     const max = Math.max(...fixedValues);
     const eps = 1e-6;
     ctrls.forEach(c => {
       const isFixed = !!c.get('isFixedAmount')?.value;
       const amt = Number(c.get('fixedAmount')?.value) || 0;
       if (!isFixed || amt <= 0) {
-        // Mantener BULK o estado actual si no es fijo
         return;
       }
       if (Math.abs(amt - max) <= eps) {
-        // Bulto completo: packSize es el tamaño completo
         c.get('saleMode')?.setValue('FIXED_FULL');
         c.get('packSize')?.setValue(max, { emitEvent: false });
       } else if (Math.abs(amt - (max / 2)) <= eps) {
-        // Medio bulto: packSize es el doble del fixedAmount
         c.get('saleMode')?.setValue('FIXED_HALF');
         c.get('packSize')?.setValue(max, { emitEvent: false });
       } else {
-        // Desconocido: asumir FULL con pack=amt
         c.get('saleMode')?.setValue('FIXED_FULL');
         c.get('packSize')?.setValue(amt, { emitEvent: false });
       }

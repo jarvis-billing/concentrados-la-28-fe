@@ -94,8 +94,8 @@
                                                     <i class="bi bi-info-circle text-info ms-1" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true"
                                                        title="<div class='text-start m-0 p-0'>
                                                          <div>• Normal (otros tipos): ingresar cantidad</div>
-                                                         <div>• Granel (peso): total $ → calcula cantidad</div>
-                                                         <div>• Medio bulto/Bulto (peso): 1/2 o tamaño completo</div>
+                                                         <div>• Granel: total $ → calcula cantidad</div>
+                                                         <div>• Medio bulto/Bulto: 1/2 o tamaño completo</div>
                                                        </div>">
                                                     </i>
                                                 </th>
@@ -112,7 +112,9 @@
                                                 <td class="text-end">
                                                     {{ pres.costPrice != null ? (pres.costPrice | currency:'$ ':'symbol':'1.0-0') : '—' }}
                                                 </td>
-                                                <td>{{ pres.unitMeasure }}</td>
+                                                <td>
+                                                    {{ (producto.saleType === 'VOLUME') ? 'MILILITROS' : pres.unitMeasure }}
+                                                </td>
                                                 <td>
                                                     <ng-container *ngIf="pres.isFixedAmount; else nonFixedA">
                                                         <ng-container [ngSwitch]="getFixedRole(producto, pres)">
@@ -226,12 +228,12 @@
                                     <th class="text-end">P. Costo</th>
                                     <th>U/M</th>
                                     <th>
-                                        Modo
+                                        Modo de venta
                                         <i class="bi bi-info-circle text-info ms-1" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true"
                                            title="<div class='text-start m-0 p-0'>
                                              <div>• Normal (otros tipos): ingresar cantidad</div>
-                                             <div>• Granel (peso): total $ → calcula cantidad</div>
-                                             <div>• Medio bulto/Bulto (peso): 1/2 o tamaño completo</div>
+                                             <div>• Granel: total $ → calcula cantidad</div>
+                                             <div>• Medio bulto/Bulto: 1/2 o tamaño completo</div>
                                            </div>"></i>
                                     </th>
                                     <th class="text-end">Acciones</th>

@@ -1,0 +1,105 @@
+<div class="container py-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="m-0">Proveedores</h4>
+    <div class="text-muted small">Atajos: F2 Nuevo · F4 Guardar · Esc Cancelar</div>
+
+<app-expenses-fab [source]="'compras'"></app-expenses-fab>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-5">
+      <div class="card">
+        <div class="card-header">Formulario</div>
+        <div class="card-body">
+          <form [formGroup]="form" (ngSubmit)="saveSupplier()" class="d-flex flex-column gap-2">
+            <div>
+              <label class="form-label">Nombre</label>
+              <input class="form-control" formControlName="name">
+            </div>
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label">Tipo Documento</label>
+                <select class="form-select" formControlName="documentType">
+                  <option value="NIT">NIT</option>
+                  <option value="CC">CC</option>
+                  <option value="CE">CE</option>
+                  <option value="PASAPORTE">PASAPORTE</option>
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label">Número</label>
+                <input class="form-control" formControlName="idNumber">
+              </div>
+            </div>
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label">Teléfono</label>
+                <input class="form-control" formControlName="phone">
+              </div>
+              <div class="col-6">
+                <label class="form-label">Email</label>
+                <input class="form-control" formControlName="email" type="email">
+              </div>
+            </div>
+            <div>
+              <label class="form-label">Domicilio</label>
+              <input class="form-control" formControlName="address">
+            </div>
+            <div>
+              <label class="form-label">Estado</label>
+              <select class="form-select" formControlName="status">
+                <option value="ACTIVE">ACTIVO</option>
+                <option value="INACTIVE">INACTIVO</option>
+              </select>
+            </div>
+            <div class="d-flex justify-content-end gap-2 mt-2">
+              <button type="button" class="btn btn-secondary" (click)="cancelEdit()">Cancelar</button>
+              <button type="submit" class="btn btn-primary">Guardar</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-7">
+      <div class="card">
+        <div class="card-header">Listado</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-hover m-0 align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>Nombre</th>
+                  <th>Documento</th>
+                  <th>Teléfono</th>
+                  <th>Email</th>
+                  <th>Domicilio</th>
+                  <th>Estado</th>
+                  <th class="text-end">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let s of suppliers" (click)="editSupplier(s)">
+                  <td>{{s.name}}</td>
+                  <td>{{s.documentType}} {{s.idNumber}}</td>
+                  <td>{{s.phone}}</td>
+                  <td>{{s.email}}</td>
+                  <td>{{s.address}}</td>
+                  <td>
+                    <span class="badge" [ngClass]="s.status === 'ACTIVE' ? 'bg-success' : 'bg-secondary'">{{s.status}}</span>
+                  </td>
+                  <td class="text-end">
+                    <button class="btn btn-sm btn-outline-secondary" (click)="$event.stopPropagation(); editSupplier(s)">Editar</button>
+                    <button class="btn btn-sm btn-outline-warning" (click)="$event.stopPropagation(); toggleStatus(s)">
+                      {{ s.status === 'ACTIVE' ? 'Desactivar' : 'Activar' }}
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -66,6 +66,7 @@ export enum UnitMeasure {
     KILOGRAMOS = "KILOGRAMOS",
     UNIDAD = "UNIDAD",
     CENTIMETROS = "CENTIMETROS",
+    METROS = "METROS",
     LITROS = "LITROS",
     MILILITROS = "MILILITROS"
 }
@@ -75,6 +76,7 @@ export const UnitMeasureConversion: { [key in UnitMeasure]: number } = {
     [UnitMeasure.KILOGRAMOS]: 1.0,
     [UnitMeasure.UNIDAD]: 1.0,
     [UnitMeasure.CENTIMETROS]: 0.01,
+    [UnitMeasure.METROS]: 1.0,
     [UnitMeasure.LITROS]: 1.0,
     [UnitMeasure.MILILITROS]: 0.001
 };
@@ -83,6 +85,7 @@ export const UnitMeasureLabels: { [key in UnitMeasure]: string } = {
     [UnitMeasure.KILOGRAMOS]: "Kilogramos",
     [UnitMeasure.UNIDAD]: "Unidad",
     [UnitMeasure.CENTIMETROS]: "Centímetros",
+    [UnitMeasure.METROS]: "Metros",
     [UnitMeasure.LITROS]: "Litros",
     [UnitMeasure.MILILITROS]: "Mililitros"
 };

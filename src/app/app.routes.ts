@@ -16,6 +16,8 @@ import { ImportOrderComponent } from './factura/components/import-order/import-o
 import { FacturasTableComponent } from './factura/facturas-table/facturas-table.component';
 import { ConfiguracionComponent } from './configuracion/configuracion.component';
 import { ProductsSalesListComponent } from './factura/components/products-sales-list/products-sales-list.component';
+import { PurchaseInvoicesPageComponent } from './compras/pages/purchase-invoices-page.component';
+import { SuppliersPageComponent } from './compras/pages/suppliers-page.component';
 
 export const routes: Routes = [
     { path: '', pathMatch: 'full', redirectTo: '/login' },
@@ -60,6 +62,12 @@ export const routes: Routes = [
         },
         {
             path:'list/sale/products', component: ProductsSalesListComponent
+        },
+        {
+            path: 'compras/proveedores', component: SuppliersPageComponent
+        },
+        {
+            path: 'compras/facturas', component: PurchaseInvoicesPageComponent
         },
         {
             path:'perfil', component: PerfilComponent

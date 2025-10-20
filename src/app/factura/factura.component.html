@@ -236,16 +236,16 @@
       <div class="modal-body">
         <form [formGroup]="formProductAmount" (ngSubmit)="addAmountProduct()" class="d-flex flex-column gap-2 mb-3" autocomplete="off">
           <div class="input-group">
-            <!-- Modo granel/peso: ingresar Total $ con formato moneda -->
-            <input *ngIf="productToSell?.isBulk && productToSell?.saleType === 'WEIGHT'"
+            <!-- Modo granel: ingresar Total $ con formato moneda -->
+            <input *ngIf="productToSell?.isBulk && (productToSell?.saleType === 'WEIGHT' || productToSell?.saleType === 'VOLUME' || productToSell?.saleType === 'LONGITUDE')"
                    class="form-control" type="text"
                    placeholder="Ingresar Total $ vendido"
                    formControlName="amountProduct" #amountProductInput
                    appCurrencyFormat
                    (formattedValue)="onBulkTotalInput($event)"
                    (input)="onBulkTotalInput($event.target.value)">
-            <!-- Modo normal: ingresar cantidad -->
-            <input *ngIf="!(productToSell?.isBulk || productToSell?.saleType === 'WEIGHT') || productToSell?.hasFixedAmount"
+            <!-- Modo normal o fijo: ingresar cantidad -->
+            <input *ngIf="!(productToSell?.isBulk && (productToSell?.saleType === 'WEIGHT' || productToSell?.saleType === 'VOLUME' || productToSell?.saleType === 'LONGITUDE')) || productToSell?.hasFixedAmount"
                    class="form-control" type="text"
                    placeholder="Ingresar la Cantidad"
                    formControlName="amountProduct" #amountProductInput>
@@ -254,17 +254,17 @@
             </button>
             <button class="btn btn-info" type="button" (click)="clearProductAmountField()"><i class="bi bi-eraser me-1"></i> Limpiar</button>
           </div>
-          <div *ngIf="productToSell?.isBulk && productToSell?.saleType === 'WEIGHT'" class="form-text">
+          <div *ngIf="productToSell?.isBulk && (productToSell?.saleType === 'WEIGHT' || productToSell?.saleType === 'VOLUME' || productToSell?.saleType === 'LONGITUDE')" class="form-text">
             Modo granel: ingrese el <strong>total $ vendido</strong>. La cantidad será calculada como <em>total / precio unitario</em>.
-            Precio unitario: <strong>{{ productToSell?.price | currency:'$ ':'symbol':'.0-0' }}</strong> por {{ productToSell?.barcode ? 'presentación' : 'unidad' }}.
+            Precio unitario: <strong>{{ productToSell?.price | currency:'$ ':'symbol':'.0-0' }}</strong>.
           </div>
-          <div *ngIf="productToSell?.isBulk && productToSell?.saleType === 'WEIGHT'" class="mt-2">
+          <div *ngIf="productToSell?.isBulk && (productToSell?.saleType === 'WEIGHT' || productToSell?.saleType === 'VOLUME' || productToSell?.saleType === 'LONGITUDE')" class="mt-2">
             <div class="card border-success text-center">
               <div class="card-body">
                 <div class="text-muted">Cantidad calculada</div>
                 <div class="display-4 fw-bold text-success">
                   {{ bulkComputedAmount | number:'1.1-1' }}
-                  <span class="fs-4 text-secondary">{{ productToSell?.selectedUnitMeasure || productToSell?.stock?.unitMeasure || 'KILOGRAMOS' }}</span>
+                  <span class="fs-4 text-secondary">{{ productToSell?.selectedUnitMeasure || productToSell?.stock?.unitMeasure }}</span>
                 </div>
               </div>
             </div>
