@@ -23,10 +23,17 @@ export class Billing {
     totalBilling: number = 0;
     billingType: string = "";
     paymentMethods: string[] = [];
+    payments?: PaymentEntry[]; // Detalle de pagos por método (opcional)
     isReportInvoice: boolean = false;
     saleType: saleType = saleType.CONTADO;
 }
 
+// Detalle de pago por método (opcional en el payload)
+export interface PaymentEntry {
+    method: string;      // EFECTIVO, TRANSFERENCIA, TARJETA_CREDITO, etc.
+    amount: number;      // Monto pagado en este método
+    reference?: string;  // Referencia/nota opcional (No. transferencia, últimos 4, etc.)
+}
 export class BillingReportFilter {
     toDate: string = ''; // Formato 'yyyy-MM-dd'
     fromDate: string = '';

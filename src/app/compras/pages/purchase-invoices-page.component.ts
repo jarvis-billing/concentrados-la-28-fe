@@ -7,11 +7,12 @@ import { PurchasesService } from '../services/purchases.service';
 import { SupplierService } from '../services/supplier.service';
 import { toast } from 'ngx-sonner';
 import { ExpensesFabComponent } from '../../expenses/expenses-fab.component';
+import { CurrencyFormatDirective } from '../../directive/currency-format.directive';
 
 @Component({
   selector: 'app-purchase-invoices-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, ExpensesFabComponent],
+  imports: [CommonModule, ReactiveFormsModule, ExpensesFabComponent, CurrencyFormatDirective],
   templateUrl: './purchase-invoices-page.component.html'
 })
 export class PurchaseInvoicesPageComponent {
@@ -45,7 +46,7 @@ export class PurchaseInvoicesPageComponent {
       presentationId: ['', [Validators.required]],
       description: ['', [Validators.required]],
       quantity: [1, [Validators.required, Validators.min(0.01)]],
-      unitCost: [0, [Validators.required, Validators.min(0)]],
+      unitCost: ['0', [Validators.required]],
       totalCost: [{ value: 0, disabled: true }]
     });
     g.valueChanges.subscribe(() => this.recalcItem(g));
@@ -58,8 +59,8 @@ export class PurchaseInvoicesPageComponent {
 
   recalcItem(g: FormGroup) {
     const qty = Number(g.get('quantity')?.value || 0);
-    const unit = Number(g.get('unitCost')?.value || 0);
-    const total = qty * unit;
+    const unit = this.normalizeToNumber(g.get('unitCost')?.value);
+    const total = qty * (unit || 0);
     g.get('totalCost')?.setValue(total, { emitEvent: false });
   }
 
@@ -85,10 +86,10 @@ export class PurchaseInvoicesPageComponent {
         presentationId: it.presentationId,
         description: it.description,
         quantity: Number(it.quantity),
-        unitCost: Number(it.unitCost),
-        totalCost: Number(it.quantity) * Number(it.unitCost)
+        unitCost: this.normalizeToNumber(it.unitCost),
+        totalCost: Number(it.quantity) * this.normalizeToNumber(it.unitCost)
       })),
-      total: raw.items.reduce((acc: number, it: any) => acc + (Number(it.quantity) * Number(it.unitCost)), 0),
+      total: raw.items.reduce((acc: number, it: any) => acc + (Number(it.quantity) * this.normalizeToNumber(it.unitCost)), 0),
       notes: raw.notes || ''
     };
 
@@ -131,5 +132,21 @@ export class PurchaseInvoicesPageComponent {
       e.preventDefault();
       this.resetForm();
     }
+  }
+
+  // Normaliza entrada monetaria con formato a número
+  private normalizeToNumber(value: unknown): number {
+    if (typeof value === 'number') return isFinite(value) ? value : 0;
+    if (typeof value === 'string') {
+      const raw = value
+        .toString()
+        .replace(/[\s$\u00A0]/g, '')
+        .replace(/\.(?=\d{3}(\D|$))/g, '')
+        .replace(/,/g, '.')
+        .replace(/[^0-9.\-]/g, '');
+      const n = Number(raw);
+      return isNaN(n) ? 0 : n;
+    }
+    return 0;
   }
 }

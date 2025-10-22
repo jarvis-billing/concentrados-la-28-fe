@@ -1,5 +1,5 @@
 import { AfterViewInit, Component, ElementRef, HostListener, ViewChild, inject, Input, OnInit } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule, FormArray } from '@angular/forms';
 import { toast } from 'ngx-sonner';
 import { CurrencyPipe, DatePipe, CommonModule } from '@angular/common';
 import { EVatType, Product } from '../producto/producto';
@@ -68,6 +68,10 @@ export class FacturaComponent implements OnInit, AfterViewInit {
     this.reciveValue.valueChanges.subscribe((val) => {
       this.onCalculateMoneyChange(val as unknown);
     });
+    this.initPaymentsForm();
+    this.paymentsForm.valueChanges.subscribe(() => {
+      this.recalculateFromPayments();
+    });
   }
 
   client!: Client;
@@ -100,6 +104,12 @@ export class FacturaComponent implements OnInit, AfterViewInit {
   paymentType: 'CONTADO' | 'CREDITO' = 'CONTADO';
 
   reciveValue = new FormControl('');
+
+  paymentsForm = new FormArray<FormGroup<{
+    method: FormControl<string>;
+    amount: FormControl<string>;
+    reference: FormControl<string>;
+  }>>([]);
 
   pdfSrc: any;
 
@@ -150,6 +160,7 @@ export class FacturaComponent implements OnInit, AfterViewInit {
       // Asegurar cliente por defecto para CONTADO
       this.ensureDefaultClientForContado();
     }
+    this.recalculateFromPayments();
   }
 
   // Heurística para identificar consumidor final. Ajustar según sus datos.
@@ -252,6 +263,9 @@ export class FacturaComponent implements OnInit, AfterViewInit {
     if (this.isValidBillingData()) {
       const userLogin = this.loginUserService.getUserFromToken();
       const billingType = this.totalBilling > 250000 ? 'ELECTRONICA' : 'FISICA';
+      const payments = this.getPaymentsValues();
+      const paymentMethods = Array.from(new Set(payments.filter(p => (p.amount || 0) > 0).map(p => p.method)));
+      const totals = this.computeTotalsFromPayments(payments);
       this.factura = {
         ...this.factura,
         id: null,
@@ -259,11 +273,12 @@ export class FacturaComponent implements OnInit, AfterViewInit {
         saleDetails: this.saleDetails,
         subTotalSale: this.totalBilling,
         totalIVAT: this.totalVatBilling,
-        receivedValue: this.totalRecivedValue,
-        returnedValue: this.totalMoneyChange,
+        receivedValue: totals.totalReceived,
+        returnedValue: totals.change,
         totalBilling: this.totalBilling,
         creationUser: userLogin,
-        paymentMethods: [this.paymentMethod],
+        paymentMethods: paymentMethods.length ? paymentMethods : [this.paymentMethod],
+        payments: payments,
         company: userLogin.company,
         billingType: billingType,
         dateTimeRecord: formatInTimeZone(new Date(), 'America/Bogota', "yyyy-MM-dd'T'HH:mm:ssXXX"),
@@ -588,6 +603,90 @@ export class FacturaComponent implements OnInit, AfterViewInit {
     const diff = this.totalRecivedValue - (this.totalBilling || 0);
     // Vueltos solo si supera o iguala el total; en caso contrario, 0
     this.totalMoneyChange = diff >= 0 ? diff : 0;
+    // Sincroniza el primer renglón de pagos con el campo clásico cuando es CONTADO
+    if (this.paymentType === 'CONTADO' && this.paymentsForm.length > 0) {
+      const first = this.paymentsForm.at(0);
+      (first.controls as any)['method'].setValue('EFECTIVO', { emitEvent: false });
+      (first.controls as any)['amount'].setValue(String(received), { emitEvent: false });
+      this.recalculateFromPayments();
+    }
+  }
+
+  private initPaymentsForm() {
+    if (this.paymentsForm.length === 0) {
+      this.paymentsForm.push(new FormGroup<{
+        method: FormControl<string>;
+        amount: FormControl<string>;
+        reference: FormControl<string>;
+      }>({
+        method: new FormControl<string>('EFECTIVO', { nonNullable: true }),
+        amount: new FormControl<string>('0', { nonNullable: true }),
+        reference: new FormControl<string>('', { nonNullable: true })
+      }));
+    }
+  }
+
+  private resetPaymentsForm() {
+    while (this.paymentsForm.length) {
+      this.paymentsForm.removeAt(0);
+    }
+    this.initPaymentsForm();
+    this.recalculateFromPayments();
+  }
+
+  addPaymentRow() {
+    this.paymentsForm.push(new FormGroup<{
+      method: FormControl<string>;
+      amount: FormControl<string>;
+      reference: FormControl<string>;
+    }>({
+      method: new FormControl<string>('TRANSFERENCIA', { nonNullable: true }),
+      amount: new FormControl<string>('0', { nonNullable: true }),
+      reference: new FormControl<string>('', { nonNullable: true })
+    }));
+  }
+
+  removePaymentRow(index: number) {
+    if (this.paymentsForm.length > 1) {
+      this.paymentsForm.removeAt(index);
+      this.recalculateFromPayments();
+    }
+  }
+
+  get paymentControls() { return this.paymentsForm.controls; }
+
+  private getPaymentsValues(): { method: string; amount: number; reference?: string }[] {
+    return this.paymentsForm.controls.map(ctrl => {
+      const g = ctrl as FormGroup<{ method: FormControl<string>; amount: FormControl<string>; reference: FormControl<string>; }>;
+      const rawAmount = g.controls['amount'].value as unknown;
+      return {
+        method: (g.controls['method'].value as string) || 'EFECTIVO',
+        amount: this.normalizeToNumber(rawAmount),
+        reference: (g.controls['reference'].value as string) || ''
+      };
+    });
+  }
+
+  private computeTotalsFromPayments(payments: { method: string; amount: number }[]) {
+    const total = this.totalBilling || 0;
+    const nonCash = payments.filter(p => p.method !== 'EFECTIVO').reduce((a, b) => a + (b.amount || 0), 0);
+    const cash = payments.filter(p => p.method === 'EFECTIVO').reduce((a, b) => a + (b.amount || 0), 0);
+    const totalReceived = (cash + nonCash) || 0;
+    const remainingAfterNonCash = Math.max(0, total - nonCash);
+    const change = Math.max(0, cash - remainingAfterNonCash);
+    return { totalReceived, change };
+  }
+
+  private recalculateFromPayments() {
+    const payments = this.getPaymentsValues();
+    const totals = this.computeTotalsFromPayments(payments);
+    if (this.paymentType === 'CONTADO') {
+      this.totalRecivedValue = totals.totalReceived;
+      this.totalMoneyChange = totals.change;
+    } else {
+      this.totalRecivedValue = 0;
+      this.totalMoneyChange = 0;
+    }
   }
   onInitBilling() {
     this.facturaService.getLastBillingNumber().subscribe(res => {
@@ -605,6 +704,7 @@ export class FacturaComponent implements OnInit, AfterViewInit {
         order: new Order(),
         company: new Company(),
       }
+      this.resetPaymentsForm();
     });
   }
 

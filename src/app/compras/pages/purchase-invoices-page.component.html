@@ -70,7 +70,7 @@
                   <input class="form-control text-end" type="number" min="0.01" step="0.01" formControlName="quantity">
                 </td>
                 <td class="text-end" style="max-width: 140px;">
-                  <input class="form-control text-end" type="number" min="0" step="1" formControlName="unitCost">
+                  <input class="form-control text-end" type="text" formControlName="unitCost" appCurrencyFormat>
                 </td>
                 <td class="text-end" style="width: 140px;">
                   <input class="form-control text-end" [value]="it.get('totalCost')?.value | number:'1.0-0'" readonly>

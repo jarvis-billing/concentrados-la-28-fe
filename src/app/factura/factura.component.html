@@ -124,29 +124,59 @@
           </select>
         </div>
         <div class="mb-2">
-          <label for="paymentMethod" class="form-label fw-bold text-primary">
-            <i class="bi bi-credit-card me-1"></i> Método de Pago:
+          <label class="form-label fw-bold text-primary">
+            <i class="bi bi-cash-coin me-1"></i> EFECTIVO (rápido F8):
           </label>
-          <select id="paymentMethod" class="form-select form-select-sm" [value]="paymentMethod" (change)="changePaymentMethod($event)">
-            <option value="EFECTIVO">EFECTIVO</option>
-            <option value="TRANSFERENCIA">TRANSFERENCIA</option>
-            <option value="TARJETA_CREDITO">TARJETA CREDITO</option>
-            <option value="TARJETA_DEBITO">TARJETA DEBITO</option>
-            <option value="CHEQUE">CHEQUE</option>
-          </select>
+          <input #reciveValueInput id="reciveValue" [formControl]="reciveValue" type="text" class="form-control form-control-sm border-primary text-end fw-bold"
+                 appCurrencyFormat [disabled]="paymentType === 'CREDITO'">
         </div>
-        <div class="mb-3">
-          <label for="reciveValue" class="form-label text-primary fw-bold">
-            <i class="bi bi-cash-coin me-1"></i> Dinero Recibido:
+        <div class="mb-2">
+          <label class="form-label fw-bold text-primary">
+            <i class="bi bi-credit-card me-1"></i> Pagos:
           </label>
-          <input #reciveValueInput
-            id="reciveValue"
-            [formControl]="reciveValue"
-            type="text"
-            class="form-control form-control-lg border-primary text-end fw-bold fs-5"
-            appCurrencyFormat
-            [disabled]="paymentType === 'CREDITO'"
-            >
+          <div class="table-responsive">
+            <table class="table table-sm align-middle">
+              <thead>
+                <tr>
+                  <th>Método</th>
+                  <th class="text-end">Monto</th>
+                  <th>Referencia</th>
+                  <th class="text-center" style="width: 40px;"></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (group of paymentControls; let i = $index; track i) {
+                <tr [formGroup]="group">
+                  <td>
+                    <select class="form-select form-select-sm" formControlName="method" [disabled]="paymentType === 'CREDITO'">
+                      <option value="EFECTIVO">EFECTIVO</option>
+                      <option value="TRANSFERENCIA">TRANSFERENCIA</option>
+                      <option value="TARJETA_CREDITO">TARJETA CREDITO</option>
+                      <option value="TARJETA_DEBITO">TARJETA DEBITO</option>
+                      <option value="CHEQUE">CHEQUE</option>
+                    </select>
+                  </td>
+                  <td>
+                    <input type="text" class="form-control form-control-sm text-end" formControlName="amount" appCurrencyFormat [disabled]="paymentType === 'CREDITO'">
+                  </td>
+                  <td>
+                    <input type="text" class="form-control form-control-sm" placeholder="Ref/Nota" formControlName="reference" [disabled]="paymentType === 'CREDITO'">
+                  </td>
+                  <td class="text-center">
+                    <button type="button" class="btn btn-outline-danger btn-sm" (click)="removePaymentRow(i)" [disabled]="paymentType === 'CREDITO' || paymentControls.length === 1">
+                      <i class="bi bi-x"></i>
+                    </button>
+                  </td>
+                </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <div class="d-grid">
+            <button type="button" class="btn btn-outline-primary btn-sm" (click)="addPaymentRow()" [disabled]="paymentType === 'CREDITO'">
+              <i class="bi bi-plus-circle me-1"></i> Agregar pago
+            </button>
+          </div>
         </div>
         <div class="mb-2 text-muted">
           <strong>Vueltas:</strong>
@@ -264,7 +294,7 @@
                 <div class="text-muted">Cantidad calculada</div>
                 <div class="display-4 fw-bold text-success">
                   {{ bulkComputedAmount | number:'1.1-1' }}
-                  <span class="fs-4 text-secondary">{{ productToSell?.selectedUnitMeasure || productToSell?.stock?.unitMeasure }}</span>
+                  <span class="fs-4 text-secondary">{{ productToSell?.saleType === 'VOLUME' ? 'MILILITROS' : (productToSell?.selectedUnitMeasure || productToSell?.stock?.unitMeasure) }}</span>
                 </div>
               </div>
             </div>

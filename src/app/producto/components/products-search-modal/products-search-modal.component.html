@@ -59,16 +59,12 @@
                             <td class="text-nowrap">{{ pres.salePrice | currency:'$ ':'symbol':'.0-0' }}</td>
                             <td>
                               <ng-container *ngIf="pres.isFixedAmount; else nonFixedA">
-                                <ng-container [ngSwitch]="getFixedRole(producto, pres)">
-                                    <span *ngSwitchCase="'FULL'" class="badge bg-success">Bulto completo ({{ pres.fixedAmount }} {{ pres.unitMeasure }})</span>
-                                    <span *ngSwitchCase="'HALF'" class="badge bg-success">Medio bulto ({{ pres.fixedAmount }} {{ pres.unitMeasure }})</span>
-                                    <span *ngSwitchDefault class="badge bg-success">Fijo: {{ pres.fixedAmount }} {{ pres.unitMeasure }}</span>
-                                </ng-container>
-                            </ng-container>
-                            <ng-template #nonFixedA>
+                                <span class="badge bg-success">Completo ({{ pres.fixedAmount }} {{ pres.unitMeasure }})</span>
+                              </ng-container>
+                              <ng-template #nonFixedA>
                                 <span *ngIf="pres.isBulk" class="badge bg-warning text-dark">Granel</span>
                                 <span *ngIf="!pres.isBulk" class="badge bg-secondary">Normal</span>
-                            </ng-template>
+                              </ng-template>
                             </td>
                             <td>
                               <button type="button" class="btn btn-primary btn-sm" (click)="ProductToSellFromPresentation(producto, pres)">

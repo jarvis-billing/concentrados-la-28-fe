@@ -18,6 +18,8 @@ import { ConfiguracionComponent } from './configuracion/configuracion.component'
 import { ProductsSalesListComponent } from './factura/components/products-sales-list/products-sales-list.component';
 import { PurchaseInvoicesPageComponent } from './compras/pages/purchase-invoices-page.component';
 import { SuppliersPageComponent } from './compras/pages/suppliers-page.component';
+import { SupplierPaymentsPageComponent } from './compras/pages/supplier-payments-page.component';
+import { SupplierPaymentsListPageComponent } from './compras/pages/supplier-payments-list-page.component';
 
 export const routes: Routes = [
     { path: '', pathMatch: 'full', redirectTo: '/login' },
@@ -68,6 +70,12 @@ export const routes: Routes = [
         },
         {
             path: 'compras/facturas', component: PurchaseInvoicesPageComponent
+        },
+        {
+            path: 'compras/pagos-proveedor', component: SupplierPaymentsPageComponent
+        },
+        {
+            path: 'compras/pagos-proveedor/list', component: SupplierPaymentsListPageComponent
         },
         {
             path:'perfil', component: PerfilComponent

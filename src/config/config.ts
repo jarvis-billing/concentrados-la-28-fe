@@ -44,5 +44,8 @@ export const urlConfig = {
 
     microServiceCatalogUrl: function() {
         return this.urlServer + '/api/catalog';
+    },
+    microservicioPagoProveedorUrl: function() {
+        return this.urlServer + '/api/supplier-payments';
     }
 };

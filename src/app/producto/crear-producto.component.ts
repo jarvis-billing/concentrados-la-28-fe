@@ -323,7 +323,7 @@ export class CrearProductoComponent implements OnInit, AfterViewInit {
           fixedCtrl?.setValue(null, { emitEvent: false });
           labelCtrl?.setValue(buildAutoLabel(), { emitEvent: false });
           break;
-        case 'FIXED_HALF':
+        case 'FIXED_HALF': // Medio eliminado: tratar como Completo
         case 'FIXED_FULL':
           isBulkCtrl?.setValue(false, { emitEvent: false });
           isFixedCtrl?.setValue(true, { emitEvent: false });
@@ -332,7 +332,7 @@ export class CrearProductoComponent implements OnInit, AfterViewInit {
           // Derivar fixedAmount desde packSize
           const size = Number(packSizeCtrl?.value) || 0;
           if (size > 0) {
-            const amount = mode === 'FIXED_FULL' ? size : size / 2;
+            const amount = size; // siempre Completo
             fixedCtrl?.setValue(amount, { emitEvent: false });
           } else {
             fixedCtrl?.setValue(null, { emitEvent: false });
@@ -356,7 +356,7 @@ export class CrearProductoComponent implements OnInit, AfterViewInit {
       const mode = saleModeCtrl?.value as string | null;
       const size = Number(val) || 0;
       if (mode === 'FIXED_FULL' || mode === 'FIXED_HALF') {
-        const amount = size > 0 ? (mode === 'FIXED_FULL' ? size : size / 2) : null;
+        const amount = size > 0 ? size : null; // siempre Completo
         fixedCtrl?.setValue(amount, { emitEvent: false });
       }
       if (mode === 'FIXED_FULL') {
