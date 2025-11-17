@@ -1,51 +1,35 @@
 export const urlConfig = {
     
-    //Para servidor local usar:
+    //For local server use:
     
-    urlServer: 'http://localhost:8080',
+    baseUrl: 'http://localhost:8080',
     
     
-    //Para servidor remoto usar:
-     
-    //urlServer: 'https://meraki-pharma-be-6a69fc17ef2e.herokuapp.com',
-
-    microservicioPersonaUrl: function() {
-        return this.urlServer + '/api/person';
-    },
+    //For remote server use:
     
-    microservicioOrdenUrl: function() {
-        return this.urlServer + '/api/order';
-    },
+    //baseUrl: 'https://meraki-pharma-be-6a69fc17ef2e.herokuapp.com',
+
+    getPersonServiceUrl: () => urlConfig.baseUrl + '/api/person',
     
-    microservicioProductoUrl: function() {
-        return this.urlServer + '/api/product';
-    },
-
-    microservicioClienteUrl: function() {
-        return this.urlServer + '/api/client';
-    },
-
-    microservicioVentaUrl: function() {
-        return this.urlServer + '/api/sale';
-    },
-
+    getOrderServiceUrl: () => urlConfig.baseUrl + '/api/order',
     
-    microservicioLoginUrl: function() {
-        return this.urlServer + '/api/auth';
-    },
+    getProductServiceUrl: () => urlConfig.baseUrl + '/api/product',
+    
+    getClientServiceUrl: () => urlConfig.baseUrl + '/api/client',
+    
+    getSaleServiceUrl: () => urlConfig.baseUrl + '/api/sale',
+    
+    getAuthServiceUrl: () => urlConfig.baseUrl + '/api/auth',
+    
+    getProductVatTypeServiceUrl: () => urlConfig.baseUrl + '/api/product_vat_type',
+    
+    getUserServiceUrl: () => urlConfig.baseUrl + '/api/user',
+    
+    getCatalogServiceUrl: () => urlConfig.baseUrl + '/api/catalog',
+    
+    getSupplierPaymentsServiceUrl: () => urlConfig.baseUrl + '/api/supplier-payments',
+    
+    getSupplierServiceUrl: () => urlConfig.baseUrl + '/api/suppliers',
 
-    microservicioVatProductUrl: function() {
-        return this.urlServer + '/api/product_vat_type';
-    },
-
-    microservicioUserUrl: function() {
-        return this.urlServer + '/api/user';
-    },
-
-    microServiceCatalogUrl: function() {
-        return this.urlServer + '/api/catalog';
-    },
-    microservicioPagoProveedorUrl: function() {
-        return this.urlServer + '/api/supplier-payments';
-    }
+    getExpensesServiceUrl: () => urlConfig.baseUrl + '/api/expenses',
 };

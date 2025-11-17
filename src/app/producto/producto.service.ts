@@ -22,9 +22,9 @@ export class ProductoService {
 
   productCode$ = this.productCodeSubject.asObservable();
 
-  private url: string = urlConfig.microservicioProductoUrl();
+  private url: string = urlConfig.getProductServiceUrl();
 
-  private urlVatProduct: string = urlConfig.microservicioVatProductUrl();
+  private urlVatProduct: string = urlConfig.getProductVatTypeServiceUrl();
 
   // Cross-tab communication
   private productsChannel?: BroadcastChannel;

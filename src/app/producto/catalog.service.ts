@@ -17,7 +17,7 @@ export class CatalogService {
   categories$ = this.categoriesSubject.asObservable();
   brands$ = this.brandsSubject.asObservable();
 
-  private baseUrl = urlConfig.microServiceCatalogUrl();
+  private baseUrl = urlConfig.getCatalogServiceUrl();
 
   constructor(private http: HttpClient) {
     this.loadInitialData();

@@ -12,7 +12,7 @@ import { TokenLoginUser } from '../TokenLoginUser';
 
 export class LoginUserService {
 
-    private url: string = urlConfig.microservicioLoginUrl();
+    private url: string = urlConfig.getAuthServiceUrl();
 
     constructor(private http: HttpClient) {}
 

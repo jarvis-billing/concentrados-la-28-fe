@@ -11,7 +11,7 @@ import { PaginationDto } from '../util/PaginationDto';
 })
 export class OrdenService {
 
-  private url: string = urlConfig.microservicioOrdenUrl();
+  private url: string = urlConfig.getOrderServiceUrl();
 
   constructor(private http: HttpClient) { }
 

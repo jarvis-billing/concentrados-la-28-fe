@@ -6,7 +6,7 @@ import { urlConfig } from '../../config/config';
 
 @Injectable({ providedIn: 'root' })
 export class ExpensesService {
-  private url: string = `${urlConfig.urlServer}/api/expenses`;
+  private url: string = urlConfig.getExpensesServiceUrl();
 
   constructor(private http: HttpClient) {}
 

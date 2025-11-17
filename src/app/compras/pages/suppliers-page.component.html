@@ -7,7 +7,7 @@
   </div>
 
   <div class="row g-3">
-    <div class="col-12 col-lg-5">
+    <div class="col-12 col-lg-4">
       <div class="card">
         <div class="card-header">Formulario</div>
         <div class="card-body">
@@ -61,7 +61,7 @@
       </div>
     </div>
 
-    <div class="col-12 col-lg-7">
+    <div class="col-12 col-lg-8">
       <div class="card">
         <div class="card-header">Listado</div>
         <div class="card-body p-0">
@@ -72,7 +72,7 @@
                   <th>Nombre</th>
                   <th>Documento</th>
                   <th>Teléfono</th>
-                  <th>Email</th>
+                  <th class="w-25">Email</th>
                   <th>Domicilio</th>
                   <th>Estado</th>
                   <th class="text-end">Acciones</th>
@@ -83,7 +83,7 @@
                   <td>{{s.name}}</td>
                   <td>{{s.documentType}} {{s.idNumber}}</td>
                   <td>{{s.phone}}</td>
-                  <td>{{s.email}}</td>
+                  <td class="text-break">{{s.email}}</td>
                   <td>{{s.address}}</td>
                   <td>
                     <span class="badge" [ngClass]="s.status === 'ACTIVE' ? 'bg-success' : 'bg-secondary'">{{s.status}}</span>

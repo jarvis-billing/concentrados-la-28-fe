@@ -77,8 +77,10 @@ export class SupplierPaymentsPageComponent {
       return;
     }
     const raw = this.form.getRawValue();
+    const selectedSupplier = this.suppliers.find(s => s.id === raw.supplierId);
     const payload: SupplierPayment = {
       supplierId: raw.supplierId,
+      supplierName: selectedSupplier?.name,
       paymentDate: raw.paymentDate,
       amount: this.normalizeToNumber(raw.amount),
       method: raw.method,

@@ -9,7 +9,7 @@ import { Client, SearchCriteriaClient } from './cliente';
 })
 export class ClienteService {
 
-  private url: string = urlConfig.microservicioClienteUrl();
+  private url: string = urlConfig.getClientServiceUrl();
 
   constructor(private http: HttpClient) { }
 

@@ -6,7 +6,7 @@ import { SupplierPayment } from '../models/supplier-payment';
 
 @Injectable({ providedIn: 'root' })
 export class SupplierPaymentsService {
-  private baseUrl = urlConfig.microservicioPagoProveedorUrl();
+  private baseUrl = urlConfig.getSupplierPaymentsServiceUrl();
   constructor(private http: HttpClient) {}
 
   create(payment: SupplierPayment, file?: File): Observable<void> {

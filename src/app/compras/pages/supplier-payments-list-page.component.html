@@ -42,7 +42,7 @@
             <tr>
               <th>Fecha</th>
               <th>Proveedor</th>
-              <th class="text-end">Monto</th>
+              <th class="text-center">Monto</th>
               <th>Método</th>
               <th>Referencia</th>
               <th>Notas</th>
@@ -52,16 +52,29 @@
           <tbody>
             <tr *ngFor="let p of payments">
               <td>{{ p.paymentDate | date:'yyyy-MM-dd' }}</td>
-              <td>{{ p.supplierName || p.supplierId }}</td>
+              <td>{{ p.supplierName }}</td>
               <td class="text-end">{{ p.amount | currency:'$ ':'symbol':'.0-0' }}</td>
               <td>{{ p.method }}</td>
               <td>{{ p.reference }}</td>
               <td>{{ p.notes }}</td>
               <td class="text-end">
-                <button class="btn btn-sm btn-outline-secondary" (click)="openSupport(p)" [disabled]="!p.supportUrl && !p.id">Ver/Descargar</button>
+                <ng-container *ngIf="p.supportUrl; else noSupport">
+                  <button class="btn btn-sm btn-outline-secondary" (click)="openSupport(p)">Ver/Descargar</button>
+                </ng-container>
+                <ng-template #noSupport>
+                  <span class="text-muted">Sin soporte de pago</span>
+                </ng-template>
               </td>
             </tr>
           </tbody>
+          <tfoot *ngIf="payments && payments.length">
+            <tr class="fw-semibold">
+              <td colspan="2" class="text-end">Total pagos:</td>
+              <td class="text-center">{{ totalAmount | currency:'$ ':'symbol':'.0-0' }}</td>5
+              <td colspan="3"></td>
+              <td></td>
+            </tr>
+          </tfoot>
         </table>
       </div>
     </div>

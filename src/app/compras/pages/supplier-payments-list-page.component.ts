@@ -64,4 +64,8 @@ export class SupplierPaymentsListPageComponent {
     if (e.key === 'Enter') { e.preventDefault(); this.search(); }
     if (e.key === 'Escape') { e.preventDefault(); this.clearFilters(); }
   }
+
+  get totalAmount(): number {
+    return this.payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+  }
 }

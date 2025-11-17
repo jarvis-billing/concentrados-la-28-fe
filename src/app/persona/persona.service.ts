@@ -9,7 +9,7 @@ import { urlConfig } from '../../config/config';
 })
 export class PersonaService {
 
-  private url: string = urlConfig.microservicioPersonaUrl();
+  private url: string = urlConfig.getPersonServiceUrl();
 
   constructor(private http: HttpClient) { }
 

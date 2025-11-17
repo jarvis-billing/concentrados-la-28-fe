@@ -9,7 +9,7 @@ import { Billing, BillingReportFilter, ProductSalesSummary } from './billing';
 })
 export class FacturaService {
 
-  private url: string = urlConfig.microservicioVentaUrl();
+  private url: string = urlConfig.getSaleServiceUrl();
   private pdfSrc: any;
 
   constructor(private http: HttpClient) { }
