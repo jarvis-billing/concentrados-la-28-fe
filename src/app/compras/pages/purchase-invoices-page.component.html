@@ -49,7 +49,7 @@
           <table class="table table-sm table-hover align-middle m-0">
             <thead class="table-light">
               <tr>
-                <th>Presentación</th>
+                <th style="min-width: 260px;">Producto / Presentación</th>
                 <th>Descripción</th>
                 <th class="text-end">Cantidad</th>
                 <th class="text-end">Costo unit.</th>
@@ -59,12 +59,16 @@
             </thead>
             <tbody>
               <tr *ngFor="let it of itemsArray.controls; let i = index" [formGroup]="it">
-                <td style="min-width: 220px;">
-                  <!-- Reusar buscador de productos cuando se integre; por ahora input de presentación -->
-                  <input class="form-control" placeholder="presentationId" formControlName="presentationId">
+                <td>
+                  <div class="input-group">
+                    <input class="form-control" placeholder="Código / presentación" formControlName="presentationId" readonly>
+                    <button type="button" class="btn btn-outline-secondary" (click)="openProductsModalForRow(i)">
+                      Buscar producto (F3)
+                    </button>
+                  </div>
                 </td>
                 <td>
-                  <input class="form-control" placeholder="Descripción" formControlName="description">
+                  <input class="form-control" placeholder="Descripción" formControlName="description" readonly>
                 </td>
                 <td class="text-end" style="max-width: 120px;">
                   <input class="form-control text-end" type="number" min="0.01" step="0.01" formControlName="quantity">
@@ -79,6 +83,13 @@
                   <button type="button" class="btn btn-sm btn-outline-danger" (click)="removeItem(i)">Quitar</button>
                 </td>
               </tr>
+              <tr class="table-light fw-bold" *ngIf="itemsArray.controls.length">
+                <td colspan="2" class="text-end">Total ítems: {{ itemsArray.length }}</td>
+                <td></td>
+                <td class="text-end">TOTAL COMPRA</td>
+                <td class="text-end">{{ itemsTotal | number:'1.0-0' }}</td>
+                <td></td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -91,5 +102,7 @@
     </div>
   </form>
 </div>
+
+<app-products-search-modal (selectPresentation)="onPresentationSelected($event)"></app-products-search-modal>
 
 <app-expenses-fab [source]="'compras'"></app-expenses-fab>

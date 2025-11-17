@@ -5,6 +5,7 @@ import { ProductoService } from '../../producto.service';
 import { CommonModule } from '@angular/common';
 import { toast } from 'ngx-sonner';
 import { Subscription, debounceTime } from 'rxjs';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-products-search-modal',
@@ -20,6 +21,7 @@ import { Subscription, debounceTime } from 'rxjs';
 export class ProductsSearchModalComponent implements OnInit, OnDestroy {
 
   productService = inject(ProductoService);
+  router = inject(Router);
 
   originalListProducts: Product[] = [];
   filteredListProducts: Product[] = [];
@@ -153,6 +155,28 @@ export class ProductsSearchModalComponent implements OnInit, OnDestroy {
     // Emitir selección al padre y cerrar modal
     this.selectPresentation.emit(mapped);
     this.closeModal();
+  }
+
+  goToCreateOrEditProduct(product?: Product) {
+    try {
+      if (product) {
+        const firstBarcode = product?.presentations?.[0]?.barcode as string | undefined;
+        if (firstBarcode) {
+          this.closeModal();
+          this.router.navigate(['/main/crearproducto', firstBarcode]);
+          return;
+        }
+        if (product.id) {
+          this.closeModal();
+          this.router.navigate(['/main/crearproducto'], { queryParams: { id: product.id } });
+          return;
+        }
+      }
+      this.closeModal();
+      this.router.navigate(['/main/crearproducto']);
+    } catch {
+      toast.error('No fue posible abrir el formulario de producto');
+    }
   }
 
   getAllProductsPage(applyHighlight: boolean = false) {

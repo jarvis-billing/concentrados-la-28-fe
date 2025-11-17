@@ -1,4 +1,4 @@
-import { Component, HostListener, inject } from '@angular/core';
+import { Component, HostListener, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Supplier } from '../models/supplier';
@@ -8,11 +8,13 @@ import { SupplierService } from '../services/supplier.service';
 import { toast } from 'ngx-sonner';
 import { ExpensesFabComponent } from '../../expenses/expenses-fab.component';
 import { CurrencyFormatDirective } from '../../directive/currency-format.directive';
+import { ProductsSearchModalComponent } from '../../producto/components/products-search-modal/products-search-modal.component';
+import { Product } from '../../producto/producto';
 
 @Component({
   selector: 'app-purchase-invoices-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, ExpensesFabComponent, CurrencyFormatDirective],
+  imports: [CommonModule, ReactiveFormsModule, ExpensesFabComponent, CurrencyFormatDirective, ProductsSearchModalComponent],
   templateUrl: './purchase-invoices-page.component.html'
 })
 export class PurchaseInvoicesPageComponent {
@@ -20,7 +22,10 @@ export class PurchaseInvoicesPageComponent {
   private purchasesService = inject(PurchasesService);
   private supplierService = inject(SupplierService);
 
+  @ViewChild(ProductsSearchModalComponent, { static: false }) productsSearchModalComp!: ProductsSearchModalComponent;
+
   suppliers: Supplier[] = [];
+  private selectedItemIndexForProductSearch: number | null = null;
 
   form: FormGroup = this.fb.group({
     supplierId: ['', [Validators.required]],
@@ -40,6 +45,14 @@ export class PurchaseInvoicesPageComponent {
     return this.form.get('items') as FormArray;
   }
 
+  get itemsTotal(): number {
+    return this.itemsArray.controls.reduce((acc, ctrl) => {
+      const g = ctrl as FormGroup;
+      const total = Number(g.get('totalCost')?.value || 0);
+      return acc + (isFinite(total) ? total : 0);
+    }, 0);
+  }
+
   addItem() {
     const g = this.fb.group({
       productId: [''],
@@ -55,6 +68,40 @@ export class PurchaseInvoicesPageComponent {
 
   removeItem(index: number) {
     this.itemsArray.removeAt(index);
+  }
+
+  openProductsModalForRow(index: number) {
+    this.selectedItemIndexForProductSearch = index;
+    this.productsSearchModalComp?.openModal();
+  }
+
+  onPresentationSelected(mappedProduct: Product) {
+    const index = this.selectedItemIndexForProductSearch ?? (this.itemsArray.length > 0 ? this.itemsArray.length - 1 : null);
+    if (index === null || index < 0) {
+      this.addItem();
+      const lastIndex = this.itemsArray.length - 1;
+      const g = this.itemsArray.at(lastIndex) as FormGroup;
+      g.patchValue({
+        productId: mappedProduct.id,
+        presentationId: mappedProduct.barcode,
+        description: mappedProduct.description
+      });
+      this.selectedItemIndexForProductSearch = null;
+      return;
+    }
+
+    const group = this.itemsArray.at(index) as FormGroup | undefined;
+    if (!group) {
+      return;
+    }
+
+    group.patchValue({
+      productId: mappedProduct.id,
+      presentationId: mappedProduct.barcode,
+      description: mappedProduct.description
+    });
+
+    this.selectedItemIndexForProductSearch = null;
   }
 
   recalcItem(g: FormGroup) {
@@ -123,6 +170,14 @@ export class PurchaseInvoicesPageComponent {
     if (e.key === 'F2') {
       e.preventDefault();
       this.addItem();
+    }
+    if (e.key === 'F3') {
+      e.preventDefault();
+      const index = this.itemsArray.length > 0 ? this.itemsArray.length - 1 : 0;
+      if (this.itemsArray.length === 0) {
+        this.addItem();
+      }
+      this.openProductsModalForRow(index);
     }
     if (e.key === 'F4') {
       e.preventDefault();
