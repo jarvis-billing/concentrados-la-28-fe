@@ -177,6 +177,11 @@ export class CrearProductoComponent implements OnInit, AfterViewInit {
         this.productoForm.patchValue({ productCode: code });
       }
     });
+
+    // Al entrar en modo creación, solicitar siempre un nuevo código de producto
+    if (!this.isEditMode) {
+      this.productoService.fetchProductCode();
+    }
   }
 
   get presentations(): FormArray {
