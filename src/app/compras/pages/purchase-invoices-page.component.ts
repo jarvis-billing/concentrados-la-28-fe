@@ -1,6 +1,7 @@
 import { Component, HostListener, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, FormsModule, Validators } from '@angular/forms';
+import { Router } from '@angular/router';
 import { Supplier } from '../models/supplier';
 import { PurchaseInvoice } from '../models/purchase-invoice';
 import { PurchasesService } from '../services/purchases.service';
@@ -14,18 +15,25 @@ import { Product } from '../../producto/producto';
 @Component({
   selector: 'app-purchase-invoices-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, ExpensesFabComponent, CurrencyFormatDirective, ProductsSearchModalComponent],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, ExpensesFabComponent, CurrencyFormatDirective, ProductsSearchModalComponent],
   templateUrl: './purchase-invoices-page.component.html'
 })
 export class PurchaseInvoicesPageComponent {
   private fb = inject(FormBuilder);
   private purchasesService = inject(PurchasesService);
   private supplierService = inject(SupplierService);
+  private router = inject(Router);
 
   @ViewChild(ProductsSearchModalComponent, { static: false }) productsSearchModalComp!: ProductsSearchModalComponent;
 
   suppliers: Supplier[] = [];
+  filteredSuppliers: Supplier[] = [];
+  supplierSearchText: string = '';
+  showSupplierDropdown: boolean = false;
+  selectedSupplier: Supplier | null = null;
   private selectedItemIndexForProductSearch: number | null = null;
+  selectedFile: File | null = null;
+  uploadedFileUrl: string | null = null;
 
   form: FormGroup = this.fb.group({
     supplierId: ['', [Validators.required]],
@@ -33,7 +41,8 @@ export class PurchaseInvoicesPageComponent {
     emissionDate: [this.todayIso(), [Validators.required]],
     paymentType: ['CONTADO', [Validators.required]],
     items: this.fb.array([]),
-    notes: ['']
+    notes: [''],
+    supportDocument: ['']
   });
 
   ngOnInit() {
@@ -57,6 +66,7 @@ export class PurchaseInvoicesPageComponent {
     const g = this.fb.group({
       productId: [''],
       presentationId: ['', [Validators.required]],
+      presentationBarcode: [''],
       description: ['', [Validators.required]],
       quantity: [1, [Validators.required, Validators.min(0.01)]],
       unitCost: ['0', [Validators.required]],
@@ -84,6 +94,7 @@ export class PurchaseInvoicesPageComponent {
       g.patchValue({
         productId: mappedProduct.id,
         presentationId: mappedProduct.barcode,
+        presentationBarcode: mappedProduct.barcode,
         description: mappedProduct.description
       });
       this.selectedItemIndexForProductSearch = null;
@@ -98,6 +109,7 @@ export class PurchaseInvoicesPageComponent {
     group.patchValue({
       productId: mappedProduct.id,
       presentationId: mappedProduct.barcode,
+      presentationBarcode: mappedProduct.barcode,
       description: mappedProduct.description
     });
 
@@ -112,7 +124,56 @@ export class PurchaseInvoicesPageComponent {
   }
 
   loadSuppliers() {
-    this.supplierService.list().subscribe(res => this.suppliers = res);
+    this.supplierService.list().subscribe(res => {
+      this.suppliers = res;
+      this.filteredSuppliers = res;
+    });
+  }
+
+  filterSuppliers(searchText: string) {
+    this.supplierSearchText = searchText;
+    if (!searchText.trim()) {
+      this.filteredSuppliers = this.suppliers;
+      this.showSupplierDropdown = false;
+      return;
+    }
+    
+    const query = searchText.toLowerCase();
+    this.filteredSuppliers = this.suppliers.filter(s => {
+      const name = (s.name || '').toLowerCase();
+      const idNumber = (s.idNumber || '').toLowerCase();
+      const docType = (s.documentType || '').toLowerCase();
+      return name.includes(query) || idNumber.includes(query) || docType.includes(query);
+    });
+    this.showSupplierDropdown = this.filteredSuppliers.length > 0;
+  }
+
+  selectSupplier(supplier: Supplier) {
+    this.selectedSupplier = supplier;
+    this.supplierSearchText = `${supplier.name} (${supplier.documentType} ${supplier.idNumber})`;
+    this.form.patchValue({ supplierId: supplier.id });
+    this.showSupplierDropdown = false;
+  }
+
+  clearSupplierSelection() {
+    this.selectedSupplier = null;
+    this.supplierSearchText = '';
+    this.form.patchValue({ supplierId: '' });
+    this.filteredSuppliers = this.suppliers;
+  }
+
+  onFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files.length > 0) {
+      this.selectedFile = input.files[0];
+      this.form.patchValue({ supportDocument: this.selectedFile.name });
+    }
+  }
+
+  removeFile() {
+    this.selectedFile = null;
+    this.uploadedFileUrl = null;
+    this.form.patchValue({ supportDocument: '' });
   }
 
   saveInvoice() {
@@ -122,27 +183,52 @@ export class PurchaseInvoicesPageComponent {
       return;
     }
     const raw = this.form.getRawValue();
-    const payload: PurchaseInvoice = {
-      id: undefined,
-      supplier: this.suppliers.find(s => s.id === raw.supplierId)!,
+    console.log('Datos del formulario:', raw);
+    console.log('Proveedor seleccionado ID:', raw.supplierId);
+    console.log('Lista de proveedores:', this.suppliers);
+    
+    const selectedSupplier = this.suppliers.find(s => s.id === raw.supplierId);
+    console.log('Proveedor encontrado:', selectedSupplier);
+    
+    if (!selectedSupplier) {
+      toast.error('Error: No se encontró el proveedor seleccionado');
+      return;
+    }
+    
+    const payload: any = {
+      supplier: {
+        id: selectedSupplier.id,
+        name: selectedSupplier.name
+      },
       invoiceNumber: raw.invoiceNumber,
-      emissionDate: raw.emissionDate,
+      invoiceDate: raw.emissionDate,
       paymentType: raw.paymentType,
       items: raw.items.map((it: any) => ({
         productId: it.productId,
         presentationId: it.presentationId,
+        presentationBarcode: it.presentationBarcode,
         description: it.description,
         quantity: Number(it.quantity),
         unitCost: this.normalizeToNumber(it.unitCost),
         totalCost: Number(it.quantity) * this.normalizeToNumber(it.unitCost)
       })),
       total: raw.items.reduce((acc: number, it: any) => acc + (Number(it.quantity) * this.normalizeToNumber(it.unitCost)), 0),
-      notes: raw.notes || ''
+      notes: raw.notes || '',
+      supportDocument: raw.supportDocument || undefined
     };
+    
+    console.log('Payload a enviar:', payload);
 
-    this.purchasesService.create(payload).subscribe(() => {
-      toast.success('Compra registrada');
-      this.resetForm();
+    this.purchasesService.create(payload).subscribe({
+      next: (response) => {
+        console.log('Respuesta del backend:', response);
+        toast.success('Compra registrada');
+        this.resetForm();
+      },
+      error: (error) => {
+        console.error('Error al guardar:', error);
+        toast.error('Error al guardar la factura');
+      }
     });
   }
 
@@ -152,10 +238,20 @@ export class PurchaseInvoicesPageComponent {
       invoiceNumber: '',
       emissionDate: this.todayIso(),
       paymentType: 'CONTADO',
-      notes: ''
+      notes: '',
+      supportDocument: ''
     });
     this.form.setControl('items', this.fb.array([]));
+    this.selectedFile = null;
+    this.uploadedFileUrl = null;
+    this.selectedSupplier = null;
+    this.supplierSearchText = '';
+    this.filteredSuppliers = this.suppliers;
     this.addItem();
+  }
+
+  goToList() {
+    this.router.navigate(['/main/compras/facturas/list']);
   }
 
   todayIso(): string {
