@@ -1,0 +1,137 @@
+<div class="container py-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="m-0"><i class="bi bi-arrow-left-right"></i> Movimientos de Inventario</h4>
+    <a routerLink="/main/inventario" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left"></i> Volver al Dashboard
+    </a>
+  </div>
+
+  <!-- Filtros -->
+  <div class="card mb-3">
+    <div class="card-body">
+      <h6 class="mb-3"><i class="bi bi-funnel"></i> Filtros</h6>
+      <form [formGroup]="filterForm">
+        <div class="row g-3">
+          <div class="col-md-3">
+            <label class="form-label">Fecha Desde</label>
+            <input type="date" class="form-control" formControlName="startDate" [max]="today">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Fecha Hasta</label>
+            <input type="date" class="form-control" formControlName="endDate" [max]="today">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Producto</label>
+            <div class="input-group">
+              <input 
+                type="text" 
+                class="form-control" 
+                [value]="getProductDisplayName()"
+                placeholder="Todos"
+                readonly
+              >
+              <button type="button" class="btn btn-outline-primary" (click)="openProductModal()">
+                <i class="bi bi-search"></i>
+              </button>
+              @if (selectedProduct) {
+                <button type="button" class="btn btn-outline-danger" (click)="clearProduct()">
+                  <i class="bi bi-x"></i>
+                </button>
+              }
+            </div>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Tipo de Movimiento</label>
+            <select class="form-select" formControlName="movementType">
+              <option value="">Todos</option>
+              @for (type of movementTypes; track type) {
+                <option [value]="type">{{ movementTypeLabels[type] }}</option>
+              }
+            </select>
+          </div>
+          <div class="col-12">
+            <button type="button" class="btn btn-primary me-2" (click)="applyFilters()">
+              <i class="bi bi-funnel"></i> Aplicar Filtros
+            </button>
+            <button type="button" class="btn btn-outline-secondary" (click)="clearFilters()">
+              <i class="bi bi-x-circle"></i> Limpiar
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Tabla de Movimientos -->
+  @if (isLoading) {
+    <div class="text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Cargando...</span>
+      </div>
+      <p class="mt-3">Cargando movimientos...</p>
+    </div>
+  } @else {
+    <div class="card">
+      <div class="card-body">
+        <h6 class="mb-3">
+          Movimientos encontrados: <span class="badge bg-primary">{{ filteredMovements.length }}</span>
+        </h6>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Fecha</th>
+                <th>Producto</th>
+                <th>Tipo</th>
+                <th class="text-end">Cantidad</th>
+                <th class="text-end">Stock Anterior</th>
+                <th class="text-end">Stock Nuevo</th>
+                <th>Referencia</th>
+                <th>Usuario</th>
+              </tr>
+            </thead>
+            <tbody>
+              @if (filteredMovements.length === 0) {
+                <tr>
+                  <td colspan="8" class="text-center text-muted py-4">
+                    No hay movimientos registrados
+                  </td>
+                </tr>
+              } @else {
+                @for (movement of filteredMovements; track movement.id) {
+                  <tr>
+                    <td>{{ formatDate(movement.date) }}</td>
+                    <td>
+                      <div>{{ movement.product?.description || 'N/A' }}</div>
+                      <small class="text-muted">{{ movement.product?.barcode || movement.presentationBarcode }}</small>
+                    </td>
+                    <td>
+                      <span class="badge" [ngClass]="'bg-' + getMovementTypeColor(movement.movementType)">
+                        {{ getMovementTypeLabel(movement.movementType) }}
+                      </span>
+                    </td>
+                    <td class="text-end">
+                      <span [ngClass]="{
+                        'text-success fw-bold': movement.quantity > 0,
+                        'text-danger fw-bold': movement.quantity < 0
+                      }">
+                        {{ movement.quantity > 0 ? '+' : '' }}{{ movement.quantity }} {{ movement.unitMeasure }}
+                      </span>
+                    </td>
+                    <td class="text-end">{{ movement.previousStock }} {{ movement.unitMeasure }}</td>
+                    <td class="text-end fw-bold">{{ movement.newStock }} {{ movement.unitMeasure }}</td>
+                    <td>{{ movement.reference || '-' }}</td>
+                    <td>{{ movement.user?.fullName || 'N/A' }}</td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  }
+</div>
+
+<!-- Modal de búsqueda de productos -->
+<app-products-search-modal (selectPresentation)="onProductSelected($event)"></app-products-search-modal>

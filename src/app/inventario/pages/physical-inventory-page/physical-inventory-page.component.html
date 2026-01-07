@@ -1,0 +1,171 @@
+<div class="container py-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="m-0"><i class="bi bi-clipboard-check"></i> Inventario Físico</h4>
+    <a routerLink="/main/inventario" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left"></i> Volver al Dashboard
+    </a>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <p class="text-muted">
+        Registre el conteo físico de productos. El sistema comparará con el stock actual y ajustará automáticamente.
+      </p>
+
+      <form [formGroup]="form" (ngSubmit)="onSubmit()">
+        <div class="row g-3">
+          <!-- Selección de Producto -->
+          <div class="col-md-6">
+            <label class="form-label">Producto <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <input 
+                type="text" 
+                class="form-control" 
+                [value]="getProductDisplayName()"
+                placeholder="Seleccione un producto"
+                readonly
+                [class.is-invalid]="form.get('productId')?.invalid && form.get('productId')?.touched"
+              >
+              <button 
+                type="button" 
+                class="btn btn-primary" 
+                (click)="openProductModal()"
+              >
+                <i class="bi bi-search"></i> Buscar
+              </button>
+              @if (selectedProduct) {
+                <button 
+                  type="button" 
+                  class="btn btn-outline-danger" 
+                  (click)="clearProduct()"
+                >
+                  <i class="bi bi-x"></i>
+                </button>
+              }
+            </div>
+            @if (form.get('productId')?.invalid && form.get('productId')?.touched) {
+              <div class="invalid-feedback d-block">
+                Debe seleccionar un producto
+              </div>
+            }
+          </div>
+
+          <!-- Stock Actual del Sistema -->
+          <div class="col-md-3">
+            <label class="form-label">Stock en Sistema</label>
+            <input 
+              type="text" 
+              class="form-control bg-light" 
+              [value]="getCurrentStock() + ' ' + (selectedProduct?.stock?.unitMeasure || '')"
+              readonly
+            >
+          </div>
+
+          <!-- Stock Físico Contado -->
+          <div class="col-md-3">
+            <label class="form-label">Stock Físico Contado <span class="text-danger">*</span></label>
+            <input 
+              type="number" 
+              class="form-control" 
+              formControlName="physicalStock"
+              placeholder="0"
+              step="0.01"
+              [class.is-invalid]="form.get('physicalStock')?.invalid && form.get('physicalStock')?.touched"
+            >
+            @if (form.get('physicalStock')?.invalid && form.get('physicalStock')?.touched) {
+              <div class="invalid-feedback">
+                Ingrese la cantidad física
+              </div>
+            }
+          </div>
+
+          <!-- Diferencia Calculada -->
+          @if (selectedProduct) {
+            <div class="col-12">
+              <div class="alert" [ngClass]="{
+                'alert-success': getDifference() > 0,
+                'alert-danger': getDifference() < 0,
+                'alert-info': getDifference() === 0
+              }">
+                <strong>Diferencia:</strong> 
+                {{ getDifference() > 0 ? '+' : '' }}{{ getDifference() }} {{ selectedProduct?.stock?.unitMeasure }}
+                @if (getDifference() > 0) {
+                  <span class="ms-2">(Sobrante)</span>
+                } @else if (getDifference() < 0) {
+                  <span class="ms-2">(Faltante)</span>
+                } @else {
+                  <span class="ms-2">(Sin diferencia)</span>
+                }
+              </div>
+            </div>
+          }
+
+          <!-- Motivo del Ajuste -->
+          <div class="col-md-6">
+            <label class="form-label">Motivo del Ajuste <span class="text-danger">*</span></label>
+            <select 
+              class="form-select" 
+              formControlName="adjustmentReason"
+              [class.is-invalid]="form.get('adjustmentReason')?.invalid && form.get('adjustmentReason')?.touched"
+            >
+              @for (reason of adjustmentReasons; track reason) {
+                <option [value]="reason">{{ adjustmentReasonLabels[reason] }}</option>
+              }
+            </select>
+          </div>
+
+          <!-- Observaciones -->
+          <div class="col-md-6">
+            <label class="form-label">Observaciones</label>
+            <textarea 
+              class="form-control" 
+              formControlName="notes"
+              rows="3"
+              placeholder="Ingrese observaciones adicionales..."
+            ></textarea>
+          </div>
+
+          <!-- Botones -->
+          <div class="col-12">
+            <div class="d-flex gap-2 justify-content-end">
+              <button 
+                type="button" 
+                class="btn btn-outline-secondary" 
+                (click)="resetForm()"
+                [disabled]="isLoading"
+              >
+                <i class="bi bi-x-circle"></i> Limpiar
+              </button>
+              <button 
+                type="submit" 
+                class="btn btn-primary" 
+                [disabled]="isLoading || form.invalid"
+              >
+                @if (isLoading) {
+                  <span class="spinner-border spinner-border-sm me-2"></span>
+                }
+                <i class="bi bi-save"></i> Registrar Inventario Físico
+              </button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Información adicional -->
+  <div class="card mt-3">
+    <div class="card-body">
+      <h6><i class="bi bi-info-circle"></i> Información</h6>
+      <ul class="mb-0">
+        <li>El sistema comparará el stock físico contado con el stock actual en el sistema.</li>
+        <li>Si hay diferencia, el stock se ajustará automáticamente al valor físico.</li>
+        <li>Se generará un movimiento de inventario tipo "Ajuste Físico".</li>
+        <li>Todos los ajustes quedan registrados con fecha, hora y usuario.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de búsqueda de productos -->
+<app-products-search-modal (selectPresentation)="onProductSelected($event)"></app-products-search-modal>

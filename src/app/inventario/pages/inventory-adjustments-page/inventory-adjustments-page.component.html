@@ -1,0 +1,255 @@
+<div class="container py-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="m-0"><i class="bi bi-gear"></i> Ajustes de Inventario</h4>
+    <a routerLink="/main/inventario" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left"></i> Volver al Dashboard
+    </a>
+  </div>
+
+  <div class="row">
+    <!-- Formulario de Ajuste -->
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-body">
+          <p class="text-muted">
+            Registre ajustes manuales de inventario. Puede incrementar o decrementar el stock de un producto.
+          </p>
+
+          <form [formGroup]="form" (ngSubmit)="onSubmit()">
+            <div class="row g-3">
+              <!-- Selección de Producto -->
+              <div class="col-md-12">
+                <label class="form-label">Producto <span class="text-danger">*</span></label>
+                <div class="input-group">
+                  <input 
+                    type="text" 
+                    class="form-control" 
+                    [value]="getProductDisplayName()"
+                    placeholder="Seleccione un producto"
+                    readonly
+                    [class.is-invalid]="form.get('productId')?.invalid && form.get('productId')?.touched"
+                  >
+                  <button 
+                    type="button" 
+                    class="btn btn-primary" 
+                    (click)="openProductModal()"
+                  >
+                    <i class="bi bi-search"></i> Buscar
+                  </button>
+                  @if (selectedProduct) {
+                    <button 
+                      type="button" 
+                      class="btn btn-outline-danger" 
+                      (click)="clearProduct()"
+                    >
+                      <i class="bi bi-x"></i>
+                    </button>
+                  }
+                </div>
+                @if (form.get('productId')?.invalid && form.get('productId')?.touched) {
+                  <div class="invalid-feedback d-block">
+                    Debe seleccionar un producto
+                  </div>
+                }
+              </div>
+
+              <!-- Stock Actual -->
+              <div class="col-md-4">
+                <label class="form-label">Stock Actual</label>
+                <input 
+                  type="text" 
+                  class="form-control bg-light" 
+                  [value]="getCurrentStock() + ' ' + (selectedProduct?.stock?.unitMeasure || '')"
+                  readonly
+                >
+              </div>
+
+              <!-- Tipo de Ajuste -->
+              <div class="col-md-4">
+                <label class="form-label">Tipo de Ajuste <span class="text-danger">*</span></label>
+                <select 
+                  class="form-select" 
+                  formControlName="adjustmentType"
+                  [class.is-invalid]="form.get('adjustmentType')?.invalid && form.get('adjustmentType')?.touched"
+                >
+                  @for (type of adjustmentTypes; track type) {
+                    <option [value]="type">{{ adjustmentTypeLabels[type] }}</option>
+                  }
+                </select>
+              </div>
+
+              <!-- Cantidad -->
+              <div class="col-md-4">
+                <label class="form-label">Cantidad <span class="text-danger">*</span></label>
+                <input 
+                  type="number" 
+                  class="form-control" 
+                  formControlName="quantity"
+                  placeholder="0"
+                  step="0.01"
+                  min="0.01"
+                  [class.is-invalid]="form.get('quantity')?.invalid && form.get('quantity')?.touched"
+                >
+                @if (form.get('quantity')?.invalid && form.get('quantity')?.touched) {
+                  <div class="invalid-feedback">
+                    Ingrese una cantidad válida
+                  </div>
+                }
+              </div>
+
+              <!-- Nuevo Stock Calculado -->
+              @if (selectedProduct) {
+                <div class="col-12">
+                  <div class="alert" [ngClass]="{
+                    'alert-success': form.get('adjustmentType')?.value === 'INCREMENT',
+                    'alert-warning': form.get('adjustmentType')?.value === 'DECREMENT' && getNewStock() >= 0,
+                    'alert-danger': getNewStock() < 0
+                  }">
+                    <div class="d-flex justify-content-between align-items-center">
+                      <div>
+                        <strong>Nuevo Stock:</strong> 
+                        {{ getNewStock() }} {{ selectedProduct?.stock?.unitMeasure }}
+                      </div>
+                      <div>
+                        @if (form.get('adjustmentType')?.value === 'INCREMENT') {
+                          <i class="bi bi-arrow-up-circle text-success fs-4"></i>
+                        } @else {
+                          <i class="bi bi-arrow-down-circle text-warning fs-4"></i>
+                        }
+                      </div>
+                    </div>
+                    @if (getNewStock() < 0) {
+                      <small class="text-danger d-block mt-1">
+                        <i class="bi bi-exclamation-triangle"></i> El ajuste resultaría en stock negativo
+                      </small>
+                    }
+                  </div>
+                </div>
+              }
+
+              <!-- Motivo del Ajuste -->
+              <div class="col-md-6">
+                <label class="form-label">Motivo del Ajuste <span class="text-danger">*</span></label>
+                <select 
+                  class="form-select" 
+                  formControlName="reason"
+                  [class.is-invalid]="form.get('reason')?.invalid && form.get('reason')?.touched"
+                >
+                  @for (reason of adjustmentReasons; track reason) {
+                    <option [value]="reason">{{ adjustmentReasonLabels[reason] }}</option>
+                  }
+                </select>
+              </div>
+
+              <!-- Requiere Autorización -->
+              <div class="col-md-6">
+                <label class="form-label">&nbsp;</label>
+                <div class="form-check mt-2">
+                  <input 
+                    class="form-check-input" 
+                    type="checkbox" 
+                    formControlName="requiresAuthorization"
+                    id="requiresAuth"
+                  >
+                  <label class="form-check-label" for="requiresAuth">
+                    Requiere autorización
+                  </label>
+                </div>
+              </div>
+
+              <!-- Observaciones -->
+              <div class="col-12">
+                <label class="form-label">Observaciones</label>
+                <textarea 
+                  class="form-control" 
+                  formControlName="notes"
+                  rows="3"
+                  placeholder="Ingrese observaciones adicionales..."
+                ></textarea>
+              </div>
+
+              <!-- Botones -->
+              <div class="col-12">
+                <div class="d-flex gap-2 justify-content-end">
+                  <button 
+                    type="button" 
+                    class="btn btn-outline-secondary" 
+                    (click)="resetForm()"
+                    [disabled]="isLoading"
+                  >
+                    <i class="bi bi-x-circle"></i> Limpiar
+                  </button>
+                  <button 
+                    type="submit" 
+                    class="btn btn-primary" 
+                    [disabled]="isLoading || form.invalid || getNewStock() < 0"
+                  >
+                    @if (isLoading) {
+                      <span class="spinner-border spinner-border-sm me-2"></span>
+                    }
+                    <i class="bi bi-save"></i> Registrar Ajuste
+                  </button>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel lateral - Ajustes Recientes -->
+    <div class="col-lg-4">
+      <div class="card">
+        <div class="card-header">
+          <h6 class="m-0"><i class="bi bi-clock-history"></i> Ajustes Recientes</h6>
+        </div>
+        <div class="card-body p-0">
+          @if (recentAdjustments.length === 0) {
+            <div class="text-center text-muted py-4">
+              <i class="bi bi-inbox fs-1"></i>
+              <p class="mb-0 mt-2">No hay ajustes recientes</p>
+            </div>
+          } @else {
+            <ul class="list-group list-group-flush">
+              @for (adjustment of recentAdjustments; track adjustment.id) {
+                <li class="list-group-item">
+                  <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                      <small class="text-muted d-block">
+                        {{ adjustment.date | date:'dd/MM/yyyy HH:mm' }}
+                      </small>
+                      <span class="fw-medium">{{ adjustment.product?.description || 'Producto' }}</span>
+                    </div>
+                    <span class="badge" [ngClass]="{
+                      'bg-success': adjustment.adjustmentType === 'INCREMENT',
+                      'bg-danger': adjustment.adjustmentType === 'DECREMENT'
+                    }">
+                      {{ adjustment.adjustmentType === 'INCREMENT' ? '+' : '-' }}{{ adjustment.quantity }}
+                    </span>
+                  </div>
+                  <small class="text-muted">{{ adjustmentReasonLabels[adjustment.reason] }}</small>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      </div>
+
+      <!-- Información -->
+      <div class="card mt-3">
+        <div class="card-body">
+          <h6><i class="bi bi-info-circle"></i> Información</h6>
+          <ul class="small mb-0">
+            <li>Los ajustes modifican directamente el stock del producto.</li>
+            <li>Use "Incremento" para agregar stock.</li>
+            <li>Use "Decremento" para reducir stock.</li>
+            <li>Marque "Requiere autorización" para ajustes que necesiten aprobación.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de búsqueda de productos -->
+<app-products-search-modal (selectPresentation)="onProductSelected($event)"></app-products-search-modal>

@@ -34,4 +34,6 @@ export const urlConfig = {
     getExpensesServiceUrl: () => urlConfig.baseUrl + '/api/expenses',
     
     getPurchaseServiceUrl: () => urlConfig.baseUrl + '/api/purchases/invoices',
+    
+    getInventoryServiceUrl: () => urlConfig.baseUrl + '/api/inventory',
 };

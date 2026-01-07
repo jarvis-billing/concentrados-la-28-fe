@@ -1,0 +1,114 @@
+<div class="container py-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="m-0"><i class="bi bi-exclamation-triangle"></i> Alertas de Stock</h4>
+    <a routerLink="/main/inventario" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left"></i> Volver al Dashboard
+    </a>
+  </div>
+
+  @if (isLoading) {
+    <div class="text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Cargando...</span>
+      </div>
+      <p class="mt-3">Cargando alertas...</p>
+    </div>
+  } @else {
+    <!-- Resumen de alertas -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-4">
+        <div class="card text-white bg-warning">
+          <div class="card-body">
+            <h6 class="card-title">Stock Bajo</h6>
+            <h3 class="mb-0">{{ getAlertsByLevel('LOW').length }}</h3>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card text-white bg-danger">
+          <div class="card-body">
+            <h6 class="card-title">Stock Crítico</h6>
+            <h3 class="mb-0">{{ getAlertsByLevel('CRITICAL').length }}</h3>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card text-white bg-dark">
+          <div class="card-body">
+            <h6 class="card-title">Sin Stock</h6>
+            <h3 class="mb-0">{{ getAlertsByLevel('OUT_OF_STOCK').length }}</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabla de alertas -->
+    <div class="card">
+      <div class="card-body">
+        <h6 class="mb-3">
+          Total de alertas: <span class="badge bg-danger">{{ alerts.length }}</span>
+        </h6>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Producto</th>
+                <th>Código de Barras</th>
+                <th class="text-end">Stock Actual</th>
+                <th class="text-end">Stock Mínimo</th>
+                <th class="text-end">Stock Crítico</th>
+                <th>Estado</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              @if (alerts.length === 0) {
+                <tr>
+                  <td colspan="7" class="text-center text-muted py-4">
+                    <i class="bi bi-check-circle fs-1 d-block mb-2 text-success"></i>
+                    No hay alertas de stock. Todos los productos tienen stock suficiente.
+                  </td>
+                </tr>
+              } @else {
+                @for (alert of alerts; track alert.productId) {
+                  <tr>
+                    <td>{{ alert.productName }}</td>
+                    <td>{{ alert.barcode }}</td>
+                    <td class="text-end">
+                      <span class="fw-bold">{{ alert.currentStock }} {{ alert.unitMeasure }}</span>
+                    </td>
+                    <td class="text-end">{{ alert.minimumStock }} {{ alert.unitMeasure }}</td>
+                    <td class="text-end">{{ alert.criticalStock }} {{ alert.unitMeasure }}</td>
+                    <td>
+                      <span class="badge" [ngClass]="'bg-' + getAlertColor(alert.alertLevel)">
+                        {{ getAlertLabel(alert.alertLevel) }}
+                      </span>
+                    </td>
+                    <td>
+                      <button class="btn btn-sm btn-outline-primary" disabled>
+                        <i class="bi bi-cart-plus"></i> Generar Orden
+                      </button>
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Información -->
+    <div class="card mt-3">
+      <div class="card-body">
+        <h6><i class="bi bi-info-circle"></i> Información</h6>
+        <ul class="mb-0">
+          <li><strong>Stock Bajo:</strong> El stock está por debajo del mínimo configurado.</li>
+          <li><strong>Stock Crítico:</strong> El stock está por debajo del nivel crítico (10% del mínimo).</li>
+          <li><strong>Sin Stock:</strong> El producto no tiene existencias disponibles.</li>
+          <li>Configure los niveles de stock mínimo y crítico en la configuración de cada producto.</li>
+        </ul>
+      </div>
+    </div>
+  }
+</div>

@@ -1,89 +1,119 @@
 <div class="container mb-5">
-  <h3 class="text-center mt-4 mb-5 text-primary">Listado de Facturas</h3>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="m-0">Listado de Facturas de Venta</h4>
+  </div>
 
   <!-- FILTERS -->
-  <div class="accordion" id="accordionFiltros">
-    <div class="accordion-item">
-      <h2 class="accordion-header" id="headingFiltros">
-        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFiltros" aria-expanded="false" aria-controls="collapseFiltros">
-          <h5>Filtros</h5>
+  <div class="card mb-3">
+    <div class="card-header">
+      <div class="d-flex justify-content-between align-items-center">
+        <span>Filtros</span>
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="clearFilters()">
+          Limpiar filtros
         </button>
-      </h2>
-      <div id="collapseFiltros" class="accordion-collapse collapse" aria-labelledby="headingFiltros" data-bs-parent="#accordionFiltros">
-        <div class="accordion-body">
-
-          <!-- DATES -->
-          <div class="">
-            <div class="col-md-12 text-primary">
-              <label class="fw-bold">Rango de fechas</label>
-            </div>
-
-            <div class="col-md-12 text-primary">
-              <label class="col-form-label">Desde</label>
-              <input type="date" class="form-control"  [(ngModel)]="filterReport.toDate" name="toDate" [max]="today"/>
-            </div>
-            <div class="col-md-12 text-primary">
-              <label class="col-form-label">Hasta</label>
-              <input type="date" class="form-control" [(ngModel)]="filterReport.fromDate" name="fromDate" [max]="today"/>
-            </div>
-          </div>
-
-          <!-- CLIENT
-          <div class="col-md-12 text-primary">
-            <button type="button" class="btn btn-primary p-2 m-5" data-bs-toggle="modal" data-bs-target="#clientModal">
-              Buscar cliente
-            </button>
-
-            @if (selectedClient) {
-              <div class="badge rounded-pill text-bg-info p-2 m-2">
-                {{ fullNameClient }} 
-                <button type="button" class="btn-close btn-sm ms-2" aria-label="Close" (click)="removeClientSelected()"></button>
-              </div>
-            }
-          </div>
- -->
-          <!-- ORDER 
-          <div class="">
-            <div class="col-md-12 text-primary">
-              <button type="button" class="btn btn-warning p-2 m-5" data-bs-toggle="modal" data-bs-target="#userModal">
-                Buscar Vendedor
-              </button>
-
-              @if (selectedUser) {
-                <div class="badge rounded-pill text-bg-warning p-2 m-2">
-                  {{ selectedUser.fullName }} 
-                  <button type="button" class="btn-close btn-sm ms-2" aria-label="Close" (click)="removeUserSelected()"></button>
-                </div>
-              }
-            </div>
-          </div>
--->
-          <!-- Billing 
-        <form [formGroup]="formFilter">
-          <div class="">
-            <div class="col-md-12 text-primary">
-              <label class="col-form-label fw-bold">Número de Factua</label>
-              <input type="text" class="form-control" placeholder="No. Factura" formControlName="billNumber">
-            </div>
-          </div>
-        </form>
--->
-          <!-- BUTTONS -->
-          <div class="mb-3 mt-3">
-            <div class="row">
-              <div>
-                <button class="btn btn-success" type="button" (click)="findAllBilling()">Aplicar filtros</button>
-                <button class="ms-2 btn btn-warning">Limpiar filtros</button>
-              </div>
-            </div>
-          </div>
-          <!-- Modal for Clients and Users List 
-          <app-modal-clients-list (clientSelected)="handleClientSelected($event)"></app-modal-clients-list>
-          <app-modal-users-list (userSelected)="handleUserSelected($event)"></app-modal-users-list>
-          -->
-
-        </div>
       </div>
+    </div>
+    <div class="card-body">
+      <form [formGroup]="filterForm">
+
+        <div class="row g-3">
+          <!-- FECHA DESDE -->
+          <div class="col-12 col-md-3">
+            <label class="form-label">Fecha desde</label>
+            <input type="date" class="form-control" formControlName="startDate" [max]="today"/>
+          </div>
+          
+          <!-- FECHA HASTA -->
+          <div class="col-12 col-md-3">
+            <label class="form-label">Fecha hasta</label>
+            <input type="date" class="form-control" formControlName="endDate" [max]="today"/>
+          </div>
+
+          <!-- CLIENTE -->
+          <div class="col-12 col-md-3">
+            <label class="form-label">Cliente</label>
+            <div class="position-relative">
+              <div class="input-group">
+                <input 
+                  type="text" 
+                  class="form-control" 
+                  [(ngModel)]="clientSearchText"
+                  [ngModelOptions]="{standalone: true}"
+                  (input)="filterClients(clientSearchText)"
+                  (focus)="showClientDropdown = true"
+                  placeholder="Buscar cliente..."
+                  autocomplete="off">
+                <button 
+                  type="button" 
+                  class="btn btn-outline-danger" 
+                  *ngIf="selectedClient"
+                  (click)="clearClientSelection()">
+                  <i class="bi bi-x"></i>
+                </button>
+              </div>
+              <div 
+                *ngIf="showClientDropdown && filteredClientsForFilter.length > 0" 
+                class="position-absolute w-100 bg-white border rounded shadow-sm mt-1"
+                style="max-height: 250px; overflow-y: auto; z-index: 1000;">
+                <div 
+                  *ngFor="let client of filteredClientsForFilter"
+                  class="p-2 border-bottom cursor-pointer"
+                  (click)="selectClientForFilter(client)"
+                  style="cursor: pointer;"
+                  (mouseenter)="$event.target.style.backgroundColor='#f8f9fa'"
+                  (mouseleave)="$event.target.style.backgroundColor='white'">
+                  <div class="fw-bold">{{ getClientDisplayName(client) }}</div>
+                  <small class="text-muted">{{ client.documentType }} {{ client.idNumber }}</small>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- PRODUCTO -->
+          <div class="col-12 col-md-3">
+            <label class="form-label">Buscar producto</label>
+            <div class="input-group">
+              <input type="text" class="form-control" formControlName="productSearch" 
+                     placeholder="Código o descripción" readonly>
+              <button type="button" class="btn btn-outline-secondary" (click)="openProductModal()">
+                Buscar
+              </button>
+              <button type="button" class="btn btn-outline-danger" *ngIf="selectedProduct" (click)="clearProductFilter()">
+                <i class="bi bi-x"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="row g-3 mt-2">
+          <!-- TIPO DE VENTA -->
+          <div class="col-12 col-md-3">
+            <label class="form-label">Tipo de venta</label>
+            <select class="form-select" formControlName="saleType">
+              <option value="">Todos</option>
+              <option value="CONTADO">Contado</option>
+              <option value="CREDITO">Crédito</option>
+            </select>
+          </div>
+          
+          <!-- NÚMERO DE FACTURA -->
+          <div class="col-12 col-md-3">
+            <label class="form-label">Número de factura</label>
+            <input type="text" class="form-control" formControlName="billNumber" placeholder="Ej: FAC-001">
+          </div>
+        </div>
+        
+        <!-- BOTONES -->
+        <div class="row g-3 mt-2">
+          <div class="col-12">
+            <button class="btn btn-primary" type="button" (click)="applyFilters()">
+              <i class="bi bi-funnel"></i> Aplicar filtros
+            </button>
+            <button class="btn btn-outline-secondary ms-2" type="button" (click)="clearFilters()">
+              <i class="bi bi-x-circle"></i> Limpiar
+            </button>
+          </div>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -98,9 +128,8 @@
           <th scope="col">Fecha emisión</th>
           <th scope="col">Cliente</th>
           <th scope="col">Total venta</th>
-          <th scope="col">Total recibido</th>
-          <th scope="col">Total cambio</th>
           <th scope="col">Total IVA</th>
+          <th scope="col">Tipo de venta</th>
           <th scope="col">Medio de pago</th>
           <th scope="col">Vendedor</th>
           <th scope="col"></th>
@@ -108,10 +137,11 @@
       </thead>
       <tbody>
         @if (!isLoading) {
-          @for (billing of reportBilling; track $index) {
-            <tr class="table-primary">
+          @for (billing of filteredBilling; track $index) {
+            <tr class="table table-hover align-middle" style="cursor: pointer;" (click)="toggleBillingDetails(billing.id)">
               <td style="text-align: center;">
-                <span>{{billing.billNumber}}</span>
+                <i class="bi" [ngClass]="expandedBillingId === billing.id ? 'bi-chevron-down' : 'bi-chevron-right'"></i>
+                <span class="ms-2">{{billing.billNumber}}</span>
               </td>
 
               <td style="text-align: center;">
@@ -127,15 +157,17 @@
               </td>
 
               <td style="text-align: center;">
-                <span>{{billing.receivedValue | currency:'$ ':'symbol':'.0-0'}}</span>
-              </td>
-
-              <td style="text-align: center;">
-                <span>{{billing.returnedValue | currency:'$ ':'symbol':'.0-0'}}</span>
-              </td>
-
-              <td style="text-align: center;">
                 <span>{{billing.totalIVAT | currency:'$ ':'symbol':'.0-0'}}</span>
+              </td>
+
+              <td style="text-align: center;">
+                @if (billing.saleType === 'CONTADO') {
+                  <span class="badge bg-success">Contado</span>
+                } @else if (billing.saleType === 'CREDITO') {
+                  <span class="badge bg-warning text-dark">Crédito</span>
+                } @else {
+                  <span class="badge bg-secondary">N/A</span>
+                }
               </td>
 
               <td style="text-align: center;">
@@ -151,7 +183,7 @@
                   <span>{{billing.creationUser?.fullName}}</span>
                 </td>
               }
-              <td style="text-align: center;">
+              <td style="text-align: center;" (click)="$event.stopPropagation()">
                 <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Acciones</button>
                 <div class="dropdown-menu" style="background-color: white; border-color: black;">
                   <button class="dropdown-item" (click)="openSaleDetailModal(billing)">Ver detalle</button>
@@ -159,7 +191,46 @@
                   <button class="dropdown-item">Enviar a la DIAN</button>
                 </div>
               </td>
-          </tr>
+            </tr>
+            
+            <!-- DETALLE EXPANDIBLE DE PRODUCTOS -->
+            @if (expandedBillingId === billing.id) {
+              <tr>
+                <td colspan="9" class="p-0">
+                  <div class="p-3" style="background-color: #f8f9fa;">
+                    <h6 class="mb-3"><i class="bi bi-box-seam"></i> Productos vendidos</h6>
+                    <div class="table-responsive">
+                      <table class="table table-sm table-bordered mb-0">
+                        <thead style="background-color: #e9ecef;">
+                          <tr>
+                            <th>Producto</th>
+                            <th>Código de barras</th>
+                            <th class="text-center">Cantidad</th>
+                            <th class="text-end">Precio unitario</th>
+                            <th class="text-end">Subtotal</th>
+                            <th class="text-end">IVA</th>
+                            <th class="text-end">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          @for (detail of billing.saleDetails; track detail.id) {
+                            <tr>
+                              <td>{{ detail.product?.description || 'N/A' }}</td>
+                              <td>{{ detail.product?.barcode || 'N/A' }}</td>
+                              <td class="text-center">{{ detail.amount || 0 }}</td>
+                              <td class="text-end">{{ (detail.unitPrice || 0) | currency:'$ ':'symbol':'.0-0' }}</td>
+                              <td class="text-end">{{ (detail.subTotal || 0) | currency:'$ ':'symbol':'.0-0' }}</td>
+                              <td class="text-end">{{ (detail.totalVat || 0) | currency:'$ ':'symbol':'.0-0' }}</td>
+                              <td class="text-end fw-bold">{{ ((detail.subTotal || 0) + (detail.totalVat || 0)) | currency:'$ ':'symbol':'.0-0' }}</td>
+                            </tr>
+                          }
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            }
           }
         }
       </tbody>
@@ -174,7 +245,7 @@
           <div class="card text-white bg-primary">
             <div class="card-header">Facturas:</div>
             <div class="card-body">
-              <p class="card-text fw-bold">{{reportBilling.length}}</p>
+              <p class="card-text fw-bold">{{filteredBilling.length}}</p>
             </div>
           </div>
         </div>
@@ -216,3 +287,5 @@
     </div>
   }
 </div>
+
+<app-products-search-modal (selectPresentation)="onProductSelected($event)"></app-products-search-modal>

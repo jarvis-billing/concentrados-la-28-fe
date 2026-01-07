@@ -1,0 +1,136 @@
+<div class="container py-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="m-0">Dashboard de Inventario</h4>
+  </div>
+
+  @if (isLoading) {
+    <div class="text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Cargando...</span>
+      </div>
+      <p class="mt-3">Cargando dashboard...</p>
+    </div>
+  } @else if (dashboard) {
+    <!-- Métricas principales -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-3">
+        <div class="card text-white bg-primary">
+          <div class="card-body">
+            <h6 class="card-title">Total Productos</h6>
+            <h3 class="mb-0">{{ dashboard.totalProducts }}</h3>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card text-white bg-success">
+          <div class="card-body">
+            <h6 class="card-title">Valor Inventario</h6>
+            <h3 class="mb-0">{{ dashboard.totalInventoryValue | currency:'$ ':'symbol':'.0-0' }}</h3>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card text-white bg-warning">
+          <div class="card-body">
+            <h6 class="card-title">Stock Bajo</h6>
+            <h3 class="mb-0">{{ dashboard.lowStockProducts }}</h3>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card text-white bg-danger">
+          <div class="card-body">
+            <h6 class="card-title">Stock Crítico</h6>
+            <h3 class="mb-0">{{ dashboard.criticalStockProducts }}</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Accesos rápidos -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-3">
+        <a routerLink="/main/inventario/fisico" class="text-decoration-none">
+          <div class="card h-100 text-center hover-shadow">
+            <div class="card-body">
+              <i class="bi bi-clipboard-check fs-1 text-primary"></i>
+              <h6 class="mt-2">Inventario Físico</h6>
+            </div>
+          </div>
+        </a>
+      </div>
+      <div class="col-md-3">
+        <a routerLink="/main/inventario/movimientos" class="text-decoration-none">
+          <div class="card h-100 text-center hover-shadow">
+            <div class="card-body">
+              <i class="bi bi-arrow-left-right fs-1 text-success"></i>
+              <h6 class="mt-2">Movimientos</h6>
+            </div>
+          </div>
+        </a>
+      </div>
+      <div class="col-md-3">
+        <a routerLink="/main/inventario/ajustes" class="text-decoration-none">
+          <div class="card h-100 text-center hover-shadow">
+            <div class="card-body">
+              <i class="bi bi-gear fs-1 text-warning"></i>
+              <h6 class="mt-2">Ajustes</h6>
+            </div>
+          </div>
+        </a>
+      </div>
+      <div class="col-md-3">
+        <a routerLink="/main/inventario/alertas" class="text-decoration-none">
+          <div class="card h-100 text-center hover-shadow">
+            <div class="card-body">
+              <i class="bi bi-exclamation-triangle fs-1 text-danger"></i>
+              <h6 class="mt-2">Alertas de Stock</h6>
+            </div>
+          </div>
+        </a>
+      </div>
+    </div>
+
+    <!-- Alertas de stock -->
+    @if (dashboard.stockAlerts && dashboard.stockAlerts.length > 0) {
+      <div class="card mb-4">
+        <div class="card-header">
+          <h6 class="mb-0"><i class="bi bi-exclamation-circle"></i> Alertas de Stock</h6>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th>Stock Actual</th>
+                  <th>Stock Mínimo</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (alert of dashboard.stockAlerts.slice(0, 5); track alert.productId) {
+                  <tr>
+                    <td>{{ alert.productName }}</td>
+                    <td>{{ alert.currentStock }} {{ alert.unitMeasure }}</td>
+                    <td>{{ alert.minimumStock }} {{ alert.unitMeasure }}</td>
+                    <td>
+                      <span class="badge" [ngClass]="'bg-' + getAlertColor(alert.alertLevel)">
+                        {{ getAlertLabel(alert.alertLevel) }}
+                      </span>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <a routerLink="/main/inventario/alertas" class="btn btn-sm btn-outline-primary">Ver todas las alertas</a>
+        </div>
+      </div>
+    }
+  } @else {
+    <div class="alert alert-info">
+      No hay datos disponibles para mostrar.
+    </div>
+  }
+</div>

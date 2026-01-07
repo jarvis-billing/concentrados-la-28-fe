@@ -21,6 +21,11 @@ import { PurchaseInvoicesListPageComponent } from './compras/pages/purchase-invo
 import { SuppliersPageComponent } from './compras/pages/suppliers-page.component';
 import { SupplierPaymentsPageComponent } from './compras/pages/supplier-payments-page.component';
 import { SupplierPaymentsListPageComponent } from './compras/pages/supplier-payments-list-page.component';
+import { InventoryDashboardComponent } from './inventario/pages/inventory-dashboard/inventory-dashboard.component';
+import { PhysicalInventoryPageComponent } from './inventario/pages/physical-inventory-page/physical-inventory-page.component';
+import { InventoryMovementsPageComponent } from './inventario/pages/inventory-movements-page/inventory-movements-page.component';
+import { StockAlertsPageComponent } from './inventario/pages/stock-alerts-page/stock-alerts-page.component';
+import { InventoryAdjustmentsPageComponent } from './inventario/pages/inventory-adjustments-page/inventory-adjustments-page.component';
 
 export const routes: Routes = [
     { path: '', pathMatch: 'full', redirectTo: '/login' },
@@ -89,6 +94,21 @@ export const routes: Routes = [
         },
         {
             path: 'configuracion', component: ConfiguracionComponent
+        },
+        {
+            path: 'inventario', component: InventoryDashboardComponent
+        },
+        {
+            path: 'inventario/fisico', component: PhysicalInventoryPageComponent
+        },
+        {
+            path: 'inventario/movimientos', component: InventoryMovementsPageComponent
+        },
+        {
+            path: 'inventario/alertas', component: StockAlertsPageComponent
+        },
+        {
+            path: 'inventario/ajustes', component: InventoryAdjustmentsPageComponent
         }
     ]}
 ];

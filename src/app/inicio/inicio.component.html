@@ -1,14 +1,314 @@
-<div class="container">
+<div class="container-fluid py-4 px-4">
+  <!-- Header con saludo -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+          <h2 class="mb-1 fw-bold text-dark">
+            {{ getGreeting() }}, <span class="text-primary">{{ userName }}</span>
+          </h2>
+          <p class="text-muted mb-0">
+            <i class="bi bi-calendar3 me-2"></i>{{ formatShortDate(currentDate) | titlecase }}
+          </p>
+        </div>
+        <div class="d-flex gap-2">
+          <button 
+            class="btn btn-outline-secondary" 
+            (click)="toggleAmounts()" 
+            [title]="showAmounts ? 'Ocultar montos' : 'Mostrar montos'"
+          >
+            <i class="bi" [ngClass]="showAmounts ? 'bi-eye' : 'bi-eye-slash'"></i>
+          </button>
+          <button class="btn btn-outline-primary" (click)="refreshData()" [disabled]="isLoading">
+            <i class="bi bi-arrow-clockwise" [class.spin]="isLoading"></i> Actualizar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
-    <p class="text-center lead fs-4">Bienvenido a la aplicación de <span class="text-primary fw-semibold">Jarvis</span> realizada por <span class="text-primary fw-semibold">Jose Felix SA</span></p>
+  @if (isLoading) {
+    <div class="text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Cargando...</span>
+      </div>
+      <p class="mt-3 text-muted">Cargando dashboard...</p>
+    </div>
+  } @else {
+    <!-- Tarjetas de métricas -->
+    <div class="row g-3 mb-4">
+      <div class="col-xl-3 col-md-6">
+        <div class="card stat-card border-0 h-100">
+          <div class="card-body">
+            <div class="d-flex align-items-center">
+              <div class="stat-icon bg-primary bg-opacity-10 text-primary">
+                <i class="bi bi-currency-dollar"></i>
+              </div>
+              <div class="ms-3">
+                <h6 class="text-muted mb-1 small text-uppercase">Ventas Hoy</h6>
+                <h3 class="mb-0 fw-bold">{{ showAmounts ? formatCurrency(dashboardData?.stats?.salesToday || 0) : '$ ••••••' }}</h3>
+              </div>
+            </div>
+            <div class="mt-3 pt-2 border-top">
+              <small class="text-muted">
+                <i class="bi bi-receipt me-1"></i>{{ dashboardData?.stats?.invoicesToday || 0 }} facturas
+              </small>
+            </div>
+          </div>
+        </div>
+      </div>
 
-    <p class="text-center lead fs-4 fw-semibold">Contáctanos</p>
-    <p class="text-center lead">Estamos encantados de saber de ti</p>
-    <p class="text-center lead fw-bold fs-6">Correo electrónico: <span class="fw-semibold">josefelix&#64;gmail.com</span> </p>
-    <p class="text-center lead fw-bold fs-6">Teléfono: <span class="fw-semibold">+57 310 123 45 67</span> </p>
-    <p class="text-center lead fw-bold fs-6">Síguenos en nuestras redes: <a href="#" class="fw-semibold"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-facebook" viewBox="0 0 16 16">
-        <path d="M16 8.049c0-4.446-3.582-8.05-8-8.05C3.58 0-.002 3.603-.002 8.05c0 4.017 2.926 7.347 6.75 7.951v-5.625h-2.03V8.05H6.75V6.275c0-2.017 1.195-3.131 3.022-3.131.876 0 1.791.157 1.791.157v1.98h-1.009c-.993 0-1.303.621-1.303 1.258v1.51h2.218l-.354 2.326H9.25V16c3.824-.604 6.75-3.934 6.75-7.951"/>
-      </svg></a> </p>
+      <div class="col-xl-3 col-md-6">
+        <div class="card stat-card border-0 h-100">
+          <div class="card-body">
+            <div class="d-flex align-items-center">
+              <div class="stat-icon bg-success bg-opacity-10 text-success">
+                <i class="bi bi-graph-up-arrow"></i>
+              </div>
+              <div class="ms-3">
+                <h6 class="text-muted mb-1 small text-uppercase">Ventas Semana</h6>
+                <h3 class="mb-0 fw-bold">{{ showAmounts ? formatCurrency(dashboardData?.stats?.salesThisWeek || 0) : '$ ••••••' }}</h3>
+              </div>
+            </div>
+            <div class="mt-3 pt-2 border-top">
+              <small class="text-success">
+                <i class="bi bi-calendar-week me-1"></i>Esta semana
+              </small>
+            </div>
+          </div>
+        </div>
+      </div>
 
+      <div class="col-xl-3 col-md-6">
+        <div class="card stat-card border-0 h-100">
+          <div class="card-body">
+            <div class="d-flex align-items-center">
+              <div class="stat-icon bg-info bg-opacity-10 text-info">
+                <i class="bi bi-box-seam"></i>
+              </div>
+              <div class="ms-3">
+                <h6 class="text-muted mb-1 small text-uppercase">Productos</h6>
+                <h3 class="mb-0 fw-bold">{{ dashboardData?.stats?.productsCount || 0 }}</h3>
+              </div>
+            </div>
+            <div class="mt-3 pt-2 border-top">
+              <a routerLink="/main/producto" class="text-decoration-none small">
+                <i class="bi bi-arrow-right me-1"></i>Ver catálogo
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
 
+      <div class="col-xl-3 col-md-6">
+        <div class="card stat-card border-0 h-100">
+          <div class="card-body">
+            <div class="d-flex align-items-center">
+              <div class="stat-icon bg-warning bg-opacity-10 text-warning">
+                <i class="bi bi-exclamation-triangle"></i>
+              </div>
+              <div class="ms-3">
+                <h6 class="text-muted mb-1 small text-uppercase">Alertas Stock</h6>
+                <h3 class="mb-0 fw-bold">{{ dashboardData?.stats?.lowStockCount || 0 }}</h3>
+              </div>
+            </div>
+            <div class="mt-3 pt-2 border-top">
+              <a routerLink="/main/inventario/alertas" class="text-decoration-none small text-warning">
+                <i class="bi bi-arrow-right me-1"></i>Ver alertas
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Accesos rápidos -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <h5 class="mb-3 fw-semibold"><i class="bi bi-lightning-charge me-2"></i>Accesos Rápidos</h5>
+      </div>
+      <div class="col-6 col-md-4 col-lg-2 mb-3">
+        <a routerLink="/main/factura" class="quick-action-card text-decoration-none">
+          <div class="card border-0 h-100 text-center hover-lift">
+            <div class="card-body py-4">
+              <div class="quick-icon bg-primary text-white mx-auto mb-3">
+                <i class="bi bi-receipt"></i>
+              </div>
+              <h6 class="mb-0 text-dark">Nueva Factura</h6>
+            </div>
+          </div>
+        </a>
+      </div>
+      <div class="col-6 col-md-4 col-lg-2 mb-3">
+        <a routerLink="/main/producto" class="quick-action-card text-decoration-none">
+          <div class="card border-0 h-100 text-center hover-lift">
+            <div class="card-body py-4">
+              <div class="quick-icon bg-success text-white mx-auto mb-3">
+                <i class="bi bi-box-seam"></i>
+              </div>
+              <h6 class="mb-0 text-dark">Productos</h6>
+            </div>
+          </div>
+        </a>
+      </div>
+      <div class="col-6 col-md-4 col-lg-2 mb-3">
+        <a routerLink="/main/inventario" class="quick-action-card text-decoration-none">
+          <div class="card border-0 h-100 text-center hover-lift">
+            <div class="card-body py-4">
+              <div class="quick-icon bg-info text-white mx-auto mb-3">
+                <i class="bi bi-clipboard-data"></i>
+              </div>
+              <h6 class="mb-0 text-dark">Inventario</h6>
+            </div>
+          </div>
+        </a>
+      </div>
+      <div class="col-6 col-md-4 col-lg-2 mb-3">
+        <a routerLink="/main/list/facturas" class="quick-action-card text-decoration-none">
+          <div class="card border-0 h-100 text-center hover-lift">
+            <div class="card-body py-4">
+              <div class="quick-icon bg-secondary text-white mx-auto mb-3">
+                <i class="bi bi-file-earmark-text"></i>
+              </div>
+              <h6 class="mb-0 text-dark">Historial</h6>
+            </div>
+          </div>
+        </a>
+      </div>
+      <div class="col-6 col-md-4 col-lg-2 mb-3">
+        <a routerLink="/main/compras/facturas" class="quick-action-card text-decoration-none">
+          <div class="card border-0 h-100 text-center hover-lift">
+            <div class="card-body py-4">
+              <div class="quick-icon bg-warning text-white mx-auto mb-3">
+                <i class="bi bi-cart"></i>
+              </div>
+              <h6 class="mb-0 text-dark">Compras</h6>
+            </div>
+          </div>
+        </a>
+      </div>
+      <div class="col-6 col-md-4 col-lg-2 mb-3">
+        <a routerLink="/main/configuracion" class="quick-action-card text-decoration-none">
+          <div class="card border-0 h-100 text-center hover-lift">
+            <div class="card-body py-4">
+              <div class="quick-icon bg-dark text-white mx-auto mb-3">
+                <i class="bi bi-gear"></i>
+              </div>
+              <h6 class="mb-0 text-dark">Configuración</h6>
+            </div>
+          </div>
+        </a>
+      </div>
+    </div>
+
+    <!-- Contenido principal en dos columnas -->
+    <div class="row g-4">
+      <!-- Últimas Facturas -->
+      <div class="col-lg-7">
+        <div class="card border-0 h-100">
+          <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 fw-semibold">
+              <i class="bi bi-receipt-cutoff me-2 text-primary"></i>Últimas Facturas
+            </h5>
+            <a routerLink="/main/list/facturas" class="btn btn-sm btn-outline-primary">
+              Ver todas
+            </a>
+          </div>
+          <div class="card-body p-0">
+            @if (!dashboardData?.recentInvoices || dashboardData.recentInvoices.length === 0) {
+              <div class="text-center py-5 text-muted">
+                <i class="bi bi-inbox fs-1"></i>
+                <p class="mt-2 mb-0">No hay facturas hoy</p>
+              </div>
+            } @else {
+              <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Factura</th>
+                      <th>Cliente</th>
+                      <th>Fecha</th>
+                      <th class="text-end">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (invoice of dashboardData.recentInvoices; track invoice.id) {
+                      <tr>
+                        <td>
+                          <span class="badge bg-primary">{{ invoice.billNumber }}</span>
+                        </td>
+                        <td>{{ invoice.client?.name || 'Cliente General' }}</td>
+                        <td class="text-muted small">{{ formatDate(invoice.dateTimeRecord) }}</td>
+                        <td class="text-end fw-bold">{{ showAmounts ? formatCurrency(invoice.totalBilling) : '$ ••••••' }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Alertas de Stock -->
+      <div class="col-lg-5">
+        <div class="card border-0 h-100">
+          <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 fw-semibold">
+              <i class="bi bi-exclamation-triangle me-2 text-warning"></i>Alertas de Stock
+            </h5>
+            <a routerLink="/main/inventario/alertas" class="btn btn-sm btn-outline-warning">
+              Ver todas
+            </a>
+          </div>
+          <div class="card-body p-0">
+            @if (!dashboardData?.stockAlerts || dashboardData.stockAlerts.length === 0) {
+              <div class="text-center py-5 text-muted">
+                <i class="bi bi-check-circle fs-1 text-success"></i>
+                <p class="mt-2 mb-0">Sin alertas de stock</p>
+              </div>
+            } @else {
+              <ul class="list-group list-group-flush">
+                @for (alert of dashboardData.stockAlerts; track alert.productId) {
+                  <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                      <span class="fw-medium">{{ alert.productName }}</span>
+                      <br>
+                      <small class="text-muted">Stock: {{ alert.currentStock }} {{ alert.unitMeasure }}</small>
+                    </div>
+                    <span class="badge" [ngClass]="'bg-' + alertLevelColors[alert.alertLevel]">
+                      {{ alertLevelLabels[alert.alertLevel] }}
+                    </span>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ventas del mes -->
+    <div class="row mt-4">
+      <div class="col-12">
+        <div class="card border-0 bg-gradient-primary text-white">
+          <div class="card-body py-4">
+            <div class="row align-items-center">
+              <div class="col-md-8">
+                <h5 class="mb-2">
+                  <i class="bi bi-graph-up me-2"></i>Resumen del Mes
+                </h5>
+                <p class="mb-0 opacity-75">
+                  Total de ventas acumuladas en el mes actual
+                </p>
+              </div>
+              <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                <h2 class="mb-0 fw-bold">{{ showAmounts ? formatCurrency(dashboardData?.stats?.salesThisMonth || 0) : '$ ••••••' }}</h2>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
 </div>
