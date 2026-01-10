@@ -2,12 +2,12 @@ export const urlConfig = {
     
     //For local server use:
     
-    baseUrl: 'http://localhost:8080',
+    //baseUrl: 'http://localhost:8080',
     
     
     //For remote server use:
     
-    //baseUrl: 'https://concentrados-la-28-be-05b6b4a60f1f.herokuapp.com',
+    baseUrl: 'https://concentrados-la-28-be-05b6b4a60f1f.herokuapp.com',
 
     getPersonServiceUrl: () => urlConfig.baseUrl + '/api/person',
     
