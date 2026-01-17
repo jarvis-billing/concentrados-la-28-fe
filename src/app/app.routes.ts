@@ -26,6 +26,7 @@ import { PhysicalInventoryPageComponent } from './inventario/pages/physical-inve
 import { InventoryMovementsPageComponent } from './inventario/pages/inventory-movements-page/inventory-movements-page.component';
 import { StockAlertsPageComponent } from './inventario/pages/stock-alerts-page/stock-alerts-page.component';
 import { InventoryAdjustmentsPageComponent } from './inventario/pages/inventory-adjustments-page/inventory-adjustments-page.component';
+import { InventoryReportPageComponent } from './inventario/pages/inventory-report-page/inventory-report-page.component';
 
 export const routes: Routes = [
     { path: '', pathMatch: 'full', redirectTo: '/login' },
@@ -109,6 +110,9 @@ export const routes: Routes = [
         },
         {
             path: 'inventario/ajustes', component: InventoryAdjustmentsPageComponent
+        },
+        {
+            path: 'inventario/reporte', component: InventoryReportPageComponent
         }
     ]}
 ];
