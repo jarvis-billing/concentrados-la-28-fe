@@ -298,21 +298,29 @@ export class InventoryReportPageComponent implements OnInit, AfterViewInit {
         }
       },
       didDrawPage: (data) => {
-        // Pie de página con número de página
-        const pageCount = doc.getNumberOfPages();
-        doc.setFontSize(8);
-        doc.text(
-          `Página ${data.pageNumber} de ${pageCount}`,
-          pageWidth / 2,
-          doc.internal.pageSize.getHeight() - 10,
-          { align: 'center' }
-        );
+        // Los números de página se agregan después de generar toda la tabla
       }
     });
     
+    // Agregar números de página después de generar toda la tabla
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(100);
+      doc.text(
+        `Página ${i} de ${totalPages}`,
+        pageWidth / 2,
+        doc.internal.pageSize.getHeight() - 10,
+        { align: 'center' }
+      );
+    }
+    
     // Agregar sección de firmas en la última página
+    doc.setPage(totalPages);
     const finalY = (doc as any).lastAutoTable.finalY || 200;
     if (finalY < doc.internal.pageSize.getHeight() - 50) {
+      doc.setTextColor(0);
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
       doc.text('Realizado por: _______________________________', 14, finalY + 15);
