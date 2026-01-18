@@ -242,12 +242,12 @@ export class InventoryReportPageComponent implements OnInit, AfterViewInit {
         fontStyle: 'bold'
       },
       columnStyles: {
-        0: { cellWidth: 8, halign: 'center' },
+        0: { cellWidth: 8, halign: 'center', overflow: 'visible' },
         1: { cellWidth: 38, halign: 'center' },
-        2: { cellWidth: 55 },
-        3: { cellWidth: 30 },
-        4: { cellWidth: 18, halign: 'center' },
-        5: { cellWidth: 22, halign: 'center' }
+        2: { cellWidth: 52 },
+        3: { cellWidth: 26, overflow: 'visible', fontSize: 7 },
+        4: { cellWidth: 18, halign: 'center', overflow: 'visible', fontSize: 7, cellPadding: { left: 1, right: 3, top: 2, bottom: 2 } },
+        5: { cellWidth: 26, halign: 'center', lineWidth: 0.5, lineColor: [0, 0, 0] }
       },
       alternateRowStyles: {
         fillColor: [250, 250, 250]
@@ -275,6 +275,13 @@ export class InventoryReportPageComponent implements OnInit, AfterViewInit {
             );
           }
         }
+        
+        // Remarcar la casilla de cantidad con borde más grueso
+        if (data.section === 'body' && data.column.index === 5) {
+          doc.setDrawColor(0, 0, 0);
+          doc.setLineWidth(0.5);
+          doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'S');
+        }
       },
       didParseCell: (data) => {
         // Aumentar altura de las filas para las imágenes de barcode
@@ -284,6 +291,10 @@ export class InventoryReportPageComponent implements OnInit, AfterViewInit {
         // Limpiar el texto del barcode ya que mostraremos la imagen
         if (data.section === 'body' && data.column.index === 1) {
           data.cell.text = [];
+        }
+        // Evitar saltos de línea en columnas #, categoría y unidad
+        if (data.section === 'body' && (data.column.index === 0 || data.column.index === 3 || data.column.index === 4)) {
+          data.cell.styles.overflow = 'visible';
         }
       },
       didDrawPage: (data) => {
