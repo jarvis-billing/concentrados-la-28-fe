@@ -793,6 +793,8 @@ debugger;
       if (factura.id) {
         toast.success('La Factura fue registrada correctamente.');
         this.onInitBilling();
+        // Refrescar listado de productos para actualizar stock
+        this.productService.fetchAll();
       }
     });
   }
