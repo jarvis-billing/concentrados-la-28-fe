@@ -257,6 +257,7 @@ export class CrearProductoComponent implements OnInit, AfterViewInit {
     const saleModeCtrl = group.get('saleMode');
     const labelCtrl = group.get('label');
     const unitCtrl = group.get('unitMeasure');
+
     const buildAutoLabel = () => {
       const desc = (this.productoForm.get('description')?.value || '').toString().trim();
       const saleType = this.productoForm.get('saleType')?.value as ESaleType | undefined;
@@ -270,20 +271,26 @@ export class CrearProductoComponent implements OnInit, AfterViewInit {
         }
         return `${desc} - GRANEL ${unitLabel}`.trim();
       }
-      if (mode === 'FIXED_FULL') {
+      if (mode === 'FIXED_FULL' || mode === 'FIXED_HALF') {
         let size = Number(packSizeCtrl?.value) || 0;
+        // Para FIXED_HALF, mostrar la mitad del tamaño
+        let displaySize = mode === 'FIXED_HALF' ? size / 2 : size;
         // Convertir a mL cuando sea volumen
-        if (saleType === ESaleType.VOLUME && size > 0) {
+        if (saleType === ESaleType.VOLUME && displaySize > 0) {
           if (unitKey === UnitMeasure.LITROS) {
-            size = size * 1000;
+            displaySize = displaySize * 1000;
           }
           unitLabel = this.unitMeasureLabels[UnitMeasure.MILILITROS];
         }
-        if (size > 0) return `${desc} ${size} ${unitLabel}`.trim();
+        if (displaySize > 0) {
+          const prefix = mode === 'FIXED_HALF' ? 'MEDIO BULTO' : 'BULTO COMPLETO';
+          return `${desc} - ${prefix} ${displaySize} ${unitLabel}`.trim();
+        }
         return desc;
       }
       return labelCtrl?.value;
     };
+    
     const applyFixedValidators = (enabled: boolean) => {
       if (!fixedCtrl) return;
       if (enabled) {
@@ -328,7 +335,7 @@ export class CrearProductoComponent implements OnInit, AfterViewInit {
           fixedCtrl?.setValue(null, { emitEvent: false });
           labelCtrl?.setValue(buildAutoLabel(), { emitEvent: false });
           break;
-        case 'FIXED_HALF': // Medio eliminado: tratar como Completo
+        case 'FIXED_HALF':
         case 'FIXED_FULL':
           isBulkCtrl?.setValue(false, { emitEvent: false });
           isFixedCtrl?.setValue(true, { emitEvent: false });
@@ -337,7 +344,8 @@ export class CrearProductoComponent implements OnInit, AfterViewInit {
           // Derivar fixedAmount desde packSize
           const size = Number(packSizeCtrl?.value) || 0;
           if (size > 0) {
-            const amount = size; // siempre Completo
+            // FIXED_HALF = mitad del tamaño, FIXED_FULL = tamaño completo
+            const amount = mode === 'FIXED_HALF' ? size / 2 : size;
             fixedCtrl?.setValue(amount, { emitEvent: false });
           } else {
             fixedCtrl?.setValue(null, { emitEvent: false });
@@ -361,17 +369,18 @@ export class CrearProductoComponent implements OnInit, AfterViewInit {
       const mode = saleModeCtrl?.value as string | null;
       const size = Number(val) || 0;
       if (mode === 'FIXED_FULL' || mode === 'FIXED_HALF') {
-        const amount = size > 0 ? size : null; // siempre Completo
+        // FIXED_HALF = mitad del tamaño, FIXED_FULL = tamaño completo
+        const amount = size > 0 ? (mode === 'FIXED_HALF' ? size / 2 : size) : null;
         fixedCtrl?.setValue(amount, { emitEvent: false });
       }
-      if (mode === 'FIXED_FULL') {
+      if (mode === 'FIXED_FULL' || mode === 'FIXED_HALF') {
         labelCtrl?.setValue(buildAutoLabel(), { emitEvent: false });
       }
     });
 
     unitCtrl?.valueChanges.subscribe(() => {
       const mode = saleModeCtrl?.value as string | null;
-      if (mode === 'BULK' || mode === 'FIXED_FULL') {
+      if (mode === 'BULK' || mode === 'FIXED_FULL' || mode === 'FIXED_HALF') {
         labelCtrl?.setValue(buildAutoLabel(), { emitEvent: false });
       }
     });

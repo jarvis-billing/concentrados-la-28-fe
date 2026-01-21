@@ -45,3 +45,18 @@ export interface PhysicalInventoryFilter {
   productId?: string;
   adjustmentReason?: AdjustmentReason;
 }
+
+// Interfaces para el nuevo endpoint de conteo por presentaciones
+export interface PresentationCount {
+  presentationBarcode: string;
+  quantity: number;
+}
+
+export interface PhysicalInventoryByPresentationsRequest {
+  productId: string;
+  date?: string;
+  presentationCounts: PresentationCount[];
+  adjustmentReason?: AdjustmentReason;
+  notes?: string;
+  userId: string;
+}

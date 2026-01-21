@@ -3,7 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { urlConfig } from '../../../config/config';
 import { InventoryMovement, InventoryMovementFilter } from '../models/inventory-movement';
-import { PhysicalInventory, PhysicalInventoryFilter } from '../models/physical-inventory';
+import { PhysicalInventory, PhysicalInventoryFilter, PhysicalInventoryByPresentationsRequest } from '../models/physical-inventory';
 import { InventoryAdjustment, InventoryAdjustmentFilter } from '../models/inventory-adjustment';
 import { InventoryDashboard, StockAlert } from '../models/inventory-dashboard';
 
@@ -57,6 +57,10 @@ export class InventoryService {
 
   createPhysicalInventory(inventory: Partial<PhysicalInventory>): Observable<PhysicalInventory> {
     return this.http.post<PhysicalInventory>(`${this.baseUrl}/physical-count`, inventory);
+  }
+
+  createPhysicalInventoryByPresentations(request: PhysicalInventoryByPresentationsRequest): Observable<PhysicalInventory> {
+    return this.http.post<PhysicalInventory>(`${this.baseUrl}/physical-count/presentations`, request);
   }
 
   // ============ AJUSTES DE INVENTARIO ============

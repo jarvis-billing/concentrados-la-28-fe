@@ -61,41 +61,118 @@
             >
           </div>
 
-          <!-- Stock Físico Contado -->
-          <div class="col-md-3">
-            <label class="form-label">Stock Físico Contado <span class="text-danger">*</span></label>
-            <input 
-              type="number" 
-              class="form-control" 
-              formControlName="physicalStock"
-              placeholder="0"
-              step="0.01"
-              [class.is-invalid]="form.get('physicalStock')?.invalid && form.get('physicalStock')?.touched"
-            >
-            @if (form.get('physicalStock')?.invalid && form.get('physicalStock')?.touched) {
-              <div class="invalid-feedback">
-                Ingrese la cantidad física
+          <!-- Stock Físico Contado (solo para productos UNIT) -->
+          @if (selectedProduct && !usesPresentationCounts()) {
+            <div class="col-md-3">
+              <label class="form-label">Stock Físico Contado <span class="text-danger">*</span></label>
+              <input 
+                type="number" 
+                class="form-control" 
+                formControlName="physicalStock"
+                placeholder="0"
+                step="0.01"
+                [class.is-invalid]="form.get('physicalStock')?.invalid && form.get('physicalStock')?.touched"
+              >
+              @if (form.get('physicalStock')?.invalid && form.get('physicalStock')?.touched) {
+                <div class="invalid-feedback">
+                  Ingrese la cantidad física
+                </div>
+              }
+            </div>
+          }
+
+          <!-- Conteo por Presentaciones (para productos WEIGHT, VOLUME, LONGITUDE) -->
+          @if (selectedProduct && usesPresentationCounts() && presentationCounts.length > 0) {
+            <div class="col-12">
+              <div class="card bg-light">
+                <div class="card-body">
+                  <h6 class="card-title mb-3">
+                    <i class="bi bi-boxes"></i> Conteo por Presentación
+                  </h6>
+                  <p class="text-muted small mb-3">
+                    Ingrese la cantidad contada para cada presentación. El sistema calculará el total automáticamente.
+                  </p>
+                  
+                  <div class="table-responsive">
+                    <table class="table table-sm table-bordered mb-0">
+                      <thead class="table-secondary">
+                        <tr>
+                          <th>Presentación</th>
+                          <th style="width: 150px;">Cantidad</th>
+                          <th style="width: 150px;">Aporte al Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (item of presentationCounts; track item.presentation.barcode; let i = $index) {
+                          <tr>
+                            <td>
+                              <strong>{{ getPresentationLabel(item.presentation) }}</strong>
+                              <br>
+                              <small class="text-muted">Código: {{ item.presentation.barcode }}</small>
+                            </td>
+                            <td>
+                              <input 
+                                type="number" 
+                                class="form-control form-control-sm"
+                                [value]="item.quantity"
+                                (input)="updatePresentationCount(i, $any($event.target).valueAsNumber || 0)"
+                                placeholder="0"
+                                step="0.01"
+                                min="0"
+                              >
+                            </td>
+                            <td class="text-end align-middle">
+                              <strong>{{ getPresentationContribution(item) | number:'1.2-2' }}</strong>
+                              <small class="text-muted ms-1">{{ selectedProduct?.stock?.unitMeasure }}</small>
+                            </td>
+                          </tr>
+                        }
+                      </tbody>
+                      <tfoot class="table-primary">
+                        <tr>
+                          <td colspan="2" class="text-end"><strong>Total Calculado:</strong></td>
+                          <td class="text-end">
+                            <strong>{{ getCalculatedTotalStock() | number:'1.2-2' }}</strong>
+                            <small class="text-muted ms-1">{{ selectedProduct?.stock?.unitMeasure }}</small>
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </div>
               </div>
-            }
-          </div>
+            </div>
+          }
 
           <!-- Diferencia Calculada -->
-          @if (selectedProduct) {
+          @if (selectedProduct && (usesPresentationCounts() ? getCalculatedTotalStock() > 0 : true)) {
             <div class="col-12">
               <div class="alert" [ngClass]="{
                 'alert-success': getDifference() > 0,
                 'alert-danger': getDifference() < 0,
                 'alert-info': getDifference() === 0
               }">
-                <strong>Diferencia:</strong> 
-                {{ getDifference() > 0 ? '+' : '' }}{{ getDifference() }} {{ selectedProduct?.stock?.unitMeasure }}
-                @if (getDifference() > 0) {
-                  <span class="ms-2">(Sobrante)</span>
-                } @else if (getDifference() < 0) {
-                  <span class="ms-2">(Faltante)</span>
-                } @else {
-                  <span class="ms-2">(Sin diferencia)</span>
-                }
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <strong>Diferencia:</strong> 
+                    {{ getDifference() > 0 ? '+' : '' }}{{ getDifference() | number:'1.2-2' }} {{ selectedProduct?.stock?.unitMeasure }}
+                    @if (getDifference() > 0) {
+                      <span class="ms-2">(Sobrante)</span>
+                    } @else if (getDifference() < 0) {
+                      <span class="ms-2">(Faltante)</span>
+                    } @else {
+                      <span class="ms-2">(Sin diferencia)</span>
+                    }
+                  </div>
+                  @if (usesPresentationCounts()) {
+                    <div class="text-end">
+                      <small class="text-muted">
+                        Sistema: {{ getCurrentStock() | number:'1.2-2' }} → 
+                        Físico: {{ getCalculatedTotalStock() | number:'1.2-2' }}
+                      </small>
+                    </div>
+                  }
+                </div>
               </div>
             </div>
           }

@@ -171,7 +171,8 @@
                                                 <div class="col-12">
                                                     <h6 class="mb-2">
                                                         <span *ngIf="presentations.at(i).get('saleMode')?.value === 'BULK'" class="badge bg-warning text-dark">Granel</span>
-                                                        <span *ngIf="presentations.at(i).get('saleMode')?.value === 'FIXED_FULL'" class="badge bg-success">Completo ({{ presentations.at(i).get('fixedAmount')?.value || '-' }} {{ presentations.at(i).get('unitMeasure')?.value || '-' }})</span>
+                                                        <span *ngIf="presentations.at(i).get('saleMode')?.value === 'FIXED_FULL'" class="badge bg-success">Bulto Completo ({{ presentations.at(i).get('fixedAmount')?.value || '-' }} {{ presentations.at(i).get('unitMeasure')?.value || '-' }})</span>
+                                                        <span *ngIf="presentations.at(i).get('saleMode')?.value === 'FIXED_HALF'" class="badge bg-info">Medio Bulto ({{ presentations.at(i).get('fixedAmount')?.value || '-' }} {{ presentations.at(i).get('unitMeasure')?.value || '-' }})</span>
                                                     </h6>
                                                 </div>
 
@@ -181,7 +182,8 @@
                                                         <i class="bi bi-info-circle text-info" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true"
                                                            title="<div class='text-start m-0 p-0'>
                                                              <div>• Granel: ingresa total $ → calcula cantidad</div>
-                                                             <div>• Completo: tamaño completo</div>
+                                                             <div>• Bulto Completo: tamaño completo del bulto</div>
+                                                             <div>• Medio Bulto: mitad del tamaño del bulto (solo peso)</div>
                                                            </div>"></i>
                                                     </div>
                                                     <div class="d-flex flex-wrap gap-3">
@@ -191,16 +193,20 @@
                                                         </div>
                                                         <div class="form-check form-check-inline" *ngIf="isModeAvailable('FIXED_FULL', i)">
                                                             <input class="form-check-input" type="radio" [value]="'FIXED_FULL'" formControlName="saleMode" id="modeFull_{{i}}">
-                                                            <label class="form-check-label" for="modeFull_{{i}}">Completo</label>
+                                                            <label class="form-check-label" for="modeFull_{{i}}">Bulto Completo</label>
+                                                        </div>
+                                                        <div class="form-check form-check-inline" *ngIf="productoForm.get('saleType')?.value === 'WEIGHT' && isModeAvailable('FIXED_HALF', i)">
+                                                            <input class="form-check-input" type="radio" [value]="'FIXED_HALF'" formControlName="saleMode" id="modeHalf_{{i}}">
+                                                            <label class="form-check-label" for="modeHalf_{{i}}">Medio Bulto</label>
                                                         </div>
                                                     </div>
                                                 </div>
                                                 <!-- Tamaño y cantidad fija resultante -->
-                                                <div class="col-12 col-md-4" *ngIf="presentations.at(i).get('saleMode')?.value === 'FIXED_FULL'">
-                                                    <label class="form-label">Tamaño ({{ unitMeasureLabels[presentations.at(i).get('unitMeasure')?.value] || '-' }})</label>
+                                                <div class="col-12 col-md-4" *ngIf="presentations.at(i).get('saleMode')?.value === 'FIXED_FULL' || presentations.at(i).get('saleMode')?.value === 'FIXED_HALF'">
+                                                    <label class="form-label">Tamaño del bulto ({{ unitMeasureLabels[presentations.at(i).get('unitMeasure')?.value] || '-' }})</label>
                                                     <input type="number" class="form-control" formControlName="packSize" min="0.01" step="0.01">
                                                 </div>
-                                                <div class="col-12 col-md-4" *ngIf="presentations.at(i).get('saleMode')?.value === 'FIXED_FULL'">
+                                                <div class="col-12 col-md-4" *ngIf="presentations.at(i).get('saleMode')?.value === 'FIXED_FULL' || presentations.at(i).get('saleMode')?.value === 'FIXED_HALF'">
                                                     <label class="form-label">Cantidad fija resultante</label>
                                                     <input type="number" class="form-control" formControlName="fixedAmount" readonly>
                                                 </div>
