@@ -1,0 +1,14 @@
+.form-control-lg {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.modal-header {
+    border-radius: 0.5rem 0.5rem 0 0;
+}
+
+.alert-success {
+    background-color: #d1e7dd;
+    border-color: #badbcc;
+    color: #0f5132;
+}

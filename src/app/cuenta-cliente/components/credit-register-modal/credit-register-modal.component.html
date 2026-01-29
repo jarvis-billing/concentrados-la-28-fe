@@ -1,0 +1,88 @@
+<div class="modal fade" id="creditRegisterModal" tabindex="-1" aria-labelledby="creditRegisterModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="creditRegisterModalLabel">
+                    <i class="bi bi-plus-circle me-2"></i>
+                    Registrar Anticipo
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form [formGroup]="creditForm" (ngSubmit)="onSubmit()">
+                <div class="modal-body">
+                    @if (client) {
+                        <div class="alert alert-success mb-3">
+                            <strong>Cliente:</strong> {{ client.businessName || (client.name + ' ' + client.surname) }}
+                            <br>
+                            <small class="text-muted">El anticipo quedará como saldo a favor para futuras compras</small>
+                        </div>
+                    }
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Monto del Anticipo *</label>
+                        <div class="input-group">
+                            <input 
+                                type="text" 
+                                class="form-control form-control-lg text-end" 
+                                formControlName="amount"
+                                placeholder="$ 0"
+                                appCurrencyFormat
+                            >
+                        </div>
+                        @if (amountControl?.errors?.['required'] && amountControl?.touched) {
+                            <small class="text-danger">El monto es requerido</small>
+                        }
+                        @if (amountControl?.errors?.['min']) {
+                            <small class="text-danger">El monto debe ser mayor a 0</small>
+                        }
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Método de Pago *</label>
+                        <select class="form-select" formControlName="paymentMethod">
+                            @for (method of paymentMethods; track method) {
+                                <option [value]="method">{{ method }}</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Referencia</label>
+                        <input 
+                            type="text" 
+                            class="form-control" 
+                            formControlName="reference"
+                            placeholder="No. transferencia, recibo, etc."
+                        >
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Notas</label>
+                        <textarea 
+                            class="form-control" 
+                            formControlName="notes"
+                            rows="2"
+                            placeholder="Observaciones adicionales..."
+                        ></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        Cancelar
+                    </button>
+                    <button 
+                        type="submit" 
+                        class="btn btn-success"
+                        [disabled]="creditForm.invalid || isSubmitting"
+                    >
+                        @if (isSubmitting) {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        <i class="bi bi-check-lg me-1"></i>
+                        Registrar Anticipo
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

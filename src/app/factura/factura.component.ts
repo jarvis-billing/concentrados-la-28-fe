@@ -20,6 +20,8 @@ import { Company } from './company';
 import { ProductsSearchModalComponent } from '../producto/components/products-search-modal/products-search-modal.component';
 import { ModalClientsListComponent } from '../cliente/components/modal-clients-list/modal-clients-list.component';
 import { ExpensesFabComponent } from '../expenses/expenses-fab.component';
+import { ClientCreditService } from '../cuenta-cliente/services/client-credit.service';
+import { UseCreditModalComponent } from '../cuenta-cliente/components/use-credit-modal/use-credit-modal.component';
 
 @Component({
   selector: 'app-factura',
@@ -33,6 +35,7 @@ import { ExpensesFabComponent } from '../expenses/expenses-fab.component';
     ProductsSearchModalComponent,
     ModalClientsListComponent,
     ExpensesFabComponent,
+    UseCreditModalComponent,
   ],
   templateUrl: './factura.component.html',
   styleUrl: './factura.component.css'
@@ -84,6 +87,12 @@ export class FacturaComponent implements OnInit, AfterViewInit {
   router = inject(Router);
   localStorage = inject(StorageService);
   loginUserService = inject(LoginUserService);
+  clientCreditService = inject(ClientCreditService);
+
+  // Saldo a favor del cliente
+  clientCreditBalance: number = 0;
+  creditToApply: number = 0;
+  showCreditModal: boolean = false;
 
   saleDetails: SaleDetail[] = [];
   // Vista previa en modo granel/peso
@@ -451,6 +460,77 @@ export class FacturaComponent implements OnInit, AfterViewInit {
       return;
     }
     this.client = client;
+    this.creditToApply = 0;
+    this.checkClientCredit(client);
+  }
+
+  // Verificar si el cliente tiene saldo a favor
+  private checkClientCredit(client: Client): void {
+    if (!client || !client.id || this.isConsumidorFinal(client)) {
+      this.clientCreditBalance = 0;
+      return;
+    }
+
+    this.clientCreditService.getClientCreditBalance(client.id).subscribe({
+      next: (response) => {
+        this.clientCreditBalance = response.balance || 0;
+        if (this.clientCreditBalance > 0) {
+          toast.info(`El cliente tiene un saldo a favor de $${this.clientCreditBalance.toLocaleString('es-CO')}`);
+        }
+      },
+      error: () => {
+        this.clientCreditBalance = 0;
+      }
+    });
+  }
+
+  // Abrir modal para usar saldo a favor
+  openUseCreditModal(): void {
+    if (this.clientCreditBalance <= 0) {
+      toast.warning('El cliente no tiene saldo a favor disponible.');
+      return;
+    }
+    if (this.totalBilling <= 0) {
+      toast.warning('Agregue productos antes de aplicar el saldo a favor.');
+      return;
+    }
+    const modal = document.getElementById('useCreditModal');
+    if (modal) {
+      modal.classList.add('show');
+      modal.style.display = 'block';
+      document.body.classList.add('modal-open');
+    }
+  }
+
+  // Manejar cuando se aplica el saldo a favor
+  onCreditUsed(event: { amount: number }): void {
+    this.creditToApply = event.amount;
+    toast.success(`Se aplicará $${this.creditToApply.toLocaleString('es-CO')} del saldo a favor.`);
+    this.recalculateWithCredit();
+  }
+
+  // Manejar cuando se cancela el uso del saldo
+  onCreditCancelled(): void {
+    this.creditToApply = 0;
+  }
+
+  // Recalcular totales considerando el saldo a favor aplicado
+  private recalculateWithCredit(): void {
+    const totalAfterCredit = Math.max(0, this.totalBilling - this.creditToApply);
+    if (this.paymentType === 'CONTADO') {
+      // Ajustar el monto que debe pagar el cliente
+      if (totalAfterCredit === 0) {
+        // Todo cubierto por saldo a favor
+        this.totalRecivedValue = 0;
+        this.totalMoneyChange = 0;
+        this.reciveValue.setValue('0');
+      }
+    }
+  }
+
+  // Obtener el total a pagar después de aplicar saldo a favor
+  get totalAfterCredit(): number {
+    return Math.max(0, this.totalBilling - this.creditToApply);
   }
 
   mapProductToSaleDetail(selectProduct: Product): SaleDetail {

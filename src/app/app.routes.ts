@@ -27,6 +27,10 @@ import { InventoryMovementsPageComponent } from './inventario/pages/inventory-mo
 import { StockAlertsPageComponent } from './inventario/pages/stock-alerts-page/stock-alerts-page.component';
 import { InventoryAdjustmentsPageComponent } from './inventario/pages/inventory-adjustments-page/inventory-adjustments-page.component';
 import { InventoryReportPageComponent } from './inventario/pages/inventory-report-page/inventory-report-page.component';
+import { BarcodeLabelsPageComponent } from './inventario/pages/barcode-labels-page/barcode-labels-page.component';
+import { ClientAccountViewComponent } from './cuenta-cliente/components/client-account-view/client-account-view.component';
+import { AccountsReceivableReportComponent } from './cuenta-cliente/pages/accounts-receivable-report/accounts-receivable-report.component';
+import { CreditsReportComponent } from './cuenta-cliente/pages/credits-report/credits-report.component';
 
 export const routes: Routes = [
     { path: '', pathMatch: 'full', redirectTo: '/login' },
@@ -113,6 +117,18 @@ export const routes: Routes = [
         },
         {
             path: 'inventario/reporte', component: InventoryReportPageComponent
+        },
+        {
+            path: 'inventario/etiquetas', component: BarcodeLabelsPageComponent
+        },
+        {
+            path: 'clientes/cuenta', component: ClientAccountViewComponent
+        },
+        {
+            path: 'clientes/cuentas-por-cobrar', component: AccountsReceivableReportComponent
+        },
+        {
+            path: 'clientes/anticipos', component: CreditsReportComponent
         }
     ]}
 ];

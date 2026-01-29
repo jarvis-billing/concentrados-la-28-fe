@@ -1,0 +1,126 @@
+<div class="modal fade" id="paymentRegisterModal" tabindex="-1" aria-labelledby="paymentRegisterModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="paymentRegisterModalLabel">
+                    <i class="bi bi-cash-coin me-2"></i>
+                    Registrar Pago a Cuenta
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form [formGroup]="paymentForm" (ngSubmit)="onSubmit()">
+                <div class="modal-body">
+                    @if (client) {
+                        <div class="alert alert-info mb-3">
+                            <strong>Cliente:</strong> {{ client.businessName || (client.name + ' ' + client.surname) }}
+                            <br>
+                            <strong>Deuda pendiente:</strong> {{ maxAmount | currency:'COP':'symbol-narrow':'1.0-0' }}
+                        </div>
+                    }
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Monto del Pago *</label>
+                        <div class="input-group">
+                            <input 
+                                type="text" 
+                                class="form-control form-control-lg text-end" 
+                                formControlName="amount"
+                                placeholder="$ 0"
+                                appCurrencyFormat
+                            >
+                            <button 
+                                type="button" 
+                                class="btn btn-outline-secondary"
+                                (click)="setFullAmount()"
+                                title="Pagar todo"
+                            >
+                                Total
+                            </button>
+                        </div>
+                        @if (amountControl?.errors?.['required'] && amountControl?.touched) {
+                            <small class="text-danger">El monto es requerido</small>
+                        }
+                        @if (amountControl?.errors?.['min']) {
+                            <small class="text-danger">El monto debe ser mayor a 0</small>
+                        }
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Método de Pago *</label>
+                        <select class="form-select" formControlName="paymentMethod">
+                            @for (method of paymentMethods; track method) {
+                                <option [value]="method">{{ method }}</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Referencia</label>
+                        <input 
+                            type="text" 
+                            class="form-control" 
+                            formControlName="reference"
+                            placeholder="No. transferencia, cheque, etc."
+                        >
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Notas</label>
+                        <textarea 
+                            class="form-control" 
+                            formControlName="notes"
+                            rows="2"
+                            placeholder="Observaciones adicionales..."
+                        ></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        Cancelar
+                    </button>
+                    <button 
+                        type="submit" 
+                        class="btn btn-primary"
+                        [disabled]="paymentForm.invalid || isSubmitting"
+                    >
+                        @if (isSubmitting) {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        <i class="bi bi-check-lg me-1"></i>
+                        Registrar Pago
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmación para imprimir comprobante -->
+@if (showPrintConfirmation) {
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-check-circle me-2"></i>
+                        Pago Registrado
+                    </h5>
+                </div>
+                <div class="modal-body text-center">
+                    <i class="bi bi-printer fs-1 text-primary mb-3 d-block"></i>
+                    <p class="mb-0">¿Desea imprimir el comprobante de pago?</p>
+                </div>
+                <div class="modal-footer justify-content-center">
+                    <button type="button" class="btn btn-outline-secondary" (click)="closePrintConfirmation()">
+                        <i class="bi bi-x-lg me-1"></i>
+                        No
+                    </button>
+                    <button type="button" class="btn btn-primary" (click)="printReceipt()">
+                        <i class="bi bi-printer me-1"></i>
+                        Imprimir
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}

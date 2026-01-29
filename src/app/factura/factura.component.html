@@ -178,6 +178,31 @@
             </button>
           </div>
         </div>
+        @if (clientCreditBalance > 0) {
+          <div class="mb-2 p-2 bg-success bg-opacity-10 rounded border border-success">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <i class="bi bi-wallet2 text-success me-1"></i>
+                <strong class="text-success">Saldo a favor:</strong>
+              </div>
+              <span class="text-success fw-bold">{{ clientCreditBalance | currency:'$ ':'symbol':'.0-0' }}</span>
+            </div>
+            @if (creditToApply > 0) {
+              <div class="d-flex justify-content-between align-items-center mt-1">
+                <small class="text-muted">Aplicado:</small>
+                <span class="text-success">-{{ creditToApply | currency:'$ ':'symbol':'.0-0' }}</span>
+              </div>
+              <div class="d-flex justify-content-between align-items-center mt-1">
+                <strong>Total a pagar:</strong>
+                <span class="fw-bold text-primary">{{ totalAfterCredit | currency:'$ ':'symbol':'.0-0' }}</span>
+              </div>
+            } @else {
+              <button type="button" class="btn btn-outline-success btn-sm w-100 mt-2" (click)="openUseCreditModal()" [disabled]="totalBilling <= 0">
+                <i class="bi bi-check-circle me-1"></i> Usar saldo a favor
+              </button>
+            }
+          </div>
+        }
         <div class="mb-2 text-muted">
           <strong>Vueltas:</strong>
           <span class="float-end">{{ totalMoneyChange | currency:'$ ':'symbol':'.0-0' }}</span>
@@ -315,6 +340,15 @@
 
 <!-- Floating Expenses FAB (reusable) -->
 <app-expenses-fab [source]="'factura'"></app-expenses-fab>
+
+<!-- Modal para usar saldo a favor -->
+<app-use-credit-modal
+    [client]="client"
+    [availableCredit]="clientCreditBalance"
+    [billingTotal]="totalBilling"
+    (creditUsed)="onCreditUsed($event)"
+    (cancelled)="onCreditCancelled()"
+></app-use-credit-modal>
 
 <!-- Confirm Save Billing Modal -->
 <div class="modal fade" id="confirmSaveModal" #confirmSaveModal tabindex="-1" aria-hidden="true" data-bs-backdrop="static">

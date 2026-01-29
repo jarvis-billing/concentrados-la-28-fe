@@ -1,0 +1,12 @@
+.form-control-lg {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.modal-header {
+    border-radius: 0.5rem 0.5rem 0 0;
+}
+
+.display-6 {
+    font-size: 2rem;
+}

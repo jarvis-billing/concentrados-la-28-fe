@@ -38,6 +38,22 @@
                 </li>
 
                 <li class="nav-item mx-2 dropdown">
+                    <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" routerLinkActive="active" role="button" aria-haspopup="true" aria-expanded="false">Clientes</a>
+                    <div class="dropdown-menu" style="background-color: white; border-color: black;">
+                      <a class="dropdown-item" routerLink="/main/clientes/cuenta" (click)="closeMenu()">
+                        <i class="bi bi-person-lines-fill me-1"></i> Estado de cuenta
+                      </a>
+                      <div class="dropdown-divider"></div>
+                      <a class="dropdown-item" routerLink="/main/clientes/cuentas-por-cobrar" (click)="closeMenu()">
+                        <i class="bi bi-file-earmark-text me-1"></i> Cuentas por cobrar
+                      </a>
+                      <a class="dropdown-item" routerLink="/main/clientes/anticipos" (click)="closeMenu()">
+                        <i class="bi bi-wallet2 me-1"></i> Anticipos / Saldos a favor
+                      </a>
+                    </div>
+                </li>
+
+                <li class="nav-item mx-2 dropdown">
                     <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" routerLinkActive="active" role="button" aria-haspopup="true" aria-expanded="false">Compras</a>
                     <div class="dropdown-menu" style="background-color: white; border-color: black;">
                       <a class="dropdown-item" routerLink="/main/compras/proveedores" (click)="closeMenu()">Proveedores</a>

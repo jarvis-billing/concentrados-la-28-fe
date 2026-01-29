@@ -1,0 +1,125 @@
+/* Card de etiqueta */
+.label-card {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+}
+
+.label-card:hover {
+  border-color: #0d6efd;
+  box-shadow: 0 4px 12px rgba(13, 110, 253, 0.15);
+}
+
+.label-card.selected {
+  border-color: #0d6efd;
+  background-color: #f0f7ff;
+}
+
+/* Preview de etiqueta - Escala visual de 50x25mm */
+.label-preview {
+  width: 200px; /* 50mm * 4 para visualización */
+  height: 100px; /* 25mm * 4 para visualización */
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px;
+  font-family: 'Arial', sans-serif;
+  position: relative;
+  overflow: hidden;
+}
+
+.label-company {
+  font-size: 8px;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: #333;
+  letter-spacing: 0.5px;
+}
+
+.label-barcode-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-height: 45px;
+  overflow: hidden;
+}
+
+.label-barcode {
+  max-width: 100%;
+  max-height: 40px;
+}
+
+.label-presentation {
+  font-size: 7px;
+  color: #666;
+  text-align: center;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.label-price {
+  font-size: 12px;
+  font-weight: bold;
+  color: #000;
+}
+
+/* Indicador de selección */
+.selection-indicator {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 1.25rem;
+}
+
+/* Responsive */
+@media (max-width: 576px) {
+  .label-preview {
+    width: 160px;
+    height: 80px;
+  }
+  
+  .label-company {
+    font-size: 6px;
+  }
+  
+  .label-presentation {
+    font-size: 6px;
+  }
+  
+  .label-price {
+    font-size: 10px;
+  }
+}
+
+/* Animación de carga */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.label-card.selected .label-preview {
+  animation: none;
+}
+
+/* Estilos para impresión */
+@media print {
+  .container-fluid {
+    padding: 0 !important;
+  }
+  
+  .card:not(.label-card) {
+    display: none !important;
+  }
+  
+  .btn, a {
+    display: none !important;
+  }
+}

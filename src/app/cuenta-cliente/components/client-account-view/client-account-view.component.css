@@ -1,0 +1,34 @@
+.dropdown-menu.show {
+    display: block;
+    position: absolute;
+    z-index: 1050;
+}
+
+.nav-tabs .nav-link {
+    color: #6c757d;
+    border: none;
+    border-bottom: 2px solid transparent;
+}
+
+.nav-tabs .nav-link.active {
+    color: #0d6efd;
+    border-bottom: 2px solid #0d6efd;
+    background: transparent;
+}
+
+.nav-tabs .nav-link:hover {
+    border-bottom: 2px solid #dee2e6;
+}
+
+.card {
+    border-radius: 0.5rem;
+}
+
+.table th {
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.badge {
+    font-weight: 500;
+}

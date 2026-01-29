@@ -1,0 +1,149 @@
+<div class="container-fluid py-4">
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="mb-1">
+        <i class="bi bi-upc-scan me-2"></i>Generador de Etiquetas
+      </h2>
+      <p class="text-muted mb-0">Etiquetas de código de barras (50x25 mm)</p>
+    </div>
+    <a routerLink="/inventario" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Volver
+    </a>
+  </div>
+
+  <!-- Filtros y controles -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <div class="row g-3 align-items-end">
+        <!-- Búsqueda -->
+        <div class="col-md-4">
+          <label class="form-label">Buscar producto</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input 
+              type="text" 
+              class="form-control" 
+              placeholder="Nombre, código o presentación..."
+              [(ngModel)]="searchTerm"
+              (input)="onSearchChange()">
+          </div>
+        </div>
+
+        <!-- Categoría -->
+        <div class="col-md-3">
+          <label class="form-label">Categoría</label>
+          <select 
+            class="form-select" 
+            [(ngModel)]="selectedCategory"
+            (change)="onCategoryChange(selectedCategory)">
+            <option value="">Todas las categorías</option>
+            <option *ngFor="let cat of categories" [value]="cat">{{ cat }}</option>
+          </select>
+        </div>
+
+        <!-- Copias por etiqueta -->
+        <div class="col-md-2">
+          <label class="form-label">Copias por etiqueta</label>
+          <input 
+            type="number" 
+            class="form-control" 
+            [(ngModel)]="copiesPerLabel" 
+            min="1" 
+            max="100">
+        </div>
+
+        <!-- Botones de selección -->
+        <div class="col-md-3">
+          <div class="btn-group w-100">
+            <button class="btn btn-outline-primary" (click)="selectAll()">
+              <i class="bi bi-check-all me-1"></i>Seleccionar todo
+            </button>
+            <button class="btn btn-outline-secondary" (click)="deselectAll()">
+              <i class="bi bi-x-lg me-1"></i>Limpiar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Resumen de selección y botón de generar -->
+  <div class="card mb-4 border-primary" *ngIf="selectedLabels.length > 0">
+    <div class="card-body d-flex justify-content-between align-items-center">
+      <div>
+        <strong class="text-primary">
+          <i class="bi bi-check-circle-fill me-1"></i>
+          {{ selectedLabels.length }} etiqueta(s) seleccionada(s)
+        </strong>
+        <span class="text-muted ms-2">
+          ({{ selectedLabels.length * copiesPerLabel }} etiquetas totales con {{ copiesPerLabel }} copia(s))
+        </span>
+      </div>
+      <button 
+        class="btn btn-primary btn-lg"
+        (click)="generateLabelsPdf()"
+        [disabled]="isGeneratingPdf">
+        <span *ngIf="isGeneratingPdf" class="spinner-border spinner-border-sm me-1"></span>
+        <i *ngIf="!isGeneratingPdf" class="bi bi-file-pdf me-1"></i>
+        {{ isGeneratingPdf ? 'Generando...' : 'Generar PDF de Etiquetas' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="isLoading" class="text-center py-5">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Cargando...</span>
+    </div>
+    <p class="mt-2 text-muted">Cargando productos...</p>
+  </div>
+
+  <!-- Lista de etiquetas -->
+  <div *ngIf="!isLoading" class="row g-3">
+    <div *ngFor="let label of labels; let i = index" class="col-xl-3 col-lg-4 col-md-6">
+      <div 
+        class="card label-card h-100" 
+        [class.selected]="label.selected"
+        (click)="toggleLabelSelection(label)">
+        <div class="card-body p-2">
+          <!-- Preview de etiqueta (escala visual) -->
+          <div class="label-preview mx-auto mb-2">
+            <!-- Nombre empresa -->
+            <div class="label-company">{{ label.companyName }}</div>
+            
+            <!-- Barcode preview -->
+            <div class="label-barcode-container">
+              <svg [id]="'preview-barcode-' + i" class="label-barcode"></svg>
+            </div>
+            
+            <!-- Presentación -->
+            <div class="label-presentation">{{ label.presentationLabel }}</div>
+            
+            <!-- Precio -->
+            <div class="label-price">{{ formatPrice(label.salePrice) }}</div>
+          </div>
+
+          <!-- Info adicional -->
+          <div class="text-center small">
+            <div class="fw-semibold text-truncate" [title]="label.productDescription">
+              {{ label.productDescription }}
+            </div>
+            <div class="text-muted">{{ label.barcode }}</div>
+          </div>
+
+          <!-- Indicador de selección -->
+          <div class="selection-indicator" *ngIf="label.selected">
+            <i class="bi bi-check-circle-fill text-primary"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sin resultados -->
+  <div *ngIf="!isLoading && labels.length === 0" class="text-center py-5">
+    <i class="bi bi-inbox display-1 text-muted"></i>
+    <p class="mt-3 text-muted">No se encontraron productos con código de barras</p>
+  </div>
+</div>

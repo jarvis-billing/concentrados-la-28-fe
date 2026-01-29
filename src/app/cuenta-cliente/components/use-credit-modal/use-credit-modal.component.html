@@ -1,0 +1,78 @@
+<div class="modal fade" id="useCreditModal" tabindex="-1" aria-labelledby="useCreditModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="useCreditModalLabel">
+                    <i class="bi bi-wallet2 me-2"></i>
+                    Saldo a Favor Disponible
+                </h5>
+            </div>
+            <form [formGroup]="creditForm" (ngSubmit)="onConfirm()">
+                <div class="modal-body">
+                    @if (client) {
+                        <div class="text-center mb-4">
+                            <div class="display-6 text-success fw-bold">
+                                {{ availableCredit | currency:'COP':'symbol-narrow':'1.0-0' }}
+                            </div>
+                            <p class="text-muted">Saldo a favor de {{ client.businessName || (client.name + ' ' + client.surname) }}</p>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            El cliente tiene saldo a favor. ¿Desea aplicarlo a esta factura?
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <small class="text-muted">Total de la factura:</small>
+                                <div class="fw-bold">{{ billingTotal | currency:'COP':'symbol-narrow':'1.0-0' }}</div>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">Máximo a usar:</small>
+                                <div class="fw-bold text-success">{{ maxUsable | currency:'COP':'symbol-narrow':'1.0-0' }}</div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Monto a aplicar</label>
+                            <div class="input-group">
+                                <input 
+                                    type="text" 
+                                    class="form-control form-control-lg text-end" 
+                                    formControlName="amount"
+                                    placeholder="$ 0"
+                                    appCurrencyFormat
+                                >
+                                <button 
+                                    type="button" 
+                                    class="btn btn-outline-success"
+                                    (click)="setFullAmount()"
+                                    title="Usar máximo disponible"
+                                >
+                                    Máximo
+                                </button>
+                            </div>
+                            @if (amountControl?.errors?.['min']) {
+                                <small class="text-danger">El monto debe ser mayor a 0</small>
+                            }
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" (click)="onCancel()">
+                        <i class="bi bi-x-lg me-1"></i>
+                        No usar saldo
+                    </button>
+                    <button 
+                        type="submit" 
+                        class="btn btn-success"
+                        [disabled]="creditForm.invalid || isSubmitting"
+                    >
+                        <i class="bi bi-check-lg me-1"></i>
+                        Aplicar Saldo
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
