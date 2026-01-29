@@ -26,9 +26,10 @@ interface LabelData {
 export class BarcodeLabelsPageComponent implements OnInit {
   private productService = inject(ProductoService);
 
-  // Configuración de etiqueta (50x25 mm)
+  // Configuración de etiqueta (50x25 mm) para rollo con separación de 5mm
   readonly LABEL_WIDTH_MM = 50;
   readonly LABEL_HEIGHT_MM = 25;
+  readonly LABEL_GAP_MM = 5; // Separación entre etiquetas en el rollo
   readonly COMPANY_NAME = 'CONCENTRADOS LA 28';
 
   allProducts: Product[] = [];
@@ -41,10 +42,6 @@ export class BarcodeLabelsPageComponent implements OnInit {
   isLoading = true;
   isGeneratingPdf = false;
   copiesPerLabel = 1;
-
-  // Configuración de página para impresión
-  labelsPerRow = 4;
-  labelsPerColumn = 10;
 
   ngOnInit(): void {
     this.loadProducts();
@@ -162,23 +159,6 @@ export class BarcodeLabelsPageComponent implements OnInit {
 
     this.isGeneratingPdf = true;
 
-    // Crear PDF con tamaño carta
-    const doc = new jsPDF('portrait', 'mm', 'letter');
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-
-    // Márgenes de página
-    const marginLeft = 5;
-    const marginTop = 5;
-
-    // Espaciado entre etiquetas
-    const spacingX = 1;
-    const spacingY = 1;
-
-    // Calcular posiciones
-    const labelsPerRow = Math.floor((pageWidth - marginLeft * 2 + spacingX) / (this.LABEL_WIDTH_MM + spacingX));
-    const labelsPerCol = Math.floor((pageHeight - marginTop * 2 + spacingY) / (this.LABEL_HEIGHT_MM + spacingY));
-
     // Expandir etiquetas según copias
     const expandedLabels: LabelData[] = [];
     this.selectedLabels.forEach(label => {
@@ -187,26 +167,29 @@ export class BarcodeLabelsPageComponent implements OnInit {
       }
     });
 
-    let labelIndex = 0;
-    let pageNum = 0;
+    // Calcular altura total del rollo: etiquetas + separaciones
+    // Cada etiqueta tiene 25mm de alto + 5mm de separación (excepto la última)
+    const totalHeight = expandedLabels.length * this.LABEL_HEIGHT_MM + 
+                        (expandedLabels.length - 1) * this.LABEL_GAP_MM;
 
-    while (labelIndex < expandedLabels.length) {
-      if (pageNum > 0) {
-        doc.addPage();
+    // Crear PDF con ancho de etiqueta (50mm) y altura total del rollo
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: [this.LABEL_WIDTH_MM, totalHeight]
+    });
+
+    // Dibujar cada etiqueta verticalmente una debajo de otra
+    let yPos = 0;
+    expandedLabels.forEach((label, index) => {
+      this.drawLabel(doc, label, 0, yPos);
+      yPos += this.LABEL_HEIGHT_MM;
+      
+      // Agregar separación entre etiquetas (excepto después de la última)
+      if (index < expandedLabels.length - 1) {
+        yPos += this.LABEL_GAP_MM;
       }
-
-      for (let row = 0; row < labelsPerCol && labelIndex < expandedLabels.length; row++) {
-        for (let col = 0; col < labelsPerRow && labelIndex < expandedLabels.length; col++) {
-          const label = expandedLabels[labelIndex];
-          const x = marginLeft + col * (this.LABEL_WIDTH_MM + spacingX);
-          const y = marginTop + row * (this.LABEL_HEIGHT_MM + spacingY);
-
-          this.drawLabel(doc, label, x, y);
-          labelIndex++;
-        }
-      }
-      pageNum++;
-    }
+    });
 
     // Guardar PDF
     const fileName = `etiquetas_barcode_${this.formatDateForFile()}.pdf`;
@@ -217,58 +200,53 @@ export class BarcodeLabelsPageComponent implements OnInit {
   private drawLabel(doc: jsPDF, label: LabelData, x: number, y: number): void {
     const w = this.LABEL_WIDTH_MM;
     const h = this.LABEL_HEIGHT_MM;
-
-    // Borde de la etiqueta (línea punteada para corte)
-    doc.setDrawColor(200, 200, 200);
-    doc.setLineWidth(0.1);
-    doc.rect(x, y, w, h);
+    const centerX = x + w / 2;
 
     // Nombre de la empresa (parte superior)
-    doc.setFontSize(5);
+    doc.setFontSize(6);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 0, 0);
-    const companyText = label.companyName;
-    doc.text(companyText, x + w / 2, y + 2.5, { align: 'center' });
+    doc.text(label.companyName, centerX, y + 3, { align: 'center' });
 
     // Generar barcode como imagen
     const canvas = document.createElement('canvas');
     try {
       JsBarcode(canvas, label.barcode, {
         format: 'CODE128',
-        width: 1.2,
-        height: 25,
+        width: 1.5,
+        height: 30,
         displayValue: true,
-        fontSize: 8,
+        fontSize: 10,
         margin: 0,
         background: '#ffffff',
-        textMargin: 0
+        textMargin: 1
       });
 
       const barcodeImg = canvas.toDataURL('image/png');
-      // Barcode centrado
+      // Barcode centrado - ocupa casi todo el ancho
       const barcodeWidth = w - 4;
-      const barcodeHeight = 10;
+      const barcodeHeight = 12;
       const barcodeX = x + (w - barcodeWidth) / 2;
-      const barcodeY = y + 3.5;
+      const barcodeY = y + 4;
       doc.addImage(barcodeImg, 'PNG', barcodeX, barcodeY, barcodeWidth, barcodeHeight);
     } catch (e) {
       console.warn(`Error generating barcode: ${label.barcode}`, e);
       // Mostrar código como texto si falla el barcode
-      doc.setFontSize(6);
-      doc.text(label.barcode, x + w / 2, y + 10, { align: 'center' });
+      doc.setFontSize(8);
+      doc.text(label.barcode, centerX, y + 12, { align: 'center' });
     }
 
-    // Label de presentación (debajo del barcode)
+    // Descripción del producto (debajo del barcode)
     doc.setFontSize(5);
     doc.setFont('helvetica', 'normal');
-    const presLabel = this.truncateText(label.presentationLabel, 35);
-    doc.text(presLabel, x + w / 2, y + 16, { align: 'center' });
+    const description = this.truncateText(label.productDescription, 40);
+    doc.text(description, centerX, y + 18, { align: 'center' });
 
     // Precio de venta (parte inferior, destacado)
-    doc.setFontSize(8);
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     const priceText = this.formatPrice(label.salePrice);
-    doc.text(priceText, x + w / 2, y + 22, { align: 'center' });
+    doc.text(priceText, centerX, y + 23, { align: 'center' });
   }
 
   private truncateText(text: string, maxLength: number): string {
