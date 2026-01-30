@@ -195,11 +195,11 @@ export class BarcodeLabelsPageComponent implements OnInit {
     const h = this.LABEL_HEIGHT_MM; // 25mm
     const centerX = x + w / 2; // 25mm
 
-    // Nombre de la empresa (parte superior) - y=2mm
-    doc.setFontSize(7);
+    // Nombre de la empresa - y=4mm (bajado para que no se corte)
+    doc.setFontSize(6);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 0, 0);
-    doc.text(label.companyName, centerX, y + 3, { align: 'center' });
+    doc.text(label.companyName, centerX, y + 4, { align: 'center' });
 
     // Generar barcode como imagen
     const canvas = document.createElement('canvas');
@@ -207,38 +207,38 @@ export class BarcodeLabelsPageComponent implements OnInit {
       JsBarcode(canvas, label.barcode, {
         format: 'CODE128',
         width: 2,
-        height: 40,
+        height: 35,
         displayValue: true,
-        fontSize: 12,
+        fontSize: 11,
         margin: 0,
         background: '#ffffff',
-        textMargin: 2
+        textMargin: 1
       });
 
       const barcodeImg = canvas.toDataURL('image/png');
-      // Barcode: ancho 44mm, alto 10mm, centrado horizontalmente
-      const barcodeWidth = 44;
-      const barcodeHeight = 10;
-      const barcodeX = x + (w - barcodeWidth) / 2; // centrado
-      const barcodeY = y + 5; // empieza en y=5mm
+      // Barcode: ancho 42mm, alto 8mm, centrado
+      const barcodeWidth = 42;
+      const barcodeHeight = 8;
+      const barcodeX = x + (w - barcodeWidth) / 2;
+      const barcodeY = y + 5.5; // empieza en y=5.5mm
       doc.addImage(barcodeImg, 'PNG', barcodeX, barcodeY, barcodeWidth, barcodeHeight);
     } catch (e) {
       console.warn(`Error generating barcode: ${label.barcode}`, e);
       doc.setFontSize(10);
-      doc.text(label.barcode, centerX, y + 12, { align: 'center' });
+      doc.text(label.barcode, centerX, y + 11, { align: 'center' });
     }
 
-    // Descripción del producto - y=17mm
-    doc.setFontSize(6);
+    // Descripción del producto - y=16mm (más separado del código)
+    doc.setFontSize(5);
     doc.setFont('helvetica', 'normal');
-    const description = this.truncateText(label.productDescription, 35);
-    doc.text(description, centerX, y + 17, { align: 'center' });
+    const description = this.truncateText(label.productDescription, 38);
+    doc.text(description, centerX, y + 16, { align: 'center' });
 
-    // Precio de venta (parte inferior) - y=22mm
-    doc.setFontSize(10);
+    // Precio de venta (parte inferior) - y=21mm
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     const priceText = this.formatPrice(label.salePrice);
-    doc.text(priceText, centerX, y + 22, { align: 'center' });
+    doc.text(priceText, centerX, y + 21, { align: 'center' });
   }
 
   private truncateText(text: string, maxLength: number): string {
