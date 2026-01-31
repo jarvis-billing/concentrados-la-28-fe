@@ -3,15 +3,26 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ProductoService } from '../../../producto/producto.service';
-import { Product, Presentation } from '../../../producto/producto';
+import { Product, Presentation, UnitMeasure } from '../../../producto/producto';
 import JsBarcode from 'jsbarcode';
 import jsPDF from 'jspdf';
+import { toast } from 'ngx-sonner';
+
+// Mapa de abreviaturas para unidades de medida
+const UNIT_ABBREVIATIONS: Record<string, string> = {
+  [UnitMeasure.KILOGRAMOS]: 'Kg',
+  [UnitMeasure.METROS]: 'Metro',
+  [UnitMeasure.CENTIMETROS]: 'Cm',
+  [UnitMeasure.LITROS]: 'Lt',
+  [UnitMeasure.MILILITROS]: 'CC',
+  [UnitMeasure.UNIDAD]: 'Und'
+};
 
 interface LabelData {
   barcode: string;
   productDescription: string;
   presentationLabel: string;
-  salePrice: number;
+  salePrice: number | string;
   companyName: string;
   selected: boolean;
 }
@@ -78,11 +89,13 @@ export class BarcodeLabelsPageComponent implements OnInit {
       const presentations = product.presentations || [];
       presentations.forEach(pres => {
         if (pres.barcode) {
+          const unitAbbr = UNIT_ABBREVIATIONS[pres.unitMeasure] || pres.unitMeasure;
+          const salePrice = pres.isBulk ? pres.salePrice + ' ' + unitAbbr : pres.salePrice;
           this.labels.push({
             barcode: pres.barcode,
-            productDescription: product.description || '',
+            productDescription: pres.label || '',
             presentationLabel: pres.label || '',
-            salePrice: pres.salePrice || 0,
+            salePrice: salePrice || 0,
             companyName: this.COMPANY_NAME,
             selected: false
           });
@@ -142,7 +155,20 @@ export class BarcodeLabelsPageComponent implements OnInit {
     this.selectedLabels = this.labels.filter(l => l.selected);
   }
 
-  formatPrice(price: number): string {
+  formatPrice(price: number | string): string {
+    if (typeof price === 'string') {
+      // Si ya es string (ej: "5000 KG"), formatear solo la parte numérica
+      const parts = price.split(' ');
+      const numericPart = parseFloat(parts[0]);
+      const unit = parts.slice(1).join(' ');
+      const formatted = new Intl.NumberFormat('es-CO', {
+        style: 'currency',
+        currency: 'COP',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      }).format(numericPart);
+      return unit ? `${formatted}/${unit}` : formatted;
+    }
     return new Intl.NumberFormat('es-CO', {
       style: 'currency',
       currency: 'COP',
@@ -153,7 +179,7 @@ export class BarcodeLabelsPageComponent implements OnInit {
 
   generateLabelsPdf(): void {
     if (this.selectedLabels.length === 0) {
-      alert('Seleccione al menos una etiqueta para generar el PDF');
+      toast.warning('Seleccione al menos una etiqueta para generar el PDF');
       return;
     }
 
@@ -195,55 +221,84 @@ export class BarcodeLabelsPageComponent implements OnInit {
     const h = this.LABEL_HEIGHT_MM; // 25mm
     const centerX = x + w / 2; // 25mm
 
-    // Nombre de la empresa - y=4mm (bajado para que no se corte)
+    // Nombre de la empresa - y=4mm
     doc.setFontSize(6);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 0, 0);
     doc.text(label.companyName, centerX, y + 4, { align: 'center' });
 
-    // Generar barcode como imagen
+    // Generar barcode como imagen (sin texto, lo agregamos manualmente)
     const canvas = document.createElement('canvas');
     try {
       JsBarcode(canvas, label.barcode, {
         format: 'CODE128',
         width: 2,
-        height: 35,
-        displayValue: true,
-        fontSize: 11,
+        height: 40,
+        displayValue: false, // Sin texto en el barcode
         margin: 0,
-        background: '#ffffff',
-        textMargin: 1
+        background: '#ffffff'
       });
 
       const barcodeImg = canvas.toDataURL('image/png');
-      // Barcode: ancho 42mm, alto 8mm, centrado
+      // Barcode: ancho 42mm, alto 5mm, centrado
       const barcodeWidth = 42;
-      const barcodeHeight = 8;
+      const barcodeHeight = 5;
       const barcodeX = x + (w - barcodeWidth) / 2;
-      const barcodeY = y + 5.5; // empieza en y=5.5mm
+      const barcodeY = y + 5; // empieza en y=5mm
       doc.addImage(barcodeImg, 'PNG', barcodeX, barcodeY, barcodeWidth, barcodeHeight);
+
+      // Número del código de barras - separado del barcode (y + 12.5mm)
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.text(label.barcode, centerX, y + 12.5, { align: 'center' });
     } catch (e) {
       console.warn(`Error generating barcode: ${label.barcode}`, e);
-      doc.setFontSize(10);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
       doc.text(label.barcode, centerX, y + 11, { align: 'center' });
     }
 
-    // Descripción del producto - y=16mm (más separado del código)
+    // Descripción del producto - con salto de línea si es muy largo
     doc.setFontSize(5);
     doc.setFont('helvetica', 'normal');
-    const description = this.truncateText(label.productDescription, 38);
-    doc.text(description, centerX, y + 16, { align: 'center' });
+    const descLines = this.wrapText(label.productDescription, 30); // máx 30 chars por línea
+    const descY = y + 16;
+    descLines.forEach((line, index) => {
+      doc.text(line, centerX, descY + (index * 2.5), { align: 'center' });
+    });
 
-    // Precio de venta (parte inferior) - y=21mm
+    // Precio de venta (parte inferior)
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     const priceText = this.formatPrice(label.salePrice);
-    doc.text(priceText, centerX, y + 21, { align: 'center' });
+    const priceY = descLines.length > 1 ? y + 22 : y + 21;
+    doc.text(priceText, centerX, priceY, { align: 'center' });
   }
 
-  private truncateText(text: string, maxLength: number): string {
-    if (!text) return '';
-    return text.length > maxLength ? text.substring(0, maxLength - 3) + '...' : text;
+  private wrapText(text: string, maxCharsPerLine: number): string[] {
+    if (!text) return [''];
+    if (text.length <= maxCharsPerLine) return [text];
+    
+    const words = text.split(' ');
+    const lines: string[] = [];
+    let currentLine = '';
+
+    words.forEach(word => {
+      if ((currentLine + ' ' + word).trim().length <= maxCharsPerLine) {
+        currentLine = (currentLine + ' ' + word).trim();
+      } else {
+        if (currentLine) lines.push(currentLine);
+        currentLine = word;
+      }
+    });
+    if (currentLine) lines.push(currentLine);
+
+    // Máximo 2 líneas
+    if (lines.length > 2) {
+      lines[1] = lines[1].substring(0, maxCharsPerLine - 3) + '...';
+      return lines.slice(0, 2);
+    }
+    return lines;
   }
 
   private formatDateForFile(): string {
