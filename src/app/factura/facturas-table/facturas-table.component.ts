@@ -262,4 +262,49 @@ export class FacturasTableComponent implements OnInit {
   printTicketBilling(billing: Billing) {
     this.facturaService.generatedTicketBilling(billing);
   }
+
+  // Métodos para visualización de pagos múltiples
+  getPaymentIcon(method: string): string {
+    switch (method) {
+      case 'EFECTIVO': return 'bi-cash-stack';
+      case 'TRANSFERENCIA': return 'bi-bank';
+      case 'TARJETA_CREDITO': return 'bi-credit-card';
+      case 'TARJETA_DEBITO': return 'bi-credit-card-2-front';
+      case 'CHEQUE': return 'bi-file-earmark-text';
+      default: return 'bi-wallet2';
+    }
+  }
+
+  getPaymentBadgeClass(method: string): string {
+    switch (method) {
+      case 'EFECTIVO': return 'bg-success';
+      case 'TRANSFERENCIA': return 'bg-primary';
+      case 'TARJETA_CREDITO': return 'bg-info';
+      case 'TARJETA_DEBITO': return 'bg-info';
+      case 'CHEQUE': return 'bg-warning text-dark';
+      default: return 'bg-secondary';
+    }
+  }
+
+  getPaymentBorderClass(method: string): string {
+    switch (method) {
+      case 'EFECTIVO': return 'border-success';
+      case 'TRANSFERENCIA': return 'border-primary';
+      case 'TARJETA_CREDITO': return 'border-info';
+      case 'TARJETA_DEBITO': return 'border-info';
+      case 'CHEQUE': return 'border-warning';
+      default: return 'border-secondary';
+    }
+  }
+
+  formatPaymentMethod(method: string): string {
+    switch (method) {
+      case 'EFECTIVO': return 'Efectivo';
+      case 'TRANSFERENCIA': return 'Transferencia';
+      case 'TARJETA_CREDITO': return 'T. Crédito';
+      case 'TARJETA_DEBITO': return 'T. Débito';
+      case 'CHEQUE': return 'Cheque';
+      default: return method;
+    }
+  }
 }

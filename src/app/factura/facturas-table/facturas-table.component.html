@@ -171,7 +171,25 @@
               </td>
 
               <td style="text-align: center;">
-                <span>{{billing.paymentMethods[0]}}</span>
+                @if (billing.payments && billing.payments.length > 0) {
+                  <div class="d-flex flex-column align-items-center gap-1">
+                    @for (payment of billing.payments; track $index) {
+                      @if (payment.amount > 0) {
+                        <span class="badge" [ngClass]="getPaymentBadgeClass(payment.method)">
+                          <i class="bi me-1" [ngClass]="getPaymentIcon(payment.method)"></i>
+                          {{ formatPaymentMethod(payment.method) }}: {{ payment.amount | currency:'$ ':'symbol':'.0-0' }}
+                          @if (payment.reference) {
+                            <small class="ms-1">({{ payment.reference }})</small>
+                          }
+                        </span>
+                      }
+                    }
+                  </div>
+                } @else if (billing.paymentMethods && billing.paymentMethods.length > 0) {
+                  <span class="badge bg-secondary">{{ billing.paymentMethods[0] }}</span>
+                } @else {
+                  <span class="badge bg-light text-dark">N/A</span>
+                }
               </td>
 
               @if (billing.order && billing.order.orderNumber > 0) {
@@ -198,6 +216,41 @@
               <tr>
                 <td colspan="9" class="p-0">
                   <div class="p-3" style="background-color: #f8f9fa;">
+                    <!-- Información de pagos -->
+                    @if (billing.payments && billing.payments.length > 0) {
+                      <div class="mb-3 p-2 bg-white rounded border">
+                        <h6 class="mb-2"><i class="bi bi-wallet2 me-1"></i> Detalle de Pagos</h6>
+                        <div class="row g-2">
+                          @for (payment of billing.payments; track $index) {
+                            @if (payment.amount > 0) {
+                              <div class="col-auto">
+                                <div class="d-flex align-items-center p-2 border rounded" [ngClass]="getPaymentBorderClass(payment.method)">
+                                  <i class="bi fs-5 me-2" [ngClass]="getPaymentIcon(payment.method)"></i>
+                                  <div>
+                                    <div class="fw-bold">{{ formatPaymentMethod(payment.method) }}</div>
+                                    <div class="text-success fw-bold">{{ payment.amount | currency:'$ ':'symbol':'.0-0' }}</div>
+                                    @if (payment.reference) {
+                                      <small class="text-muted">Ref: {{ payment.reference }}</small>
+                                    }
+                                  </div>
+                                </div>
+                              </div>
+                            }
+                          }
+                          <div class="col-auto">
+                            <div class="d-flex align-items-center p-2 border rounded border-dark bg-light">
+                              <div>
+                                <div class="fw-bold">Total Recibido</div>
+                                <div class="text-primary fw-bold fs-5">{{ billing.receivedValue | currency:'$ ':'symbol':'.0-0' }}</div>
+                                @if (billing.returnedValue > 0) {
+                                  <small class="text-warning">Vueltas: {{ billing.returnedValue | currency:'$ ':'symbol':'.0-0' }}</small>
+                                }
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    }
                     <h6 class="mb-3"><i class="bi bi-box-seam"></i> Productos vendidos</h6>
                     <div class="table-responsive">
                       <table class="table table-sm table-bordered mb-0">

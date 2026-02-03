@@ -132,49 +132,28 @@
         </div>
         <div class="mb-2">
           <label class="form-label fw-bold text-primary">
-            <i class="bi bi-credit-card me-1"></i> Pagos:
+            <i class="bi bi-credit-card me-1"></i> Métodos de Pago:
           </label>
-          <div class="table-responsive">
-            <table class="table table-sm align-middle">
-              <thead>
-                <tr>
-                  <th>Método</th>
-                  <th class="text-end">Monto</th>
-                  <th>Referencia</th>
-                  <th class="text-center" style="width: 40px;"></th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (group of paymentControls; let i = $index; track i) {
-                <tr [formGroup]="group">
-                  <td>
-                    <select class="form-select form-select-sm" formControlName="method" [disabled]="paymentType === 'CREDITO'">
-                      <option value="EFECTIVO">EFECTIVO</option>
-                      <option value="TRANSFERENCIA">TRANSFERENCIA</option>
-                      <option value="TARJETA_CREDITO">TARJETA CREDITO</option>
-                      <option value="TARJETA_DEBITO">TARJETA DEBITO</option>
-                      <option value="CHEQUE">CHEQUE</option>
-                    </select>
-                  </td>
-                  <td>
-                    <input type="text" class="form-control form-control-sm text-end" formControlName="amount" appCurrencyFormat [disabled]="paymentType === 'CREDITO'">
-                  </td>
-                  <td>
-                    <input type="text" class="form-control form-control-sm" placeholder="Ref/Nota" formControlName="reference" [disabled]="paymentType === 'CREDITO'">
-                  </td>
-                  <td class="text-center">
-                    <button type="button" class="btn btn-outline-danger btn-sm" (click)="removePaymentRow(i)" [disabled]="paymentType === 'CREDITO' || paymentControls.length === 1">
-                      <i class="bi bi-x"></i>
-                    </button>
-                  </td>
-                </tr>
-                }
-              </tbody>
-            </table>
-          </div>
+          <!-- Resumen de pagos registrados -->
+          @if (getPaymentsSummary().length > 0) {
+            <div class="mb-2">
+              @for (p of getPaymentsSummary(); track p.method) {
+                <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
+                  <span class="text-muted small">
+                    <i class="bi" [ngClass]="getPaymentIcon(p.method)"></i>
+                    {{ p.method | titlecase }}
+                    @if (p.reference) {
+                      <span class="text-secondary"> - {{ p.reference }}</span>
+                    }
+                  </span>
+                  <span class="fw-bold text-success">{{ p.amount | currency:'$ ':'symbol':'.0-0' }}</span>
+                </div>
+              }
+            </div>
+          }
           <div class="d-grid">
-            <button type="button" class="btn btn-outline-primary btn-sm" (click)="addPaymentRow()" [disabled]="paymentType === 'CREDITO'">
-              <i class="bi bi-plus-circle me-1"></i> Agregar pago
+            <button type="button" class="btn btn-primary" (click)="openMultiPaymentModal()" [disabled]="paymentType === 'CREDITO'">
+              <i class="bi bi-wallet2 me-1"></i> Registrar Pagos (F9)
             </button>
           </div>
         </div>
@@ -240,14 +219,36 @@
                   {{saleDetail.product.description}}
                 </td>
                 <td>
-                  <div class="btn-group">
-                    <button class="btn btn-danger btn-sm" (click)="restarCantidad($index, saleDetail.amount)">-</button>
-                    <input type="number" class="form-control form-control-sm text-center"
-                          style="width: 60px;"
-                          [value]="saleDetail.amount"
-                          (input)="onCantidadChange($event, $index)">
-                    <button class="btn btn-success btn-sm" (click)="sumarCantidad($index)">+</button>
-                  </div>
+                  @if (saleDetail.isBulkSale) {
+                    <!-- Producto a granel: mostrar cantidad calculada (solo lectura) -->
+                    <div class="text-center">
+                      <span class="badge bg-info text-dark fs-6">
+                        {{ saleDetail.amount | number:'1.2-2' }}
+                        <small>
+                          @if (saleDetail.product.saleType === 'LONGITUDE') {
+                            m
+                          } @else if (saleDetail.product.saleType === 'VOLUME') {
+                            CC
+                          } @else {
+                            {{ saleDetail.product.selectedUnitMeasure || saleDetail.product.stock?.unitMeasure || 'u' }}
+                          }
+                        </small>
+                      </span>
+                      <div class="small text-muted mt-1">
+                        <i class="bi bi-info-circle"></i> Granel
+                      </div>
+                    </div>
+                  } @else {
+                    <!-- Producto normal: controles +/- -->
+                    <div class="btn-group">
+                      <button class="btn btn-danger btn-sm" (click)="restarCantidad($index, saleDetail.amount)">-</button>
+                      <input type="number" class="form-control form-control-sm text-center"
+                            style="width: 60px;"
+                            [value]="saleDetail.amount"
+                            (input)="onCantidadChange($event, $index)">
+                      <button class="btn btn-success btn-sm" (click)="sumarCantidad($index)">+</button>
+                    </div>
+                  }
                 </td>
                 <td>
                   <input type="text"
@@ -285,10 +286,36 @@
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Cantidad a Vender de {{productToSell.description}}</h5>
+        <h5 class="modal-title">Cantidad a Vender</h5>
         <button type="button" class="btn-close" (click)="closeProductAmountModal()" aria-label="Close"></button>
       </div>
       <div class="modal-body">
+        <!-- Información del producto y presentación -->
+        <div class="card mb-3 border-primary">
+          <div class="card-body py-2">
+            <div class="row align-items-center">
+              <div class="col">
+                @if (productToSell.selectedPresentationLabel) {
+                  <span class="badge bg-secondary me-4">{{ productToSell.selectedPresentationLabel }}</span>
+                }
+                <span class="badge bg-success">{{ productToSell.price | currency:'$ ':'symbol':'.0-0' }}</span>
+              </div>
+              <div class="col-auto text-end">
+                <div class="small text-muted">Stock disponible</div>
+                <div class="fw-bold">
+                  {{ productToSell.stock?.quantity | number:'1.0-2' }}
+                  @if (productToSell.saleType === 'LONGITUDE') {
+                    m
+                  } @else if (productToSell.saleType === 'VOLUME') {
+                    CC
+                  } @else {
+                    {{ productToSell.stock?.unitMeasure || productToSell.selectedUnitMeasure || '' }}
+                  }
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
         <form [formGroup]="formProductAmount" (ngSubmit)="addAmountProduct()" class="d-flex flex-column gap-2 mb-3" autocomplete="off">
           <div class="input-group">
             <!-- Modo granel: ingresar Total $ con formato moneda -->
@@ -311,15 +338,46 @@
           </div>
           <div *ngIf="productToSell?.isBulk && (productToSell?.saleType === 'WEIGHT' || productToSell?.saleType === 'VOLUME' || productToSell?.saleType === 'LONGITUDE')" class="form-text">
             Modo granel: ingrese el <strong>total $ vendido</strong>. La cantidad será calculada como <em>total / precio unitario</em>.
-            Precio unitario: <strong>{{ productToSell?.price | currency:'$ ':'symbol':'.0-0' }}</strong>.
+            @if (productToSell?.saleType === 'LONGITUDE') {
+              Precio unitario: <strong>{{ productToSell?.price | currency:'$ ':'symbol':'.0-0' }}/metro</strong>
+            } @else if (productToSell?.saleType === 'VOLUME') {
+              Precio unitario: <strong>{{ productToSell?.price | currency:'$ ':'symbol':'.0-0' }}/CC</strong>
+            } @else {
+              Precio unitario: <strong>{{ productToSell?.price | currency:'$ ':'symbol':'.0-0' }}</strong>.
+            }
           </div>
           <div *ngIf="productToSell?.isBulk && (productToSell?.saleType === 'WEIGHT' || productToSell?.saleType === 'VOLUME' || productToSell?.saleType === 'LONGITUDE')" class="mt-2">
-            <div class="card border-success text-center">
-              <div class="card-body">
-                <div class="text-muted">Cantidad calculada</div>
-                <div class="display-4 fw-bold text-success">
-                  {{ bulkComputedAmount | number:'1.1-1' }}
-                  <span class="fs-4 text-secondary">{{ productToSell?.saleType === 'VOLUME' ? 'MILILITROS' : (productToSell?.selectedUnitMeasure || productToSell?.stock?.unitMeasure) }}</span>
+            <div class="row g-2">
+              <!-- Cantidad calculada (referencial) -->
+              <div class="col-6">
+                <div class="card border-info text-center h-100">
+                  <div class="card-body">
+                    <div class="text-muted small">Cantidad (referencial)</div>
+                    <div class="fs-3 fw-bold text-info">
+                      {{ bulkComputedAmount | number:'1.2-4' }}
+                    </div>
+                    <div class="text-secondary small">
+                      @if (productToSell?.saleType === 'LONGITUDE') {
+                        METROS
+                      } @else if (productToSell?.saleType === 'VOLUME') {
+                        CC
+                      } @else {
+                        {{ productToSell?.selectedUnitMeasure || productToSell?.stock?.unitMeasure }}
+                      }
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <!-- Subtotal EXACTO (lo que se cobrará) -->
+              <div class="col-6">
+                <div class="card border-success text-center h-100">
+                  <div class="card-body">
+                    <div class="text-muted small">Subtotal a cobrar</div>
+                    <div class="fs-3 fw-bold text-success">
+                      {{ bulkInputValue | currency:'$ ':'symbol':'.0-0' }}
+                    </div>
+                    <div class="text-success small"><i class="bi bi-check-circle"></i> Monto exacto</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -364,6 +422,191 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" (click)="cancelSaveBilling()" title="N / Esc">Cancelar</button>
         <button type="button" class="btn btn-primary" (click)="confirmSaveBilling()" title="Y / Enter">Confirmar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Multipagos -->
+<div class="modal fade" id="multiPaymentModal" #multiPaymentModal tabindex="-1" aria-labelledby="multiPaymentModalLabel" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title" id="multiPaymentModalLabel">
+          <i class="bi bi-wallet2 me-2"></i>Registrar Pagos
+        </h5>
+        <!-- Botones en el header para siempre estar visibles -->
+        <div class="ms-auto me-3">
+          <button type="button" class="btn btn-outline-light btn-sm me-2" (click)="closeMultiPaymentModal()">
+            <i class="bi bi-x-circle me-1"></i> Cancelar
+          </button>
+          <button type="button" class="btn btn-light btn-sm" (click)="confirmMultiPayment()" [disabled]="getPendingAmount() > 0">
+            <i class="bi bi-check-circle me-1"></i> Confirmar
+          </button>
+        </div>
+        <button type="button" class="btn-close btn-close-white" (click)="closeMultiPaymentModal()" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Resumen del total -->
+        <div class="alert alert-info d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <i class="bi bi-cart-check me-2"></i>
+            <strong>Total a Pagar:</strong>
+          </div>
+          <span class="fs-4 fw-bold">{{ totalBilling | currency:'$ ':'symbol':'.0-0' }}</span>
+        </div>
+
+        <!-- Sección EFECTIVO - Input grande y prominente -->
+        <div class="card mb-4 border-success">
+          <div class="card-header bg-success text-white d-flex align-items-center">
+            <i class="bi bi-cash-stack fs-4 me-2"></i>
+            <span class="fs-5 fw-bold">EFECTIVO</span>
+          </div>
+          <div class="card-body">
+            <div class="row align-items-center">
+              <div class="col">
+                <label class="form-label fw-bold">Monto recibido en efectivo:</label>
+                <input #cashAmountInput
+                       type="text"
+                       class="form-control form-control-lg text-end fw-bold fs-3 border-success"
+                       [value]="getCashPaymentAmount()"
+                       (input)="onCashAmountChange($event)"
+                       appCurrencyFormat
+                       placeholder="$ 0">
+              </div>
+            </div>
+            @if (getCashChange() > 0) {
+              <div class="mt-3 p-3 bg-warning bg-opacity-25 rounded text-center">
+                <span class="text-muted">Vueltas:</span>
+                <span class="fs-4 fw-bold text-warning ms-2">{{ getCashChange() | currency:'$ ':'symbol':'.0-0' }}</span>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Sección OTROS MÉTODOS DE PAGO -->
+        <div class="card border-primary">
+          <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <div>
+              <i class="bi bi-credit-card fs-5 me-2"></i>
+              <span class="fw-bold">Otros Métodos de Pago</span>
+            </div>
+            <button type="button" class="btn btn-light btn-sm" (click)="addOtherPaymentRow()">
+              <i class="bi bi-plus-circle me-1"></i> Agregar
+            </button>
+          </div>
+          <div class="card-body">
+            @if (getOtherPayments().length === 0) {
+              <p class="text-muted text-center mb-0">
+                <i class="bi bi-info-circle me-1"></i>
+                No hay otros métodos de pago registrados. Haga clic en "Agregar" para incluir transferencias, tarjetas, etc.
+              </p>
+            } @else {
+              @for (payment of getOtherPayments(); let i = $index; track i) {
+                <div class="card mb-3 border-secondary">
+                  <div class="card-body py-3">
+                    <div class="row g-3">
+                      <div class="col-12 col-md-3">
+                        <label class="form-label small fw-bold mb-1">Método:</label>
+                        <select class="form-select" [value]="payment.method" (change)="onOtherPaymentMethodChange(i, $event)">
+                          <option value="TRANSFERENCIA">TRANSFERENCIA</option>
+                          <option value="TARJETA_CREDITO">TARJETA CRÉDITO</option>
+                          <option value="TARJETA_DEBITO">TARJETA DÉBITO</option>
+                          <option value="CHEQUE">CHEQUE</option>
+                        </select>
+                      </div>
+                      <div class="col-12 col-md-3">
+                        <label class="form-label small fw-bold mb-1">Monto:</label>
+                        <input type="text"
+                               class="form-control text-end fw-bold border-success"
+                               [value]="formatCurrency(payment.amount)"
+                               (input)="onOtherPaymentAmountChange(i, $event)"
+                               appCurrencyFormat
+                               placeholder="$ 0">
+                      </div>
+                      <div class="col-12 col-md-4">
+                        <label class="form-label small fw-bold mb-1">
+                          @if (payment.method === 'TRANSFERENCIA') {
+                            No. Referencia:
+                          } @else if (payment.method === 'TARJETA_CREDITO' || payment.method === 'TARJETA_DEBITO') {
+                            Últimos 4 dígitos:
+                          } @else {
+                            Referencia:
+                          }
+                        </label>
+                        <input type="text"
+                               class="form-control"
+                               [value]="payment.reference"
+                               (input)="onOtherPaymentReferenceChange(i, $event)"
+                               [placeholder]="payment.method === 'TRANSFERENCIA' ? 'Ej: 123456' : 'Ref/Nota'">
+                      </div>
+                      <div class="col-12 col-md-2 d-flex align-items-end">
+                        <button type="button" class="btn btn-outline-danger w-100" (click)="removeOtherPaymentRow(i)" title="Eliminar">
+                          <i class="bi bi-trash me-1"></i> Quitar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              }
+            }
+          </div>
+        </div>
+
+        <!-- Resumen de pagos -->
+        <div class="mt-4 p-3 bg-light rounded border">
+          <div class="row">
+            <div class="col-6">
+              <div class="d-flex justify-content-between mb-2">
+                <span class="text-muted">Total Factura:</span>
+                <span class="fw-bold">{{ totalBilling | currency:'$ ':'symbol':'.0-0' }}</span>
+              </div>
+              <div class="d-flex justify-content-between mb-2">
+                <span class="text-muted">Total Pagado:</span>
+                <span class="fw-bold text-success">{{ getTotalPaid() | currency:'$ ':'symbol':'.0-0' }}</span>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="d-flex justify-content-between mb-2">
+                <span class="text-muted">Pendiente:</span>
+                <span class="fw-bold" [ngClass]="getPendingAmount() > 0 ? 'text-danger' : 'text-success'">
+                  {{ getPendingAmount() | currency:'$ ':'symbol':'.0-0' }}
+                </span>
+              </div>
+              <div class="d-flex justify-content-between">
+                <span class="text-muted">Vueltas:</span>
+                <span class="fw-bold text-warning">{{ getCashChange() | currency:'$ ':'symbol':'.0-0' }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Footer sticky con resumen y botones grandes -->
+      <div class="modal-footer bg-light sticky-bottom border-top">
+        <div class="container-fluid">
+          <div class="row align-items-center">
+            <div class="col-md-6">
+              <div class="d-flex justify-content-between small">
+                <span>Pendiente:</span>
+                <span class="fw-bold" [ngClass]="getPendingAmount() > 0 ? 'text-danger' : 'text-success'">
+                  {{ getPendingAmount() | currency:'$ ':'symbol':'.0-0' }}
+                </span>
+              </div>
+              <div class="d-flex justify-content-between small">
+                <span>Vueltas:</span>
+                <span class="fw-bold text-warning">{{ getCashChange() | currency:'$ ':'symbol':'.0-0' }}</span>
+              </div>
+            </div>
+            <div class="col-md-6 text-end">
+              <button type="button" class="btn btn-secondary me-2" (click)="closeMultiPaymentModal()">
+                <i class="bi bi-x-circle me-1"></i> Cancelar
+              </button>
+              <button type="button" class="btn btn-success" (click)="confirmMultiPayment()" [disabled]="getPendingAmount() > 0">
+                <i class="bi bi-check-circle me-1"></i> Confirmar Pagos
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>

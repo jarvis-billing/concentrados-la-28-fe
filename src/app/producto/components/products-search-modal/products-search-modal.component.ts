@@ -133,6 +133,7 @@ export class ProductsSearchModalComponent implements OnInit, OnDestroy {
     mapped.barcode = presentation.barcode;
     mapped.price = presentation.salePrice;
     mapped.selectedUnitMeasure = presentation.unitMeasure;
+    mapped.selectedPresentationLabel = presentation.label || '';
     const rootDesc = (product.description || '').trim();
     const label = (presentation.label || '').trim();
     mapped.description = label ? `${rootDesc} - ${label}` : rootDesc;

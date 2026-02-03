@@ -18,6 +18,8 @@ export class Product {
     isBulk?: boolean;
     // Unit measure of the selected presentation (for display/calculations)
     selectedUnitMeasure?: UnitMeasure;
+    // Label of the selected presentation (for display in modals)
+    selectedPresentationLabel?: string;
     // Fixed amount flag for pack-sized presentations (e.g., bulto/medio bulto)
     hasFixedAmount?: boolean;
     fixedAmount?: number;

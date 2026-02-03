@@ -47,10 +47,18 @@ export class FacturaComponent implements OnInit, AfterViewInit {
   @ViewChild(ModalClientsListComponent, { static: false }) clientsModalComp!: ModalClientsListComponent;
   @ViewChild('reciveValueInput', { static: false }) reciveValueInput!: ElementRef<HTMLInputElement>;
   @ViewChild('confirmSaveModal', { static: false }) confirmSaveModalRef!: ElementRef;
+  @ViewChild('multiPaymentModal', { static: false }) multiPaymentModalRef!: ElementRef;
+  @ViewChild('cashAmountInput', { static: false }) cashAmountInput!: ElementRef<HTMLInputElement>;
+
+  // Estado temporal para el modal de multipagos
+  modalCashAmount: number = 0;
+  modalOtherPayments: { method: string; amount: number; reference: string }[] = [];
 
   ngAfterViewInit() {
     // Configuración para el modal "Cantidad a vender"
     this.setFocusOnModal('productsAmountModal', this.amountProductInput);
+    // Configuración para el modal de multipagos
+    this.setFocusOnModal('multiPaymentModal', this.cashAmountInput);
   }
 
   // Handler al seleccionar una presentación desde el modal hijo
@@ -97,6 +105,7 @@ export class FacturaComponent implements OnInit, AfterViewInit {
   saleDetails: SaleDetail[] = [];
   // Vista previa en modo granel/peso
   bulkComputedAmount: number = 0;
+  bulkInputValue: number = 0;  // Monto exacto ingresado por el usuario
 
   originalListClients: Client[] = [];
   filteredListClients: Client[] = [];
@@ -215,6 +224,8 @@ export class FacturaComponent implements OnInit, AfterViewInit {
 
     // Si es granel, el usuario ingresa el TOTAL vendido (dinero) y calculamos la cantidad
     let resolvedAmount = 0;
+    let bulkInputAmount: number | undefined = undefined;
+    
     if (this.productToSell?.isBulk) {
       const unitPrice = Number(this.productToSell.price) || 0;
       if (unitPrice <= 0) {
@@ -222,7 +233,9 @@ export class FacturaComponent implements OnInit, AfterViewInit {
         return;
       }
       const totalMoney = numeric;
-      resolvedAmount = +(totalMoney / unitPrice).toFixed(1); // 2 decimales para claridad
+      bulkInputAmount = totalMoney; // Guardar el monto exacto ingresado
+      // Calcular cantidad con más decimales para referencia visual (sin redondear agresivamente)
+      resolvedAmount = totalMoney / unitPrice;
     } else {
       // Caso normal: el usuario ingresa la CANTIDAD
       resolvedAmount = numeric;
@@ -230,13 +243,20 @@ export class FacturaComponent implements OnInit, AfterViewInit {
 
     if (resolvedAmount > 0) {
       this.productToSell.amount = resolvedAmount;
+      // Guardar el monto de granel en el producto temporalmente
+      (this.productToSell as any)._bulkInputAmount = bulkInputAmount;
+      
       // Actualizar si ya existe en el detalle
-      this.saleDetails.map(detail => {
-        if (detail.product.barcode === this.productToSell.barcode) {
-          detail.amount = resolvedAmount;
-        }
-      });
-      this.addProduct(this.productToSell);
+      const existingDetail = this.saleDetails.find(detail => detail.product.barcode === this.productToSell.barcode);
+      if (existingDetail) {
+        existingDetail.amount = resolvedAmount;
+        existingDetail.isBulkSale = !!bulkInputAmount;
+        existingDetail.bulkInputAmount = bulkInputAmount;
+        // Para granel: subtotal = monto exacto ingresado; para normal: cantidad * precio
+        existingDetail.subTotal = bulkInputAmount ?? (resolvedAmount * this.productToSell.price);
+      } else {
+        this.addProduct(this.productToSell);
+      }
       this.clearProductAmountField();
     } else {
       toast.warning('La cantidad calculada debe ser mayor a 0.');
@@ -248,6 +268,7 @@ export class FacturaComponent implements OnInit, AfterViewInit {
   clearProductAmountField() {
     this.formProductAmount.reset();
     this.bulkComputedAmount = 0;
+    this.bulkInputValue = 0;
     const prodductAmountModal = document.getElementById('productsAmountModal');
     (prodductAmountModal?.getElementsByClassName('btn-close').item(0) as HTMLElement)?.click();
   }
@@ -534,15 +555,27 @@ export class FacturaComponent implements OnInit, AfterViewInit {
   }
 
   mapProductToSaleDetail(selectProduct: Product): SaleDetail {
-    // Creamos el objeto SaleDetail sin `totalVat`
+    // Verificar si es venta a granel con monto exacto
+    const bulkInputAmount = (selectProduct as any)._bulkInputAmount as number | undefined;
+    const isBulkSale = !!bulkInputAmount;
+    
+    // Para granel: subtotal = monto exacto ingresado por el usuario
+    // Para normal: subtotal = cantidad * precio
+    const subTotal = bulkInputAmount ?? (selectProduct.amount * selectProduct.price);
+    
     const saleDetail: SaleDetail = {
       id: selectProduct.id,
       product: selectProduct,
       amount: selectProduct.amount,
       unitPrice: selectProduct.price,
-      subTotal: selectProduct.amount * selectProduct.price,
-      totalVat: 0 // Inicializamos como 0 temporalmente
+      subTotal: subTotal,
+      totalVat: 0,
+      isBulkSale: isBulkSale,
+      bulkInputAmount: bulkInputAmount
     };
+    
+    // Limpiar el campo temporal del producto
+    delete (selectProduct as any)._bulkInputAmount;
 
     // Suscribimos a `calculateVatPrice` y asignamos `totalVat` cuando esté listo
     /* this.calculateVatPrice(selectProduct.price, selectProduct.amount, selectProduct.vatType)
@@ -557,12 +590,13 @@ export class FacturaComponent implements OnInit, AfterViewInit {
   addProduct(product: Product) {
     const detail = this.saleDetails.find(detail => detail.product.barcode === product.barcode);
     if (detail) {
-      debugger
-      //detail.amount += 1;
-      detail.subTotal = detail.amount * product.price;
-      /* this.calculateVatPrice(product.price, detail.amount, product.vatType).subscribe(totalVat => {
-         detail.totalVat = totalVat;
-       });*/
+      // Para granel: mantener el subtotal exacto (bulkInputAmount)
+      // Para normal: recalcular como cantidad * precio
+      if (detail.isBulkSale && detail.bulkInputAmount) {
+        detail.subTotal = detail.bulkInputAmount;
+      } else {
+        detail.subTotal = detail.amount * product.price;
+      }
       return;
     }
 
@@ -570,7 +604,9 @@ export class FacturaComponent implements OnInit, AfterViewInit {
       product.amount = 1;
     }
 
-    product.totalValue = product.amount * product.price;
+    // Para granel con monto exacto, usar ese monto; sino calcular normal
+    const bulkAmount = (product as any)._bulkInputAmount;
+    product.totalValue = bulkAmount ?? (product.amount * product.price);
 
     this.saleDetails.push(this.mapProductToSaleDetail(product));
   }
@@ -810,7 +846,12 @@ export class FacturaComponent implements OnInit, AfterViewInit {
       event.preventDefault();
       this.saveBilling();
     }
-debugger;
+
+    if (event.key === 'F9' && this.paymentType !== 'CREDITO') {
+      event.preventDefault();
+      this.openMultiPaymentModal();
+    }
+
     // Evitar atajos cuando se está escribiendo en algún control
     const target = event.target as HTMLElement | null;
     const tag = (target?.tagName || '').toLowerCase();
@@ -829,7 +870,7 @@ debugger;
           return;
         }
       }
-      // Atajo de una sola tecla: R para enfocar "Dinero Recibido"
+      // Atajo de una sola tecla: F8 para enfocar "Dinero Recibido"
       if (event.key === 'F8') {
         event.preventDefault();
         try {
@@ -903,6 +944,7 @@ debugger;
     if (modalEl) {
       // Resetear vista previa antes de abrir
       this.bulkComputedAmount = 0;
+      this.bulkInputValue = 0;
       const modal = new (window as any).bootstrap.Modal(modalEl);
       modal.show();
 
@@ -942,9 +984,155 @@ debugger;
     if (!isNaN(numeric)) {
       this.formProductAmount.controls.amountProduct.setValue(numeric.toString());
       const unitPrice = Number(this.productToSell?.price) || 0;
-      this.bulkComputedAmount = unitPrice > 0 ? +(numeric / unitPrice).toFixed(1) : 0; // 2 decimales en preview
+      // Guardar el monto exacto ingresado (sin redondeo)
+      this.bulkInputValue = numeric;
+      // Calcular cantidad con más decimales para referencia visual
+      this.bulkComputedAmount = unitPrice > 0 ? (numeric / unitPrice) : 0;
     } else {
       this.bulkComputedAmount = 0;
+      this.bulkInputValue = 0;
     }
+  }
+
+  // =============================================
+  // MODAL DE MULTIPAGOS
+  // =============================================
+
+  openMultiPaymentModal() {
+    this.loadPaymentsToModal();
+    const modalEl = this.multiPaymentModalRef?.nativeElement;
+    if (modalEl) {
+      const modal = new (window as any).bootstrap.Modal(modalEl);
+      modal.show();
+      modalEl.addEventListener('shown.bs.modal', () => {
+        this.cashAmountInput?.nativeElement?.focus();
+        this.cashAmountInput?.nativeElement?.select();
+      }, { once: true });
+    }
+  }
+
+  closeMultiPaymentModal() {
+    const modalEl = this.multiPaymentModalRef?.nativeElement;
+    const modalInstance = (window as any).bootstrap?.Modal.getInstance(modalEl);
+    modalInstance?.hide();
+  }
+
+  private loadPaymentsToModal() {
+    const payments = this.getPaymentsValues();
+    const cashPayment = payments.find(p => p.method === 'EFECTIVO');
+    this.modalCashAmount = cashPayment?.amount || 0;
+    this.modalOtherPayments = payments
+      .filter(p => p.method !== 'EFECTIVO')
+      .map(p => ({ method: p.method, amount: p.amount, reference: p.reference || '' }));
+  }
+
+  private syncModalToPaymentsForm() {
+    while (this.paymentsForm.length) {
+      this.paymentsForm.removeAt(0);
+    }
+    if (this.modalCashAmount > 0) {
+      this.paymentsForm.push(new FormGroup({
+        method: new FormControl<string>('EFECTIVO', { nonNullable: true }),
+        amount: new FormControl<string>(String(this.modalCashAmount), { nonNullable: true }),
+        reference: new FormControl<string>('', { nonNullable: true })
+      }));
+    }
+    for (const p of this.modalOtherPayments) {
+      if (p.amount > 0) {
+        this.paymentsForm.push(new FormGroup({
+          method: new FormControl<string>(p.method, { nonNullable: true }),
+          amount: new FormControl<string>(String(p.amount), { nonNullable: true }),
+          reference: new FormControl<string>(p.reference || '', { nonNullable: true })
+        }));
+      }
+    }
+    if (this.paymentsForm.length === 0) {
+      this.initPaymentsForm();
+    }
+    this.recalculateFromPayments();
+  }
+
+  confirmMultiPayment() {
+    this.syncModalToPaymentsForm();
+    this.closeMultiPaymentModal();
+    toast.success('Pagos registrados correctamente');
+  }
+
+  getCashPaymentAmount(): string {
+    return this.modalCashAmount > 0 ? this.formatCurrency(this.modalCashAmount) : '';
+  }
+
+  onCashAmountChange(event: Event) {
+    const value = (event.target as HTMLInputElement).value;
+    this.modalCashAmount = this.normalizeToNumber(value);
+  }
+
+  getCashChange(): number {
+    const totalPaid = this.getTotalPaid();
+    const total = this.totalBilling || 0;
+    return Math.max(0, totalPaid - total);
+  }
+
+  getTotalPaid(): number {
+    const otherTotal = this.modalOtherPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+    return (this.modalCashAmount || 0) + otherTotal;
+  }
+
+  getPendingAmount(): number {
+    const total = this.totalBilling || 0;
+    const paid = this.getTotalPaid();
+    return Math.max(0, total - paid);
+  }
+
+  getOtherPayments(): { method: string; amount: number; reference: string }[] {
+    return this.modalOtherPayments;
+  }
+
+  addOtherPaymentRow() {
+    this.modalOtherPayments.push({ method: 'TRANSFERENCIA', amount: 0, reference: '' });
+  }
+
+  removeOtherPaymentRow(index: number) {
+    this.modalOtherPayments.splice(index, 1);
+  }
+
+  onOtherPaymentMethodChange(index: number, event: Event) {
+    const value = (event.target as HTMLSelectElement).value;
+    this.modalOtherPayments[index].method = value;
+  }
+
+  onOtherPaymentAmountChange(index: number, event: Event) {
+    const value = (event.target as HTMLInputElement).value;
+    this.modalOtherPayments[index].amount = this.normalizeToNumber(value);
+  }
+
+  onOtherPaymentReferenceChange(index: number, event: Event) {
+    const value = (event.target as HTMLInputElement).value;
+    this.modalOtherPayments[index].reference = value;
+  }
+
+  getPaymentsSummary(): { method: string; amount: number; reference?: string }[] {
+    return this.getPaymentsValues().filter(p => p.amount > 0);
+  }
+
+  getPaymentIcon(method: string): string {
+    switch (method) {
+      case 'EFECTIVO': return 'bi-cash-stack';
+      case 'TRANSFERENCIA': return 'bi-bank';
+      case 'TARJETA_CREDITO': return 'bi-credit-card';
+      case 'TARJETA_DEBITO': return 'bi-credit-card-2-front';
+      case 'CHEQUE': return 'bi-file-earmark-text';
+      default: return 'bi-wallet2';
+    }
+  }
+
+  formatCurrency(value: number): string {
+    if (!value || value === 0) return '';
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(value);
   }
 }
