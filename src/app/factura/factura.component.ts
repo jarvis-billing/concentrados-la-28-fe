@@ -101,6 +101,8 @@ export class FacturaComponent implements OnInit, AfterViewInit {
   clientCreditBalance: number = 0;
   creditToApply: number = 0;
   showCreditModal: boolean = false;
+  // Crédito aplicado en el modal de multipagos
+  modalCreditApplied: number = 0;
 
   saleDetails: SaleDetail[] = [];
   // Vista previa en modo granel/peso
@@ -1022,13 +1024,28 @@ export class FacturaComponent implements OnInit, AfterViewInit {
     const cashPayment = payments.find(p => p.method === 'EFECTIVO');
     this.modalCashAmount = cashPayment?.amount || 0;
     this.modalOtherPayments = payments
-      .filter(p => p.method !== 'EFECTIVO')
+      .filter(p => p.method !== 'EFECTIVO' && p.method !== 'SALDO_FAVOR')
       .map(p => ({ method: p.method, amount: p.amount, reference: p.reference || '' }));
+    // Cargar el saldo a favor aplicado previamente
+    const creditPayment = payments.find(p => p.method === 'SALDO_FAVOR');
+    this.modalCreditApplied = creditPayment?.amount || 0;
   }
 
   private syncModalToPaymentsForm() {
     while (this.paymentsForm.length) {
       this.paymentsForm.removeAt(0);
+    }
+    // Agregar saldo a favor si se aplicó
+    if (this.modalCreditApplied > 0) {
+      this.paymentsForm.push(new FormGroup({
+        method: new FormControl<string>('SALDO_FAVOR', { nonNullable: true }),
+        amount: new FormControl<string>(String(this.modalCreditApplied), { nonNullable: true }),
+        reference: new FormControl<string>('', { nonNullable: true })
+      }));
+      // Actualizar creditToApply para que se refleje en la UI principal
+      this.creditToApply = this.modalCreditApplied;
+    } else {
+      this.creditToApply = 0;
     }
     if (this.modalCashAmount > 0) {
       this.paymentsForm.push(new FormGroup({
@@ -1075,13 +1092,53 @@ export class FacturaComponent implements OnInit, AfterViewInit {
 
   getTotalPaid(): number {
     const otherTotal = this.modalOtherPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
-    return (this.modalCashAmount || 0) + otherTotal;
+    return (this.modalCashAmount || 0) + otherTotal + (this.modalCreditApplied || 0);
   }
 
   getPendingAmount(): number {
     const total = this.totalBilling || 0;
     const paid = this.getTotalPaid();
     return Math.max(0, total - paid);
+  }
+
+  // Saldo a favor disponible después de aplicar en el modal
+  getAvailableCreditBalance(): number {
+    return Math.max(0, this.clientCreditBalance - this.modalCreditApplied);
+  }
+
+  // Aplicar saldo a favor en el modal de multipagos
+  applyCredit(): void {
+    if (this.clientCreditBalance <= 0) {
+      toast.warning('El cliente no tiene saldo a favor disponible.');
+      return;
+    }
+    
+    const pending = this.getPendingAmount();
+    if (pending <= 0) {
+      toast.info('No hay monto pendiente por pagar.');
+      return;
+    }
+    
+    // Aplicar el mínimo entre el saldo disponible y el pendiente
+    const toApply = Math.min(this.clientCreditBalance, pending + this.modalCreditApplied);
+    this.modalCreditApplied = toApply;
+    
+    if (toApply >= this.totalBilling) {
+      toast.success(`Saldo a favor cubre el total de la factura.`);
+    } else {
+      toast.success(`Se aplicó ${this.formatCurrency(toApply)} del saldo a favor.`);
+    }
+  }
+
+  // Quitar el saldo a favor aplicado
+  removeCredit(): void {
+    this.modalCreditApplied = 0;
+    toast.info('Saldo a favor removido.');
+  }
+
+  // Verificar si el cliente puede usar saldo a favor
+  canUseCredit(): boolean {
+    return this.clientCreditBalance > 0 && !this.isConsumidorFinal(this.client);
   }
 
   getOtherPayments(): { method: string; amount: number; reference: string }[] {
@@ -1118,6 +1175,7 @@ export class FacturaComponent implements OnInit, AfterViewInit {
   getPaymentIcon(method: string): string {
     switch (method) {
       case 'EFECTIVO': return 'bi-cash-stack';
+      case 'SALDO_FAVOR': return 'bi-wallet2';
       case 'TRANSFERENCIA': return 'bi-bank';
       case 'TARJETA_CREDITO': return 'bi-credit-card';
       case 'TARJETA_DEBITO': return 'bi-credit-card-2-front';

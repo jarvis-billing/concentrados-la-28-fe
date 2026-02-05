@@ -1,0 +1,200 @@
+<div class="container-fluid py-4">
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="mb-1">
+        <i class="bi bi-book text-primary me-2"></i>
+        Álbum de Códigos de Barras
+      </h2>
+      <p class="text-muted mb-0">
+        Catálogo de productos con códigos de barras para facturación rápida
+      </p>
+    </div>
+    <div>
+      <a routerLink="/main/inventario" class="btn btn-outline-secondary me-2">
+        <i class="bi bi-arrow-left me-1"></i> Volver
+      </a>
+      <button class="btn btn-primary" (click)="generatePdf()" [disabled]="isGeneratingPdf || brandGroups.length === 0">
+        @if (isGeneratingPdf) {
+          <span class="spinner-border spinner-border-sm me-1"></span> Generando...
+        } @else {
+          <i class="bi bi-file-pdf me-1"></i> Generar PDF
+        }
+      </button>
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-3">
+          <label class="form-label fw-bold">
+            <i class="bi bi-building me-1"></i> Marca
+          </label>
+          <select class="form-select" [(ngModel)]="selectedBrand" (change)="onBrandChange()">
+            <option value="">Todas las marcas</option>
+            @for (brand of brands; track brand) {
+              <option [value]="brand">{{ brand }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-bold">
+            <i class="bi bi-tag me-1"></i> Categoría
+          </label>
+          <select class="form-select" [(ngModel)]="selectedCategory" (change)="onCategoryChange()">
+            <option value="">Todas las categorías</option>
+            @for (category of categories; track category) {
+              <option [value]="category">{{ category }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-bold">
+            <i class="bi bi-search me-1"></i> Buscar
+          </label>
+          <input type="text" class="form-control" placeholder="Buscar por nombre, código..."
+                 [(ngModel)]="searchTerm" (input)="onSearchChange()">
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+          <button class="btn btn-outline-secondary w-100" (click)="clearFilters()">
+            <i class="bi bi-x-circle me-1"></i> Limpiar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Resumen -->
+  <div class="row mb-4">
+    <div class="col-md-4">
+      <div class="card bg-primary text-white">
+        <div class="card-body text-center">
+          <h3 class="mb-0">{{ brandGroups.length }}</h3>
+          <small>Marcas</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card bg-success text-white">
+        <div class="card-body text-center">
+          <h3 class="mb-0">{{ getTotalProducts() }}</h3>
+          <small>Productos</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card bg-info text-white">
+        <div class="card-body text-center">
+          <h3 class="mb-0">{{ getTotalPresentations() }}</h3>
+          <small>Presentaciones</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  @if (isLoading) {
+    <div class="text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Cargando...</span>
+      </div>
+      <p class="mt-2 text-muted">Cargando productos...</p>
+    </div>
+  }
+
+  <!-- Sin resultados -->
+  @if (!isLoading && brandGroups.length === 0) {
+    <div class="alert alert-info text-center">
+      <i class="bi bi-info-circle me-2"></i>
+      No se encontraron productos con los filtros seleccionados.
+    </div>
+  }
+
+  <!-- Vista previa del álbum -->
+  @if (!isLoading && brandGroups.length > 0) {
+    <div class="album-preview">
+      @for (brandGroup of brandGroups; track brandGroup.brand) {
+        <!-- Encabezado de Marca -->
+        <div class="brand-header bg-dark text-white p-3 mb-3 rounded">
+          <h3 class="mb-0 text-center">
+            <i class="bi bi-building me-2"></i>
+            {{ brandGroup.brand | uppercase }}
+          </h3>
+        </div>
+
+        @for (categoryGroup of brandGroup.categories; track categoryGroup.category) {
+          <!-- Sección de Categoría -->
+          <div class="category-section mb-4">
+            <div class="category-header bg-primary text-white p-2 rounded-top">
+              <h5 class="mb-0">
+                <i class="bi bi-tag-fill me-2"></i>
+                {{ categoryGroup.category | uppercase }}
+              </h5>
+            </div>
+
+            <div class="category-content border border-primary border-top-0 rounded-bottom p-3">
+              <div class="accordion" [id]="'accordion-' + getSafeId(brandGroup.brand) + '-' + getSafeId(categoryGroup.category)">
+                @for (product of categoryGroup.products; track product.description; let prodIdx = $index) {
+                  <!-- Producto con Acordeón -->
+                  <div class="accordion-item mb-2">
+                    <h2 class="accordion-header">
+                      <button class="accordion-button collapsed" type="button" 
+                              data-bs-toggle="collapse" 
+                              [attr.data-bs-target]="'#collapse-' + getSafeId(brandGroup.brand) + '-' + getSafeId(categoryGroup.category) + '-' + prodIdx"
+                              [attr.aria-expanded]="false"
+                              [attr.aria-controls]="'collapse-' + getSafeId(brandGroup.brand) + '-' + getSafeId(categoryGroup.category) + '-' + prodIdx">
+                        <i class="bi bi-box-seam me-2 text-primary"></i>
+                        <span class="fw-bold">{{ product.description }}</span>
+                        <span class="badge bg-secondary ms-2">{{ product.presentations.length }} presentaciones</span>
+                      </button>
+                    </h2>
+                    <div [id]="'collapse-' + getSafeId(brandGroup.brand) + '-' + getSafeId(categoryGroup.category) + '-' + prodIdx" 
+                         class="accordion-collapse collapse"
+                         [attr.data-bs-parent]="'#accordion-' + getSafeId(brandGroup.brand) + '-' + getSafeId(categoryGroup.category)">
+                      <div class="accordion-body">
+                        <!-- Presentaciones en columnas -->
+                        <div class="row g-3">
+                          @for (pres of product.presentations; track pres.barcode) {
+                            <div class="col-md-4 col-lg-3">
+                              <div class="presentation-card card h-100 text-center">
+                                <div class="card-body p-2">
+                                  <!-- Código de barras (placeholder visual) -->
+                                  <div class="barcode-placeholder bg-light border rounded p-2 mb-2">
+                                    <div class="barcode-lines d-flex justify-content-center align-items-end" style="height: 40px;">
+                                      @for (i of [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]; track i) {
+                                        <div class="barcode-line bg-dark mx-px" 
+                                             [style.width.px]="i % 3 === 0 ? 2 : 1"
+                                             [style.height.px]="25 + (i % 5) * 3"></div>
+                                      }
+                                    </div>
+                                    <small class="text-muted d-block mt-1">{{ pres.barcode }}</small>
+                                  </div>
+                                  
+                                  <!-- Label -->
+                                  <div class="presentation-label fw-bold text-dark mb-1">
+                                    {{ pres.label || 'Sin etiqueta' }}
+                                  </div>
+                                  
+                                  <!-- Precio -->
+                                  <div class="presentation-price fs-5 fw-bold text-success">
+                                    {{ formatPrice(pres.salePrice, pres.isBulk, pres.unitMeasure) }}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+        }
+      }
+    </div>
+  }
+</div>
