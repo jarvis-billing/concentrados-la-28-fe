@@ -494,9 +494,10 @@ export class FacturaComponent implements OnInit, AfterViewInit {
       return;
     }
 
-    this.clientCreditService.getClientCreditBalance(client.id).subscribe({
-      next: (response) => {
-        this.clientCreditBalance = response.balance || 0;
+    // Usar getByClientId que devuelve el objeto ClientCredit completo con currentBalance
+    this.clientCreditService.getByClientId(client.id).subscribe({
+      next: (credit) => {
+        this.clientCreditBalance = credit?.currentBalance || 0;
         if (this.clientCreditBalance > 0) {
           toast.info(`El cliente tiene un saldo a favor de $${this.clientCreditBalance.toLocaleString('es-CO')}`);
         }
