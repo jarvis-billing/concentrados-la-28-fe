@@ -1,4 +1,7 @@
 <div class="container py-3">
+  <!-- Alerta de lotes de animales vivos expirados/próximos a expirar -->
+  <app-batch-expiration-alert></app-batch-expiration-alert>
+  
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h4 class="m-0">Facturas de compra</h4>
     <div class="d-flex gap-2 align-items-center">
@@ -152,3 +155,82 @@
 <app-products-search-modal (selectPresentation)="onPresentationSelected($event)"></app-products-search-modal>
 
 <app-expenses-fab [source]="'compras'"></app-expenses-fab>
+
+<!-- Modal para definir precio de venta del lote (Animales Vivos) -->
+@if (showBatchPriceModal && currentBatchItem) {
+  <div class="modal-backdrop fade show"></div>
+  <div class="modal fade show d-block" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-warning">
+          <h5 class="modal-title">
+            <i class="bi bi-box-seam me-2"></i>
+            Crear Lote - Animales Vivos
+          </h5>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>
+            El producto <strong>{{ currentBatchItem.description }}</strong> requiere crear un lote con precio de venta.
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">Producto</label>
+            <input type="text" class="form-control" [value]="currentBatchItem.description" readonly>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">Cantidad ingresada</label>
+            <div class="input-group">
+              <input type="text" class="form-control" [value]="currentBatchItem.quantity" readonly>
+              <span class="input-group-text">unidades</span>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label fw-bold text-warning">Precio de Venta del Lote *</label>
+            <div class="input-group">
+              <span class="input-group-text">$</span>
+              <input type="number" class="form-control form-control-lg" 
+                     [(ngModel)]="batchSalePrice" 
+                     [ngModelOptions]="{standalone: true}"
+                     min="1" 
+                     placeholder="Ej: 15000">
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label fw-bold">Días de validez del precio *</label>
+            <div class="input-group">
+              <input type="number" class="form-control" 
+                     [(ngModel)]="batchPriceValidityDays" 
+                     [ngModelOptions]="{standalone: true}"
+                     min="1" 
+                     max="365"
+                     placeholder="Ej: 8">
+              <span class="input-group-text">días</span>
+            </div>
+            <small class="text-muted">Después de este tiempo se notificará para actualizar el precio</small>
+          </div>
+          
+          @if (pendingBatchItems.length > 0) {
+            <div class="alert alert-secondary small">
+              <i class="bi bi-hourglass-split me-1"></i>
+              Quedan {{ pendingBatchItems.length }} producto(s) más por configurar.
+            </div>
+          }
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" (click)="skipBatchCreation()">
+            <i class="bi bi-skip-forward me-1"></i> Omitir
+          </button>
+          <button type="button" class="btn btn-warning" 
+                  (click)="confirmBatchPrice()"
+                  [disabled]="batchSalePrice <= 0">
+            <i class="bi bi-check-circle me-1"></i> Crear Lote
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}

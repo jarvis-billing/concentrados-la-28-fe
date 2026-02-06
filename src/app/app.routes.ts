@@ -32,6 +32,7 @@ import { BarcodeAlbumPageComponent } from './inventario/pages/barcode-album-page
 import { ClientAccountViewComponent } from './cuenta-cliente/components/client-account-view/client-account-view.component';
 import { AccountsReceivableReportComponent } from './cuenta-cliente/pages/accounts-receivable-report/accounts-receivable-report.component';
 import { CreditsReportComponent } from './cuenta-cliente/pages/credits-report/credits-report.component';
+import { BatchManagementPageComponent } from './lotes/pages/batch-management-page/batch-management-page.component';
 
 export const routes: Routes = [
     { path: '', pathMatch: 'full', redirectTo: '/login' },
@@ -133,6 +134,9 @@ export const routes: Routes = [
         },
         {
             path: 'clientes/anticipos', component: CreditsReportComponent
+        },
+        {
+            path: 'inventario/lotes', component: BatchManagementPageComponent
         }
     ]}
 ];

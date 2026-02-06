@@ -4,11 +4,12 @@ import { RouterLink } from '@angular/router';
 import { InventoryService } from '../../services/inventory.service';
 import { InventoryDashboard } from '../../models/inventory-dashboard';
 import { AlertLevel, AlertLevelLabels, AlertLevelColors } from '../../models/inventory-dashboard';
+import { BatchExpirationAlertComponent } from '../../../lotes/components/batch-expiration-alert/batch-expiration-alert.component';
 
 @Component({
   selector: 'app-inventory-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, BatchExpirationAlertComponent],
   templateUrl: './inventory-dashboard.component.html',
   styleUrl: './inventory-dashboard.component.css'
 })

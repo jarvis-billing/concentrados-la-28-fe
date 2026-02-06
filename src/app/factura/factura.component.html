@@ -1,3 +1,6 @@
+<!-- Alerta de lotes de animales vivos expirados/próximos a expirar -->
+<app-batch-expiration-alert></app-batch-expiration-alert>
+
 <!-- Secciones reorganizadas en columnas: Factura, Cliente, Totales y Productos -->
 <div class="container-fluid">
   <h2 class="text-primary text-center">Factura de Venta</h2>
@@ -663,3 +666,12 @@
     </div>
   </div>
 </div>
+
+<!-- Modal Selector de Lotes (Animales Vivos) -->
+@if (showBatchSelectorModal) {
+  <app-batch-selector-modal
+    [product]="productForBatchSelection"
+    (batchSelected)="onBatchSelected($event)"
+    (cancelled)="onBatchSelectionCancelled()">
+  </app-batch-selector-modal>
+}

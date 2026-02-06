@@ -1,0 +1,11 @@
+.table-warning {
+    --bs-table-bg: #fff3cd;
+}
+
+.table-danger {
+    --bs-table-bg: #f8d7da;
+}
+
+.badge.fs-6 {
+    font-size: 0.9rem !important;
+}

@@ -4,11 +4,12 @@ import { RouterLink } from '@angular/router';
 import { DashboardService, DashboardData } from './dashboard.service';
 import { LoginUserService } from '../auth/login/loginUser.service';
 import { AlertLevelColors, AlertLevelLabels } from '../inventario/models/inventory-dashboard';
+import { BatchExpirationAlertComponent } from '../lotes/components/batch-expiration-alert/batch-expiration-alert.component';
 
 @Component({
   selector: 'app-inicio',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, BatchExpirationAlertComponent],
   templateUrl: './inicio.component.html',
   styleUrls: ['./inicio.component.css']
 })

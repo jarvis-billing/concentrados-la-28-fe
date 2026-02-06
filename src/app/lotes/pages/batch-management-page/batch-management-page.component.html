@@ -1,0 +1,320 @@
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">
+                <i class="bi bi-box-seam text-warning me-2"></i>
+                Gestión de Lotes - Animales Vivos
+            </h2>
+            <p class="text-muted mb-0">Administre los lotes de productos de la categoría Animales Vivos</p>
+        </div>
+        <button class="btn btn-warning" (click)="openCreateBatchModal()">
+            <i class="bi bi-plus-circle me-1"></i> Crear Lote Manual
+        </button>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label">Producto</label>
+                    <select class="form-select" [(ngModel)]="selectedProductId" (ngModelChange)="onFilterChange()">
+                        <option value="">Todos los productos</option>
+                        @for (product of products; track product.id) {
+                            <option [value]="product.id">{{ product.description }}</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Estado</label>
+                    <select class="form-select" [(ngModel)]="selectedStatus" (ngModelChange)="onFilterChange()">
+                        <option value="">Todos</option>
+                        <option value="ACTIVE">Activo</option>
+                        <option value="DEPLETED">Agotado</option>
+                        <option value="EXPIRED">Precio Expirado</option>
+                        <option value="CLOSED">Cerrado</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="onlyActive" 
+                               [(ngModel)]="onlyActive" (ngModelChange)="onFilterChange()">
+                        <label class="form-check-label" for="onlyActive">
+                            Solo lotes activos
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-2 text-end">
+                    <button class="btn btn-outline-secondary" (click)="loadBatches()">
+                        <i class="bi bi-arrow-clockwise"></i> Actualizar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    @if (isLoading) {
+        <div class="text-center py-5">
+            <div class="spinner-border text-warning" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="mt-2 text-muted">Cargando lotes...</p>
+        </div>
+    }
+
+    <!-- Sin resultados -->
+    @if (!isLoading && batches.length === 0) {
+        <div class="alert alert-info text-center">
+            <i class="bi bi-info-circle me-2"></i>
+            No se encontraron lotes con los filtros seleccionados.
+        </div>
+    }
+
+    <!-- Tabla de Lotes -->
+    @if (!isLoading && batches.length > 0) {
+        <div class="card">
+            <div class="card-header bg-warning bg-opacity-25">
+                <h5 class="mb-0">
+                    <i class="bi bi-list-ul me-2"></i>
+                    Lotes ({{ batches.length }})
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Lote #</th>
+                                <th>Producto</th>
+                                <th>Fecha Ingreso</th>
+                                <th>Precio Venta</th>
+                                <th>Stock</th>
+                                <th>Validez</th>
+                                <th>Expira</th>
+                                <th>Estado</th>
+                                <th class="text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (batch of batches; track batch.id) {
+                                <tr [class.table-warning]="isExpiringSoon(batch)"
+                                    [class.table-danger]="isExpired(batch)">
+                                    <td>
+                                        <span class="badge bg-dark fs-6">{{ batch.batchNumber }}</span>
+                                    </td>
+                                    <td>{{ batch.product?.description || getProductName(batch.productId) }}</td>
+                                    <td>{{ batch.entryDate | date:'dd/MM/yyyy' }}</td>
+                                    <td class="fw-bold text-success">
+                                        {{ batch.salePrice | currency:'$':'symbol':'1.0-0' }}
+                                    </td>
+                                    <td>
+                                        <span class="badge" 
+                                              [ngClass]="batch.currentStock > 0 ? 'bg-success' : 'bg-secondary'">
+                                            {{ batch.currentStock }} / {{ batch.initialStock }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ batch.priceValidityDays || 8 }} días</span>
+                                    </td>
+                                    <td>
+                                        @if (isExpired(batch)) {
+                                            <span class="badge bg-danger">
+                                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                                ¡Expirado!
+                                            </span>
+                                        } @else if (isExpiringSoon(batch)) {
+                                            <span class="badge bg-warning text-dark">
+                                                {{ getDaysUntilExpiration(batch) }} día(s)
+                                            </span>
+                                        } @else {
+                                            <span class="text-muted">
+                                                {{ batch.expirationDate | date:'dd/MM/yyyy' }}
+                                            </span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="badge" [ngClass]="getStatusBadgeClass(batch.status)">
+                                            {{ getStatusLabel(batch.status) }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="btn-group btn-group-sm">
+                                            @if (batch.status === 'ACTIVE') {
+                                                <button class="btn btn-outline-primary" 
+                                                        title="Actualizar Precio"
+                                                        (click)="openUpdatePriceModal(batch)">
+                                                    <i class="bi bi-currency-dollar"></i>
+                                                </button>
+                                                <button class="btn btn-outline-danger" 
+                                                        title="Cerrar Lote"
+                                                        (click)="closeBatch(batch)">
+                                                    <i class="bi bi-x-circle"></i>
+                                                </button>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Modal Actualizar Precio -->
+@if (showUpdatePriceModal && selectedBatch) {
+    <div class="modal-backdrop fade show"></div>
+    <div class="modal fade show d-block" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title">
+                        <i class="bi bi-currency-dollar me-2"></i>
+                        Actualizar Precio - Lote #{{ selectedBatch.batchNumber }}
+                    </h5>
+                    <button type="button" class="btn-close" (click)="closeUpdatePriceModal()"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Al actualizar el precio se creará un <strong>nuevo lote</strong> con la nueva numeración.
+                        El lote actual se cerrará automáticamente.
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Producto</label>
+                        <input type="text" class="form-control" 
+                               [value]="selectedBatch.product?.description || getProductName(selectedBatch.productId)" 
+                               readonly>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Precio Actual</label>
+                        <input type="text" class="form-control" 
+                               [value]="selectedBatch.salePrice | currency:'$':'symbol':'1.0-0'" 
+                               readonly>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Nuevo Precio de Venta *</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" [(ngModel)]="newPrice" min="1">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Días de validez del precio *</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" [(ngModel)]="newPriceValidityDays" min="1" max="365">
+                            <span class="input-group-text">días</span>
+                        </div>
+                        <small class="text-muted">Tiempo hasta que se notifique para actualizar el precio</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Notas (opcional)</label>
+                        <textarea class="form-control" rows="2" [(ngModel)]="updateNotes"
+                                  placeholder="Razón del cambio de precio..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" (click)="closeUpdatePriceModal()">
+                        Cancelar
+                    </button>
+                    <button type="button" class="btn btn-warning" 
+                            (click)="confirmUpdatePrice()"
+                            [disabled]="isUpdating || newPrice <= 0">
+                        @if (isUpdating) {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        <i class="bi bi-check-circle me-1"></i> Crear Nuevo Lote
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal Crear Lote Manual -->
+@if (showCreateBatchModal) {
+    <div class="modal-backdrop fade show"></div>
+    <div class="modal fade show d-block" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title">
+                        <i class="bi bi-plus-circle me-2"></i>
+                        Crear Lote Manual
+                    </h5>
+                    <button type="button" class="btn-close" (click)="closeCreateBatchModal()"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Los lotes normalmente se crean automáticamente al registrar una compra.
+                        Use esta opción solo para casos especiales.
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Producto *</label>
+                        <select class="form-select" [(ngModel)]="newBatch.productId">
+                            <option value="">Seleccione un producto</option>
+                            @for (product of products; track product.id) {
+                                <option [value]="product.id">{{ product.description }}</option>
+                            }
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Precio de Venta *</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" [(ngModel)]="newBatch.salePrice" min="1">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Stock Inicial *</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" [(ngModel)]="newBatch.initialStock" min="1">
+                            <span class="input-group-text">unidades</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Días de validez del precio *</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" [(ngModel)]="newBatch.priceValidityDays" min="1" max="365">
+                            <span class="input-group-text">días</span>
+                        </div>
+                        <small class="text-muted">Tiempo hasta que se notifique para actualizar el precio</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Notas (opcional)</label>
+                        <textarea class="form-control" rows="2" [(ngModel)]="newBatch.notes"
+                                  placeholder="Notas adicionales..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" (click)="closeCreateBatchModal()">
+                        Cancelar
+                    </button>
+                    <button type="button" class="btn btn-warning" 
+                            (click)="confirmCreateBatch()"
+                            [disabled]="isCreating || !newBatch.productId || newBatch.salePrice <= 0 || newBatch.initialStock <= 0">
+                        @if (isCreating) {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        <i class="bi bi-check-circle me-1"></i> Crear Lote
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}

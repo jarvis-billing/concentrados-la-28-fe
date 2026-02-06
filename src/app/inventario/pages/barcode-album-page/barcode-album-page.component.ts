@@ -356,6 +356,15 @@ export class BarcodeAlbumPageComponent implements OnInit {
           if (currentY > pageHeight - 60) {
             doc.addPage();
             currentY = margin;
+            
+            // Repetir encabezado de marca en nueva página
+            doc.setFillColor(255, 140, 0); // Naranja
+            doc.rect(margin, currentY, contentWidth, 10, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`${brandGroup.brand.toUpperCase()}`, pageWidth / 2, currentY + 7, { align: 'center' });
+            currentY += 14;
           }
 
           // === SECCIÓN DE CATEGORÍA === (Amarillo del almacén)
@@ -380,14 +389,14 @@ export class BarcodeAlbumPageComponent implements OnInit {
               doc.setTextColor(255, 255, 255);
               doc.setFontSize(14);
               doc.setFont('helvetica', 'bold');
-              doc.text(`${brandGroup.brand.toUpperCase()} (cont.)`, pageWidth / 2, currentY + 7, { align: 'center' });
+              doc.text(`${brandGroup.brand.toUpperCase()}`, pageWidth / 2, currentY + 7, { align: 'center' });
               currentY += 14;
 
               doc.setFillColor(255, 193, 7); // Amarillo
               doc.rect(margin, currentY, contentWidth, 8, 'F');
               doc.setTextColor(33, 37, 41);
               doc.setFontSize(10);
-              doc.text(`${categoryGroup.category.toUpperCase()} (cont.)`, margin + 5, currentY + 5.5);
+              doc.text(`${categoryGroup.category.toUpperCase()}`, margin + 5, currentY + 5.5);
               currentY += 12;
             }
 
@@ -397,8 +406,8 @@ export class BarcodeAlbumPageComponent implements OnInit {
             doc.setTextColor(33, 37, 41);
             doc.setFontSize(11);
             doc.setFont('helvetica', 'bold');
-            doc.text(product.description, margin + 3, currentY + 5.5);
-            currentY += 10;
+            doc.text(product.description, margin + 3, currentY + 2.5);
+            currentY += 5;
 
             // === PRESENTACIONES EN COLUMNAS ===
             const colWidth = contentWidth / this.columnsPerPage;
@@ -410,13 +419,13 @@ export class BarcodeAlbumPageComponent implements OnInit {
               
               rowPresentations.forEach((pres, colIndex) => {
                 const colX = margin + (colIndex * colWidth);
-                const cellWidth = colWidth - 4;
-                const cellHeight = 52; // Aumentar altura de celda
+                const cellWidth = colWidth - 2;
+                const cellHeight = 42; // Altura de celda aumentada para barcode más grande
                 
                 // Borde de la celda
                 doc.setDrawColor(200, 200, 200);
                 doc.setLineWidth(0.3);
-                doc.rect(colX + 2, rowStartY, cellWidth, cellHeight);
+                doc.rect(colX + 1, rowStartY, cellWidth, cellHeight);
 
                 // Generar código de barras
                 try {
@@ -424,46 +433,39 @@ export class BarcodeAlbumPageComponent implements OnInit {
                   JsBarcode(canvas, pres.barcode, {
                     format: 'CODE128',
                     width: 2,
-                    height: 50,
+                    height: 60,
                     displayValue: true,
-                    fontSize: 14,
-                    margin: 5
+                    fontSize: 16,
+                    margin: 3
                   });
                   const barcodeDataUrl = canvas.toDataURL('image/png');
                   
-                  // Centrar el código de barras
-                  const barcodeWidth = cellWidth - 8;
-                  const barcodeHeight = 18;
-                  const barcodeX = colX + 2 + (cellWidth - barcodeWidth) / 2;
+                  // Centrar el código de barras - más grande
+                  const barcodeWidth = cellWidth - 4;
+                  const barcodeHeight = 24;
+                  const barcodeX = colX + 1 + (cellWidth - barcodeWidth) / 2;
                   doc.addImage(barcodeDataUrl, 'PNG', barcodeX, rowStartY + 2, barcodeWidth, barcodeHeight);
                 } catch (e) {
                   // Si falla el barcode, mostrar el código como texto
-                  doc.setFontSize(8);
+                  doc.setFontSize(10);
                   doc.setTextColor(100, 100, 100);
-                  doc.text(pres.barcode, colX + 2 + cellWidth / 2, rowStartY + 12, { align: 'center' });
+                  doc.text(pres.barcode, colX + 1 + cellWidth / 2, rowStartY + 14, { align: 'center' });
                 }
 
-                // Label de la presentación (usar splitTextToSize para manejar texto largo)
-                doc.setFontSize(9);
+                // Label de la presentación - fuente más grande
+                doc.setFontSize(11);
                 doc.setFont('helvetica', 'bold');
                 doc.setTextColor(33, 37, 41);
                 const labelText = pres.label || 'Sin etiqueta';
-                const splitLabel = doc.splitTextToSize(labelText, cellWidth - 6);
-                const labelY = rowStartY + 24;
-                doc.text(splitLabel, colX + 2 + cellWidth / 2, labelY, { align: 'center' });
-
-                // Precio - posición fija en la parte inferior de la celda
-                doc.setFontSize(12);
-                doc.setFont('helvetica', 'bold');
-                doc.setTextColor(25, 135, 84); // text-success
-                const priceText = this.formatPrice(pres.salePrice, pres.isBulk, pres.unitMeasure);
-                doc.text(priceText, colX + 2 + cellWidth / 2, rowStartY + cellHeight - 4, { align: 'center' });
+                const splitLabel = doc.splitTextToSize(labelText, cellWidth - 4);
+                const labelY = rowStartY + 30;
+                doc.text(splitLabel, colX + 1 + cellWidth / 2, labelY, { align: 'center' });
               });
 
-              currentY += 56; // Aumentar espacio para la nueva altura
+              currentY += 46; // Altura de celda (42) + pequeño margen
             }
 
-            currentY += 4; // Espacio entre productos
+            currentY += 7; // Espacio entre productos
           });
 
           currentY += 6; // Espacio entre categorías
@@ -472,7 +474,7 @@ export class BarcodeAlbumPageComponent implements OnInit {
 
       // Guardar PDF
       const fileName = this.selectedBrand 
-        ? `album-barcodes-${this.selectedBrand.toLowerCase().replace(/\s+/g, '-')}.pdf`
+        ? `album-barcodes-${this.selectedBrand.toLowerCase().replace(/\s+/g, '-')}-${this.selectedCategory.toLowerCase().replace(/\s+/g, '-')}.pdf`
         : 'album-barcodes-completo.pdf';
       
       doc.save(fileName);

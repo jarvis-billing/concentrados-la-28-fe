@@ -22,6 +22,10 @@ import { ModalClientsListComponent } from '../cliente/components/modal-clients-l
 import { ExpensesFabComponent } from '../expenses/expenses-fab.component';
 import { ClientCreditService } from '../cuenta-cliente/services/client-credit.service';
 import { UseCreditModalComponent } from '../cuenta-cliente/components/use-credit-modal/use-credit-modal.component';
+import { BatchService } from '../lotes/services/batch.service';
+import { Batch, BATCH_REQUIRED_CATEGORY } from '../lotes/models/batch';
+import { BatchSelectorModalComponent } from '../lotes/components/batch-selector-modal/batch-selector-modal.component';
+import { BatchExpirationAlertComponent } from '../lotes/components/batch-expiration-alert/batch-expiration-alert.component';
 
 @Component({
   selector: 'app-factura',
@@ -36,6 +40,8 @@ import { UseCreditModalComponent } from '../cuenta-cliente/components/use-credit
     ModalClientsListComponent,
     ExpensesFabComponent,
     UseCreditModalComponent,
+    BatchSelectorModalComponent,
+    BatchExpirationAlertComponent,
   ],
   templateUrl: './factura.component.html',
   styleUrl: './factura.component.css'
@@ -63,11 +69,70 @@ export class FacturaComponent implements OnInit, AfterViewInit {
 
   // Handler al seleccionar una presentación desde el modal hijo
   onPresentationSelected(mappedProduct: Product) {
+    // Verificar si el producto requiere selección de lote (ANIMALES VIVOS)
+    if (this.requiresBatchSelection(mappedProduct)) {
+      this.productForBatchSelection = mappedProduct;
+      this.openBatchSelectorModal();
+      return;
+    }
+    
     this.ProductToSell(mappedProduct);
     // Abrir modal para ingresar cantidad (packs o unidades) o total en caso de granel
     setTimeout(() => {
       this.openProductsAmountModal();
     }, 300);
+  }
+
+  // Verificar si el producto requiere selección de lote
+  requiresBatchSelection(product: Product): boolean {
+    return product.category?.toUpperCase() === BATCH_REQUIRED_CATEGORY;
+  }
+
+  // Abrir modal de selección de lotes
+  openBatchSelectorModal(): void {
+    this.showBatchSelectorModal = true;
+    // Esperar a que Angular renderice el componente antes de manipular el DOM
+    setTimeout(() => {
+      const modal = document.getElementById('batchSelectorModal');
+      if (modal) {
+        modal.classList.add('show');
+        modal.style.display = 'block';
+        document.body.classList.add('modal-open');
+      }
+    }, 0);
+  }
+
+  // Handler cuando se selecciona un lote
+  onBatchSelected(event: { batch: Batch; quantity: number }): void {
+    if (!this.productForBatchSelection) return;
+    
+    // Configurar el producto con el precio del lote seleccionado
+    const product = { ...this.productForBatchSelection };
+    product.price = event.batch.salePrice;
+    product.amount = event.quantity;
+    
+    // Agregar información del lote al producto
+    (product as any).selectedBatch = event.batch;
+    (product as any).batchId = event.batch.id;
+    (product as any).batchNumber = event.batch.batchNumber;
+    
+    this.ProductToSell(product);
+    this.productToSell.amount = event.quantity;
+    this.productToSell.price = event.batch.salePrice;
+    
+    // Agregar directamente a la venta sin abrir modal de cantidad
+    this.addProduct(this.productToSell);
+    
+    this.showBatchSelectorModal = false;
+    this.productForBatchSelection = null;
+    
+    toast.success(`Lote #${event.batch.batchNumber} agregado: ${event.quantity} unidades`);
+  }
+
+  // Handler cuando se cancela la selección de lote
+  onBatchSelectionCancelled(): void {
+    this.showBatchSelectorModal = false;
+    this.productForBatchSelection = null;
   }
 
   // Selección de presentación viene del modal hijo vía onPresentationSelected
@@ -96,6 +161,12 @@ export class FacturaComponent implements OnInit, AfterViewInit {
   localStorage = inject(StorageService);
   loginUserService = inject(LoginUserService);
   clientCreditService = inject(ClientCreditService);
+  batchService = inject(BatchService);
+
+  // Lotes para productos de ANIMALES VIVOS
+  showBatchSelectorModal = false;
+  productForBatchSelection: Product | null = null;
+  availableBatches: Batch[] = [];
 
   // Saldo a favor del cliente
   clientCreditBalance: number = 0;

@@ -11,11 +11,14 @@ import { ExpensesFabComponent } from '../../expenses/expenses-fab.component';
 import { CurrencyFormatDirective } from '../../directive/currency-format.directive';
 import { ProductsSearchModalComponent } from '../../producto/components/products-search-modal/products-search-modal.component';
 import { Product } from '../../producto/producto';
+import { BatchService } from '../../lotes/services/batch.service';
+import { BATCH_REQUIRED_CATEGORY, CreateBatchRequest } from '../../lotes/models/batch';
+import { BatchExpirationAlertComponent } from '../../lotes/components/batch-expiration-alert/batch-expiration-alert.component';
 
 @Component({
   selector: 'app-purchase-invoices-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule, ExpensesFabComponent, CurrencyFormatDirective, ProductsSearchModalComponent],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, ExpensesFabComponent, CurrencyFormatDirective, ProductsSearchModalComponent, BatchExpirationAlertComponent],
   templateUrl: './purchase-invoices-page.component.html'
 })
 export class PurchaseInvoicesPageComponent {
@@ -23,6 +26,7 @@ export class PurchaseInvoicesPageComponent {
   private purchasesService = inject(PurchasesService);
   private supplierService = inject(SupplierService);
   private router = inject(Router);
+  private batchService = inject(BatchService);
 
   @ViewChild(ProductsSearchModalComponent, { static: false }) productsSearchModalComp!: ProductsSearchModalComponent;
 
@@ -34,6 +38,13 @@ export class PurchaseInvoicesPageComponent {
   private selectedItemIndexForProductSearch: number | null = null;
   selectedFile: File | null = null;
   uploadedFileUrl: string | null = null;
+
+  // Lotes de animales vivos
+  pendingBatchItems: { productId: string; description: string; quantity: number; category: string }[] = [];
+  showBatchPriceModal = false;
+  currentBatchItem: { productId: string; description: string; quantity: number } | null = null;
+  batchSalePrice: number = 0;
+  batchPriceValidityDays: number = 8; // Días de validez del precio (configurable)
 
   form: FormGroup = this.fb.group({
     supplierId: ['', [Validators.required]],
@@ -70,7 +81,8 @@ export class PurchaseInvoicesPageComponent {
       description: ['', [Validators.required]],
       quantity: [1, [Validators.required, Validators.min(0.01)]],
       unitCost: ['0', [Validators.required]],
-      totalCost: [{ value: 0, disabled: true }]
+      totalCost: [{ value: 0, disabled: true }],
+      category: ['']
     });
     g.valueChanges.subscribe(() => this.recalcItem(g));
     this.itemsArray.push(g);
@@ -95,7 +107,8 @@ export class PurchaseInvoicesPageComponent {
         productId: mappedProduct.id,
         presentationId: mappedProduct.barcode,
         presentationBarcode: mappedProduct.barcode,
-        description: mappedProduct.description
+        description: mappedProduct.description,
+        category: mappedProduct.category || ''
       });
       this.selectedItemIndexForProductSearch = null;
       return;
@@ -110,7 +123,8 @@ export class PurchaseInvoicesPageComponent {
       productId: mappedProduct.id,
       presentationId: mappedProduct.barcode,
       presentationBarcode: mappedProduct.barcode,
-      description: mappedProduct.description
+      description: mappedProduct.description,
+      category: mappedProduct.category || ''
     });
 
     this.selectedItemIndexForProductSearch = null;
@@ -223,13 +237,85 @@ export class PurchaseInvoicesPageComponent {
       next: (response) => {
         console.log('Respuesta del backend:', response);
         toast.success('Compra registrada');
-        this.resetForm();
+        
+        // Detectar productos de ANIMALES VIVOS para crear lotes
+        const batchItems = raw.items.filter((it: any) => 
+          it.category?.toUpperCase() === BATCH_REQUIRED_CATEGORY
+        );
+        
+        if (batchItems.length > 0) {
+          this.pendingBatchItems = batchItems.map((it: any) => ({
+            productId: it.productId,
+            description: it.description,
+            quantity: Number(it.quantity),
+            category: it.category
+          }));
+          // Iniciar proceso de creación de lotes
+          this.processNextBatchItem();
+        } else {
+          this.resetForm();
+        }
       },
       error: (error) => {
         console.error('Error al guardar:', error);
         toast.error('Error al guardar la factura');
       }
     });
+  }
+
+  // Procesar siguiente item de lote pendiente
+  private processNextBatchItem(): void {
+    if (this.pendingBatchItems.length === 0) {
+      toast.success('Todos los lotes han sido creados');
+      this.resetForm();
+      return;
+    }
+
+    this.currentBatchItem = this.pendingBatchItems.shift()!;
+    this.batchSalePrice = 0;
+    this.showBatchPriceModal = true;
+  }
+
+  // Confirmar precio de venta del lote
+  confirmBatchPrice(): void {
+    if (!this.currentBatchItem || this.batchSalePrice <= 0) {
+      toast.warning('Ingrese un precio de venta válido para el lote');
+      return;
+    }
+
+    const request: CreateBatchRequest = {
+      productId: this.currentBatchItem.productId,
+      salePrice: this.batchSalePrice,
+      initialStock: this.currentBatchItem.quantity,
+      priceValidityDays: this.batchPriceValidityDays,
+      unitMeasure: 'UNIDAD',
+      notes: `Lote creado automáticamente desde compra`
+    };
+
+    this.batchService.create(request).subscribe({
+      next: (batch) => {
+        toast.success(`Lote #${batch.batchNumber} creado para ${this.currentBatchItem?.description}`);
+        this.showBatchPriceModal = false;
+        this.currentBatchItem = null;
+        this.batchSalePrice = 0;
+        this.batchPriceValidityDays = 8; // Reset al valor por defecto
+        this.processNextBatchItem();
+      },
+      error: () => {
+        toast.error('Error al crear el lote. Puede crearlo manualmente desde Inventario > Lotes');
+        this.showBatchPriceModal = false;
+        this.processNextBatchItem();
+      }
+    });
+  }
+
+  // Cancelar creación de lote actual
+  skipBatchCreation(): void {
+    toast.info(`Lote para ${this.currentBatchItem?.description} omitido. Puede crearlo manualmente.`);
+    this.showBatchPriceModal = false;
+    this.currentBatchItem = null;
+    this.batchSalePrice = 0;
+    this.processNextBatchItem();
   }
 
   resetForm() {
