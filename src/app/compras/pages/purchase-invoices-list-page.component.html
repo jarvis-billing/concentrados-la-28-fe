@@ -100,6 +100,7 @@
               <th>Tipo pago</th>
               <th class="text-end">Total</th>
               <th class="text-center">Ítems</th>
+              <th class="text-center">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -120,6 +121,13 @@
                 </td>
                 <td class="text-end fw-bold">{{ formatCurrency(invoice.total) }}</td>
                 <td class="text-center">{{ invoice.items?.length || 0 }}</td>
+                <td class="text-center">
+                  <button type="button" class="btn btn-sm btn-outline-primary" 
+                          (click)="editInvoice(invoice.id); $event.stopPropagation()"
+                          title="Agregar productos a esta factura">
+                    <i class="bi bi-plus-circle me-1"></i>Agregar
+                  </button>
+                </td>
               </tr>
               <tr *ngIf="isExpanded(invoice.id)">
                 <td colspan="9" class="bg-light">

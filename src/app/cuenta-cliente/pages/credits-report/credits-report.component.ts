@@ -1,18 +1,21 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, ViewChild } from '@angular/core';
 import { CommonModule, CurrencyPipe } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { ClientCreditService } from '../../services/client-credit.service';
 import { CreditSummary, CreditReportFilter } from '../../models/client-credit';
 import { toast } from 'ngx-sonner';
+import { ManualCreditModalComponent } from '../../components/manual-credit-modal/manual-credit-modal.component';
 
 @Component({
     selector: 'app-credits-report',
     standalone: true,
-    imports: [CommonModule, FormsModule, ReactiveFormsModule, CurrencyPipe],
+    imports: [CommonModule, FormsModule, ReactiveFormsModule, CurrencyPipe, ManualCreditModalComponent],
     templateUrl: './credits-report.component.html',
     styleUrl: './credits-report.component.css'
 })
 export class CreditsReportComponent implements OnInit {
+
+    @ViewChild(ManualCreditModalComponent) manualCreditModal!: ManualCreditModalComponent;
 
     creditService = inject(ClientCreditService);
     fb = inject(FormBuilder);
@@ -110,5 +113,9 @@ export class CreditsReportComponent implements OnInit {
         link.download = `anticipos_clientes_${new Date().toISOString().split('T')[0]}.csv`;
         link.click();
         toast.success('Reporte exportado exitosamente');
+    }
+
+    openManualCreditModal(): void {
+        this.manualCreditModal.openModal();
     }
 }

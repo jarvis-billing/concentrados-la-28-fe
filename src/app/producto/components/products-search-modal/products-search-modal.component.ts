@@ -106,6 +106,9 @@ export class ProductsSearchModalComponent implements OnInit, OnDestroy {
   openModal() {
     const modalEl = this.productsModalRef?.nativeElement;
     if (modalEl) {
+      // Refrescar lista de productos al abrir el modal
+      this.refreshProducts();
+      
       // Enfocar cuando el modal termine de mostrarse
       modalEl.addEventListener('shown.bs.modal', () => {
         this.searchProductInput?.nativeElement.focus();
@@ -115,6 +118,18 @@ export class ProductsSearchModalComponent implements OnInit, OnDestroy {
       const modal = new (window as any).bootstrap.Modal(modalEl);
       modal.show();
     }
+  }
+
+  /**
+   * Refresca la lista de productos desde el backend
+   */
+  refreshProducts(): void {
+    this.productService.fetchAll();
+    // Limpiar búsqueda anterior
+    this.formProduct.reset();
+    this.productMatch = false;
+    // Ir a la primera página
+    this.paginaActual = 1;
   }
 
   closeModal() {

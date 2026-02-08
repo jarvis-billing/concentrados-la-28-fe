@@ -262,7 +262,7 @@
                     
                     <div class="mb-3">
                         <label class="form-label fw-bold">Producto *</label>
-                        <select class="form-select" [(ngModel)]="newBatch.productId">
+                        <select class="form-select" [(ngModel)]="newBatch.productId" (change)="onProductSelectedForBatch($event)">
                             <option value="">Seleccione un producto</option>
                             @for (product of products; track product.id) {
                                 <option [value]="product.id">{{ product.description }}</option>

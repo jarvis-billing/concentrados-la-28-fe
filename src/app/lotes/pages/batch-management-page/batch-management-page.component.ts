@@ -40,6 +40,7 @@ export class BatchManagementPageComponent implements OnInit {
     showCreateBatchModal = false;
     newBatch = {
         productId: '',
+        productDescription: '',
         salePrice: 0,
         initialStock: 0,
         priceValidityDays: 8,
@@ -179,6 +180,7 @@ export class BatchManagementPageComponent implements OnInit {
     openCreateBatchModal(): void {
         this.newBatch = {
             productId: '',
+            productDescription: '',
             salePrice: 0,
             initialStock: 0,
             priceValidityDays: 8,
@@ -191,6 +193,13 @@ export class BatchManagementPageComponent implements OnInit {
         this.showCreateBatchModal = false;
     }
 
+    onProductSelectedForBatch(event: Event): void {
+        const select = event.target as HTMLSelectElement;
+        const productId = select.value;
+        const product = this.products.find(p => p.id === productId);
+        this.newBatch.productDescription = product?.description || '';
+    }
+
     confirmCreateBatch(): void {
         if (!this.newBatch.productId || this.newBatch.salePrice <= 0 || this.newBatch.initialStock <= 0) {
             toast.warning('Complete todos los campos requeridos');
@@ -200,6 +209,7 @@ export class BatchManagementPageComponent implements OnInit {
         this.isCreating = true;
         this.batchService.create({
             productId: this.newBatch.productId,
+            productDescription: this.newBatch.productDescription,
             salePrice: this.newBatch.salePrice,
             initialStock: this.newBatch.initialStock,
             priceValidityDays: this.newBatch.priceValidityDays,
@@ -221,10 +231,21 @@ export class BatchManagementPageComponent implements OnInit {
 
     // === Cerrar Lote ===
     closeBatch(batch: Batch): void {
-        if (!confirm(`¿Está seguro de cerrar el Lote #${batch.batchNumber}? Esta acción no se puede deshacer.`)) {
-            return;
-        }
+        toast.warning(`¿Está seguro de cerrar el Lote #${batch.batchNumber}?`, {
+            description: 'Esta acción no se puede deshacer.',
+            duration: 10000,
+            action: {
+                label: 'Sí, cerrar',
+                onClick: () => this.confirmCloseBatch(batch)
+            },
+            cancel: {
+                label: 'Cancelar',
+                onClick: () => {}
+            }
+        });
+    }
 
+    private confirmCloseBatch(batch: Batch): void {
         this.batchService.closeBatch(batch.id!, 'Cerrado manualmente').subscribe({
             next: () => {
                 toast.success(`Lote #${batch.batchNumber} cerrado`);

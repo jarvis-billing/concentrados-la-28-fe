@@ -85,6 +85,9 @@ export const routes: Routes = [
             path: 'compras/facturas', component: PurchaseInvoicesPageComponent
         },
         {
+            path: 'compras/facturas/editar/:id', component: PurchaseInvoicesPageComponent
+        },
+        {
             path: 'compras/facturas/list', component: PurchaseInvoicesListPageComponent
         },
         {

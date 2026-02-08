@@ -229,6 +229,11 @@ export class PurchaseInvoicesListPageComponent implements OnInit {
     this.router.navigate(['/main/compras/facturas']);
   }
 
+  editInvoice(invoiceId: string | undefined) {
+    if (!invoiceId) return;
+    this.router.navigate(['/main/compras/facturas/editar', invoiceId]);
+  }
+
   getSupplierName(invoice: PurchaseInvoice): string {
     if (!invoice || !invoice.supplier) return 'N/A';
     return invoice.supplier.name || 'N/A';

@@ -339,6 +339,7 @@ public class BatchExpirationAlert {
     private Batch batch;
     private Integer daysUntilExpiration;
     private Boolean requiresAction;
+    private String productDescription;  // Descripción del producto (para mostrar en alertas del frontend)
 }
 ```
 

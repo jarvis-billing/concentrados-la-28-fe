@@ -13,11 +13,19 @@ export class PurchasesService {
     return this.http.get<PurchaseInvoice[]>(this.baseUrl, { params });
   }
 
+  getById(id: string): Observable<PurchaseInvoice> {
+    return this.http.get<PurchaseInvoice>(`${this.baseUrl}/${id}`);
+  }
+
   create(payload: PurchaseInvoice): Observable<PurchaseInvoice> {
     return this.http.post<PurchaseInvoice>(this.baseUrl, payload);
   }
 
   update(id: string, payload: PurchaseInvoice): Observable<PurchaseInvoice> {
     return this.http.put<PurchaseInvoice>(`${this.baseUrl}/${id}`, payload);
+  }
+
+  addItems(id: string, items: any[]): Observable<PurchaseInvoice> {
+    return this.http.post<PurchaseInvoice>(`${this.baseUrl}/${id}/items`, { items });
   }
 }

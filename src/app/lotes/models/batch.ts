@@ -36,6 +36,7 @@ export enum BatchStatus {
  */
 export interface CreateBatchRequest {
     productId: string;
+    productDescription: string;
     salePrice: number;
     initialStock: number;
     priceValidityDays: number;        // Días de validez del precio (configurable)
@@ -86,6 +87,7 @@ export interface BatchExpirationAlert {
     batch: Batch;
     daysUntilExpiration: number;
     requiresAction: boolean;
+    productDescription?: string;  // Descripción del producto (fallback si batch.product no está poblado)
 }
 
 /**

@@ -61,7 +61,7 @@ import { toast } from 'ngx-sonner';
                                 <tbody>
                                     @for (alert of alerts; track alert.batch.id) {
                                         <tr [class.table-danger]="alert.daysUntilExpiration <= 0">
-                                            <td>{{ alert.batch.product?.description || 'N/A' }}</td>
+                                            <td>{{ alert.batch.product?.description || alert.productDescription || 'N/A' }}</td>
                                             <td><span class="badge bg-secondary">Lote {{ alert.batch.batchNumber }}</span></td>
                                             <td>{{ alert.batch.salePrice | currency:'$':'symbol':'1.0-0' }}</td>
                                             <td>{{ alert.batch.currentStock }} {{ alert.batch.unitMeasure }}</td>
@@ -79,7 +79,7 @@ import { toast } from 'ngx-sonner';
                                             <td>
                                                 <button class="btn btn-sm" 
                                                         [ngClass]="alert.daysUntilExpiration <= 0 ? 'btn-danger' : 'btn-outline-primary'"
-                                                        (click)="openUpdatePriceModal(alert.batch)">
+                                                        (click)="openUpdatePriceModal(alert.batch, alert.productDescription)">
                                                     <i class="bi bi-currency-dollar me-1"></i>
                                                     {{ alert.daysUntilExpiration <= 0 ? 'Actualizar Ahora' : 'Actualizar' }}
                                                 </button>
@@ -112,7 +112,7 @@ import { toast } from 'ngx-sonner';
                                 <div class="row">
                                     <div class="col-6">
                                         <small class="text-muted">Producto:</small>
-                                        <p class="mb-1 fw-bold">{{ selectedBatch.product?.description || 'N/A' }}</p>
+                                        <p class="mb-1 fw-bold">{{ selectedBatch.product?.description || selectedProductDescription || 'N/A' }}</p>
                                     </div>
                                     <div class="col-6">
                                         <small class="text-muted">Lote:</small>
@@ -201,6 +201,7 @@ export class BatchExpirationAlertComponent implements OnInit {
     // Modal de actualización de precio
     showPriceModal = false;
     selectedBatch: Batch | null = null;
+    selectedProductDescription: string = '';
     newSalePrice: number = 0;
     newPriceValidityDays: number = BATCH_DEFAULT_PRICE_VALIDITY_DAYS;
     isUpdating = false;
@@ -256,8 +257,9 @@ export class BatchExpirationAlertComponent implements OnInit {
         this.showDetails = !this.showDetails;
     }
     
-    openUpdatePriceModal(batch: Batch): void {
+    openUpdatePriceModal(batch: Batch, productDescription?: string): void {
         this.selectedBatch = batch;
+        this.selectedProductDescription = batch.product?.description || productDescription || '';
         this.newSalePrice = batch.salePrice; // Sugerir el precio actual
         this.newPriceValidityDays = batch.priceValidityDays || BATCH_DEFAULT_PRICE_VALIDITY_DAYS;
         this.showPriceModal = true;
@@ -266,6 +268,7 @@ export class BatchExpirationAlertComponent implements OnInit {
     closePriceModal(): void {
         this.showPriceModal = false;
         this.selectedBatch = null;
+        this.selectedProductDescription = '';
         this.newSalePrice = 0;
         this.newPriceValidityDays = BATCH_DEFAULT_PRICE_VALIDITY_DAYS;
     }

@@ -8,7 +8,8 @@ import {
     DepositCreditRequest, 
     UseCreditRequest,
     CreditReportFilter,
-    CreditSummary
+    CreditSummary,
+    ManualCreditRequest
 } from '../models/client-credit';
 
 @Injectable({
@@ -78,5 +79,12 @@ export class ClientCreditService {
             amount,
             notes
         });
+    }
+
+    /**
+     * Registra un crédito manual (migración de cuaderno)
+     */
+    registerManualCredit(request: ManualCreditRequest): Observable<CreditTransaction> {
+        return this.http.post<CreditTransaction>(`${this.url}/manual`, request);
     }
 }

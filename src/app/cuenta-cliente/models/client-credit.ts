@@ -60,6 +60,18 @@ export class DepositCreditRequest {
     paymentMethod: PaymentMethodCredit = PaymentMethodCredit.EFECTIVO;
     reference?: string;
     notes?: string;
+    transactionDate?: string;  // Fecha original (para migración de cuaderno)
+}
+
+/**
+ * DTO para registrar un crédito manual (migración de cuaderno)
+ */
+export class ManualCreditRequest {
+    clientId: string = '';
+    amount: number = 0;
+    transactionDate: string = '';  // Fecha original del cuaderno
+    notes: string = '';            // Descripción/nota del crédito
+    source: string = 'MIGRACION_CUADERNO';  // Origen del crédito
 }
 
 /**

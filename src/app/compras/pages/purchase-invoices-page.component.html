@@ -3,14 +3,36 @@
   <app-batch-expiration-alert></app-batch-expiration-alert>
   
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="m-0">Facturas de compra</h4>
+    <h4 class="m-0">
+      @if (isEditMode) {
+        <i class="bi bi-pencil-square me-2"></i>Editar Factura de Compra
+      } @else {
+        Facturas de compra
+      }
+    </h4>
     <div class="d-flex gap-2 align-items-center">
+      <!-- Indicador de autoguardado -->
+      @if (!isEditMode && lastAutoSaveTime) {
+        <span class="badge bg-success-subtle text-success">
+          <i class="bi bi-cloud-check me-1"></i>
+          Guardado {{ lastAutoSaveTime | date:'HH:mm' }}
+        </span>
+      }
       <div class="text-muted small">Atajos: F2 Nuevo ítem · F4 Guardar · Esc Cancelar</div>
       <button type="button" class="btn btn-sm btn-outline-primary" (click)="goToList()">
         Ver listado
       </button>
     </div>
   </div>
+  
+  <!-- Alerta de modo edición -->
+  @if (isEditMode) {
+    <div class="alert alert-info mb-3">
+      <i class="bi bi-info-circle me-2"></i>
+      <strong>Modo edición:</strong> Los productos existentes no se pueden modificar. 
+      Solo puede agregar nuevos productos a esta factura.
+    </div>
+  }
 
   <form [formGroup]="form" (ngSubmit)="saveInvoice()" class="d-flex flex-column gap-3">
     <div class="card">
@@ -88,9 +110,56 @@
       </div>
     </div>
 
+    <!-- Items existentes (solo lectura en modo edición) -->
+    @if (isEditMode && existingItems.length > 0) {
+      <div class="card border-secondary">
+        <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-lock me-2"></i>Productos Registrados (Solo lectura)</span>
+          <span class="badge bg-light text-dark">{{ existingItems.length }} producto(s)</span>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle m-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Código</th>
+                  <th>Descripción</th>
+                  <th class="text-end">Cantidad</th>
+                  <th class="text-end">Costo unit.</th>
+                  <th class="text-end">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of existingItems; track item.presentationId) {
+                  <tr class="table-secondary">
+                    <td><code>{{ item.presentationBarcode || item.presentationId }}</code></td>
+                    <td>{{ item.description }}</td>
+                    <td class="text-end">{{ item.quantity }}</td>
+                    <td class="text-end">{{ item.unitCost | number:'1.0-0' }}</td>
+                    <td class="text-end">{{ item.totalCost | number:'1.0-0' }}</td>
+                  </tr>
+                }
+                <tr class="table-dark fw-bold">
+                  <td colspan="3"></td>
+                  <td class="text-end">Subtotal existente:</td>
+                  <td class="text-end">{{ existingItemsTotal | number:'1.0-0' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    }
+
     <div class="card">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <span>Ítems</span>
+        <span>
+          @if (isEditMode) {
+            <i class="bi bi-plus-circle me-2"></i>Agregar Nuevos Productos
+          } @else {
+            Ítems
+          }
+        </span>
         <button type="button" class="btn btn-sm btn-outline-primary" (click)="addItem()">Agregar ítem (F2)</button>
       </div>
       <div class="card-body p-0">
@@ -132,13 +201,35 @@
                   <button type="button" class="btn btn-sm btn-outline-danger" (click)="removeItem(i)">Quitar</button>
                 </td>
               </tr>
-              <tr class="table-light fw-bold" *ngIf="itemsArray.controls.length">
-                <td colspan="2" class="text-end">Total ítems: {{ itemsArray.length }}</td>
-                <td></td>
-                <td class="text-end">TOTAL COMPRA</td>
-                <td class="text-end">{{ itemsTotal | number:'1.0-0' }}</td>
-                <td></td>
-              </tr>
+              @if (itemsArray.controls.length) {
+                <tr class="table-light fw-bold">
+                  <td colspan="2" class="text-end">
+                    @if (isEditMode) {
+                      Nuevos ítems: {{ itemsArray.length }}
+                    } @else {
+                      Total ítems: {{ itemsArray.length }}
+                    }
+                  </td>
+                  <td></td>
+                  <td class="text-end">
+                    @if (isEditMode) {
+                      Subtotal nuevos:
+                    } @else {
+                      TOTAL COMPRA
+                    }
+                  </td>
+                  <td class="text-end">{{ itemsTotal | number:'1.0-0' }}</td>
+                  <td></td>
+                </tr>
+              }
+              @if (isEditMode) {
+                <tr class="table-primary fw-bold">
+                  <td colspan="3"></td>
+                  <td class="text-end">TOTAL GENERAL:</td>
+                  <td class="text-end">{{ grandTotal | number:'1.0-0' }}</td>
+                  <td></td>
+                </tr>
+              }
             </tbody>
           </table>
         </div>

@@ -5,10 +5,16 @@
                 <i class="bi bi-wallet2 me-2"></i>
                 Reporte de Anticipos / Saldos a Favor
             </h4>
-            <button class="btn btn-success" (click)="exportToCSV()" [disabled]="filteredCredits.length === 0">
-                <i class="bi bi-file-earmark-spreadsheet me-1"></i>
-                Exportar CSV
-            </button>
+            <div class="d-flex gap-2">
+                <button class="btn btn-info" (click)="openManualCreditModal()">
+                    <i class="bi bi-journal-plus me-1"></i>
+                    Migrar Crédito (Cuaderno)
+                </button>
+                <button class="btn btn-success" (click)="exportToCSV()" [disabled]="filteredCredits.length === 0">
+                    <i class="bi bi-file-earmark-spreadsheet me-1"></i>
+                    Exportar CSV
+                </button>
+            </div>
         </div>
     </div>
 
@@ -140,3 +146,6 @@
         </div>
     </div>
 </div>
+
+<!-- Modal para migrar créditos del cuaderno -->
+<app-manual-credit-modal (creditRegistered)="loadReport()"></app-manual-credit-modal>

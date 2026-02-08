@@ -1,7 +1,7 @@
-import { Component, HostListener, ViewChild, inject } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, FormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Supplier } from '../models/supplier';
 import { PurchaseInvoice } from '../models/purchase-invoice';
 import { PurchasesService } from '../services/purchases.service';
@@ -14,6 +14,7 @@ import { Product } from '../../producto/producto';
 import { BatchService } from '../../lotes/services/batch.service';
 import { BATCH_REQUIRED_CATEGORY, CreateBatchRequest } from '../../lotes/models/batch';
 import { BatchExpirationAlertComponent } from '../../lotes/components/batch-expiration-alert/batch-expiration-alert.component';
+import { Subscription, debounceTime } from 'rxjs';
 
 @Component({
   selector: 'app-purchase-invoices-page',
@@ -21,11 +22,12 @@ import { BatchExpirationAlertComponent } from '../../lotes/components/batch-expi
   imports: [CommonModule, ReactiveFormsModule, FormsModule, ExpensesFabComponent, CurrencyFormatDirective, ProductsSearchModalComponent, BatchExpirationAlertComponent],
   templateUrl: './purchase-invoices-page.component.html'
 })
-export class PurchaseInvoicesPageComponent {
+export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
   private fb = inject(FormBuilder);
   private purchasesService = inject(PurchasesService);
   private supplierService = inject(SupplierService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
   private batchService = inject(BatchService);
 
   @ViewChild(ProductsSearchModalComponent, { static: false }) productsSearchModalComp!: ProductsSearchModalComponent;
@@ -38,6 +40,17 @@ export class PurchaseInvoicesPageComponent {
   private selectedItemIndexForProductSearch: number | null = null;
   selectedFile: File | null = null;
   uploadedFileUrl: string | null = null;
+
+  // Modo edición
+  isEditMode = false;
+  editingInvoiceId: string | null = null;
+  existingItems: any[] = []; // Items originales de la factura (solo lectura)
+
+  // Autoguardado
+  private readonly AUTOSAVE_KEY = 'purchase_invoice_draft';
+  private autoSaveSubscription?: Subscription;
+  hasRestoredDraft = false;
+  lastAutoSaveTime: Date | null = null;
 
   // Lotes de animales vivos
   pendingBatchItems: { productId: string; description: string; quantity: number; category: string }[] = [];
@@ -58,7 +71,27 @@ export class PurchaseInvoicesPageComponent {
 
   ngOnInit() {
     this.loadSuppliers();
-    this.addItem();
+    
+    // Verificar si estamos en modo edición
+    const invoiceId = this.route.snapshot.paramMap.get('id');
+    if (invoiceId) {
+      this.isEditMode = true;
+      this.editingInvoiceId = invoiceId;
+      this.loadInvoiceForEdit(invoiceId);
+    } else {
+      // Modo creación: verificar si hay borrador guardado
+      this.checkForDraft();
+      this.addItem();
+    }
+    
+    // Configurar autoguardado (solo en modo creación)
+    if (!this.isEditMode) {
+      this.setupAutoSave();
+    }
+  }
+
+  ngOnDestroy() {
+    this.autoSaveSubscription?.unsubscribe();
   }
 
   get itemsArray(): FormArray {
@@ -191,24 +224,62 @@ export class PurchaseInvoicesPageComponent {
   }
 
   saveInvoice() {
-    if (this.form.invalid || (this.itemsArray.length === 0)) {
-      this.form.markAllAsTouched();
-      toast.warning('Complete datos obligatorios y agregue al menos un ítem');
+    // En modo edición, validar que haya nuevos items para agregar
+    const hasNewItems = this.itemsArray.controls.some(ctrl => {
+      const g = ctrl as FormGroup;
+      return g.get('description')?.value && g.get('presentationId')?.value;
+    });
+
+    if (this.isEditMode) {
+      if (!hasNewItems) {
+        toast.warning('Agregue al menos un nuevo producto para guardar');
+        return;
+      }
+    } else {
+      if (this.form.invalid || (this.itemsArray.length === 0)) {
+        this.form.markAllAsTouched();
+        toast.warning('Complete datos obligatorios y agregue al menos un ítem');
+        return;
+      }
+    }
+
+    const raw = this.form.getRawValue();
+    
+    // Filtrar items vacíos
+    const validItems = raw.items.filter((it: any) => it.description && it.presentationId);
+    
+    if (validItems.length === 0) {
+      toast.warning('Agregue al menos un producto válido');
       return;
     }
-    const raw = this.form.getRawValue();
-    console.log('Datos del formulario:', raw);
-    console.log('Proveedor seleccionado ID:', raw.supplierId);
-    console.log('Lista de proveedores:', this.suppliers);
-    
+
     const selectedSupplier = this.suppliers.find(s => s.id === raw.supplierId);
-    console.log('Proveedor encontrado:', selectedSupplier);
     
     if (!selectedSupplier) {
       toast.error('Error: No se encontró el proveedor seleccionado');
       return;
     }
-    
+
+    const mappedItems = validItems.map((it: any) => ({
+      productId: it.productId,
+      presentationId: it.presentationId,
+      presentationBarcode: it.presentationBarcode,
+      description: it.description,
+      quantity: Number(it.quantity),
+      unitCost: this.normalizeToNumber(it.unitCost),
+      totalCost: Number(it.quantity) * this.normalizeToNumber(it.unitCost)
+    }));
+
+    if (this.isEditMode && this.editingInvoiceId) {
+      // Modo edición: agregar nuevos items a factura existente
+      this.addItemsToExistingInvoice(mappedItems, validItems);
+    } else {
+      // Modo creación: crear nueva factura
+      this.createNewInvoice(raw, selectedSupplier, mappedItems, validItems);
+    }
+  }
+
+  private createNewInvoice(raw: any, selectedSupplier: any, mappedItems: any[], validItems: any[]): void {
     const payload: any = {
       supplier: {
         id: selectedSupplier.id,
@@ -217,29 +288,19 @@ export class PurchaseInvoicesPageComponent {
       invoiceNumber: raw.invoiceNumber,
       invoiceDate: raw.emissionDate,
       paymentType: raw.paymentType,
-      items: raw.items.map((it: any) => ({
-        productId: it.productId,
-        presentationId: it.presentationId,
-        presentationBarcode: it.presentationBarcode,
-        description: it.description,
-        quantity: Number(it.quantity),
-        unitCost: this.normalizeToNumber(it.unitCost),
-        totalCost: Number(it.quantity) * this.normalizeToNumber(it.unitCost)
-      })),
-      total: raw.items.reduce((acc: number, it: any) => acc + (Number(it.quantity) * this.normalizeToNumber(it.unitCost)), 0),
+      items: mappedItems,
+      total: mappedItems.reduce((acc: number, it: any) => acc + it.totalCost, 0),
       notes: raw.notes || '',
       supportDocument: raw.supportDocument || undefined
     };
-    
-    console.log('Payload a enviar:', payload);
 
     this.purchasesService.create(payload).subscribe({
       next: (response) => {
-        console.log('Respuesta del backend:', response);
         toast.success('Compra registrada');
+        this.clearDraft();
         
         // Detectar productos de ANIMALES VIVOS para crear lotes
-        const batchItems = raw.items.filter((it: any) => 
+        const batchItems = validItems.filter((it: any) => 
           it.category?.toUpperCase() === BATCH_REQUIRED_CATEGORY
         );
         
@@ -250,7 +311,6 @@ export class PurchaseInvoicesPageComponent {
             quantity: Number(it.quantity),
             category: it.category
           }));
-          // Iniciar proceso de creación de lotes
           this.processNextBatchItem();
         } else {
           this.resetForm();
@@ -259,6 +319,35 @@ export class PurchaseInvoicesPageComponent {
       error: (error) => {
         console.error('Error al guardar:', error);
         toast.error('Error al guardar la factura');
+      }
+    });
+  }
+
+  private addItemsToExistingInvoice(mappedItems: any[], validItems: any[]): void {
+    this.purchasesService.addItems(this.editingInvoiceId!, mappedItems).subscribe({
+      next: (response) => {
+        toast.success(`${mappedItems.length} producto(s) agregado(s) a la factura`);
+        
+        // Detectar productos de ANIMALES VIVOS para crear lotes
+        const batchItems = validItems.filter((it: any) => 
+          it.category?.toUpperCase() === BATCH_REQUIRED_CATEGORY
+        );
+        
+        if (batchItems.length > 0) {
+          this.pendingBatchItems = batchItems.map((it: any) => ({
+            productId: it.productId,
+            description: it.description,
+            quantity: Number(it.quantity),
+            category: it.category
+          }));
+          this.processNextBatchItem();
+        } else {
+          this.router.navigate(['/main/compras/facturas/list']);
+        }
+      },
+      error: (error) => {
+        console.error('Error al agregar items:', error);
+        toast.error('Error al agregar productos a la factura');
       }
     });
   }
@@ -285,6 +374,7 @@ export class PurchaseInvoicesPageComponent {
 
     const request: CreateBatchRequest = {
       productId: this.currentBatchItem.productId,
+      productDescription: this.currentBatchItem.description,
       salePrice: this.batchSalePrice,
       initialStock: this.currentBatchItem.quantity,
       priceValidityDays: this.batchPriceValidityDays,
@@ -333,6 +423,10 @@ export class PurchaseInvoicesPageComponent {
     this.selectedSupplier = null;
     this.supplierSearchText = '';
     this.filteredSuppliers = this.suppliers;
+    this.existingItems = [];
+    this.isEditMode = false;
+    this.editingInvoiceId = null;
+    this.clearDraft();
     this.addItem();
   }
 
@@ -344,6 +438,179 @@ export class PurchaseInvoicesPageComponent {
     const d = new Date();
     const pad = (n: number) => n.toString().padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+
+  // ==================== MODO EDICIÓN ====================
+
+  private loadInvoiceForEdit(invoiceId: string): void {
+    this.purchasesService.getById(invoiceId).subscribe({
+      next: (invoice) => {
+        // Guardar items existentes (solo lectura)
+        this.existingItems = invoice.items || [];
+        
+        // Cargar datos del encabezado
+        const supplier = this.suppliers.find(s => s.id === invoice.supplier?.id);
+        if (supplier) {
+          this.selectedSupplier = supplier;
+          this.supplierSearchText = `${supplier.name} (${supplier.documentType} ${supplier.idNumber})`;
+        }
+        
+        // Mapear invoiceDate a emissionDate si es necesario
+        const emissionDate = (invoice as any).invoiceDate || invoice.emissionDate;
+        
+        this.form.patchValue({
+          supplierId: invoice.supplier?.id || '',
+          invoiceNumber: invoice.invoiceNumber,
+          emissionDate: emissionDate?.split('T')[0] || this.todayIso(),
+          paymentType: invoice.paymentType || 'CONTADO',
+          notes: invoice.notes || '',
+          supportDocument: invoice.supportDocument || ''
+        });
+        
+        // Agregar una fila vacía para nuevos items
+        this.addItem();
+        
+        toast.info('Factura cargada. Puede agregar nuevos productos.');
+      },
+      error: () => {
+        toast.error('Error al cargar la factura');
+        this.router.navigate(['/main/compras/facturas/list']);
+      }
+    });
+  }
+
+  get existingItemsTotal(): number {
+    return this.existingItems.reduce((acc, item) => acc + (item.totalCost || 0), 0);
+  }
+
+  get grandTotal(): number {
+    return this.existingItemsTotal + this.itemsTotal;
+  }
+
+  // ==================== AUTOGUARDADO ====================
+
+  private setupAutoSave(): void {
+    this.autoSaveSubscription = this.form.valueChanges
+      .pipe(debounceTime(3000)) // Guardar 3 segundos después del último cambio
+      .subscribe(() => {
+        this.saveDraft();
+      });
+  }
+
+  private saveDraft(): void {
+    try {
+      const draft = {
+        formData: this.form.getRawValue(),
+        supplierSearchText: this.supplierSearchText,
+        selectedSupplier: this.selectedSupplier,
+        timestamp: new Date().toISOString()
+      };
+      localStorage.setItem(this.AUTOSAVE_KEY, JSON.stringify(draft));
+      this.lastAutoSaveTime = new Date();
+    } catch (e) {
+      console.warn('Error al guardar borrador:', e);
+    }
+  }
+
+  private checkForDraft(): void {
+    try {
+      const draftStr = localStorage.getItem(this.AUTOSAVE_KEY);
+      if (!draftStr) return;
+      
+      const draft = JSON.parse(draftStr);
+      const draftTime = new Date(draft.timestamp);
+      const now = new Date();
+      const hoursDiff = (now.getTime() - draftTime.getTime()) / (1000 * 60 * 60);
+      
+      // Solo restaurar si el borrador tiene menos de 24 horas
+      if (hoursDiff > 24) {
+        this.clearDraft();
+        return;
+      }
+      
+      // Verificar si hay datos significativos
+      const hasData = draft.formData?.invoiceNumber || 
+                      draft.formData?.items?.some((i: any) => i.description || i.productId);
+      
+      if (hasData) {
+        this.hasRestoredDraft = true;
+        toast.info('Se encontró un borrador guardado. ¿Desea restaurarlo?', {
+          duration: 10000,
+          action: {
+            label: 'Restaurar',
+            onClick: () => this.restoreDraft(draft)
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Error al verificar borrador:', e);
+      this.clearDraft();
+    }
+  }
+
+  private restoreDraft(draft: any): void {
+    try {
+      // Restaurar proveedor
+      if (draft.selectedSupplier) {
+        this.selectedSupplier = draft.selectedSupplier;
+        this.supplierSearchText = draft.supplierSearchText || '';
+      }
+      
+      // Restaurar formulario
+      const formData = draft.formData;
+      this.form.patchValue({
+        supplierId: formData.supplierId || '',
+        invoiceNumber: formData.invoiceNumber || '',
+        emissionDate: formData.emissionDate || this.todayIso(),
+        paymentType: formData.paymentType || 'CONTADO',
+        notes: formData.notes || '',
+        supportDocument: formData.supportDocument || ''
+      });
+      
+      // Restaurar items
+      this.form.setControl('items', this.fb.array([]));
+      if (formData.items && formData.items.length > 0) {
+        formData.items.forEach((item: any) => {
+          const g = this.fb.group({
+            productId: [item.productId || ''],
+            presentationId: [item.presentationId || '', [Validators.required]],
+            presentationBarcode: [item.presentationBarcode || ''],
+            description: [item.description || '', [Validators.required]],
+            quantity: [item.quantity || 1, [Validators.required, Validators.min(0.01)]],
+            unitCost: [item.unitCost || '0', [Validators.required]],
+            totalCost: [{ value: item.totalCost || 0, disabled: true }],
+            category: [item.category || '']
+          });
+          g.valueChanges.subscribe(() => this.recalcItem(g));
+          this.itemsArray.push(g);
+        });
+      }
+      
+      if (this.itemsArray.length === 0) {
+        this.addItem();
+      }
+      
+      toast.success('Borrador restaurado correctamente');
+    } catch (e) {
+      console.warn('Error al restaurar borrador:', e);
+      toast.error('Error al restaurar el borrador');
+    }
+  }
+
+  clearDraft(): void {
+    try {
+      localStorage.removeItem(this.AUTOSAVE_KEY);
+      this.hasRestoredDraft = false;
+      this.lastAutoSaveTime = null;
+    } catch (e) {
+      console.warn('Error al limpiar borrador:', e);
+    }
+  }
+
+  discardDraft(): void {
+    this.clearDraft();
+    this.resetForm();
+    toast.info('Borrador descartado');
   }
 
   // Keyboard: F2 new item, F4 save, Esc cancel
