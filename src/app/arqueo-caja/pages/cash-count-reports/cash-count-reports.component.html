@@ -1,0 +1,169 @@
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h4 class="mb-0">
+                <i class="bi bi-file-earmark-bar-graph me-2"></i>
+                Reportes de Arqueo de Caja
+            </h4>
+            <div class="d-flex gap-2">
+                <button class="btn btn-success" (click)="exportToCSV()" [disabled]="reports.length === 0">
+                    <i class="bi bi-file-earmark-spreadsheet me-1"></i>
+                    Exportar CSV
+                </button>
+                <button class="btn btn-primary" (click)="goToNewCount()">
+                    <i class="bi bi-plus-circle me-1"></i>
+                    Nuevo Arqueo
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form [formGroup]="filterForm" (ngSubmit)="applyFilters()" class="row g-3 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label">Desde</label>
+                            <input type="date" class="form-control" formControlName="fromDate">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Hasta</label>
+                            <input type="date" class="form-control" formControlName="toDate">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Estado</label>
+                            <select class="form-select" formControlName="status">
+                                <option value="">Todos</option>
+                                @for (status of statuses; track status) {
+                                    <option [value]="status">{{ getStatusLabel(status) }}</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-3 d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-search me-1"></i> Filtrar
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" (click)="clearFilters()">
+                                <i class="bi bi-x-lg me-1"></i> Limpiar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resumen -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card shadow-sm border-success">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2">Total Ingresos</h6>
+                    <h3 class="text-success mb-0">{{ formatCurrency(totalIncome) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm border-danger">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2">Total Egresos</h6>
+                    <h3 class="text-danger mb-0">{{ formatCurrency(totalExpense) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm" [ngClass]="totalDifference === 0 ? 'border-success' : (totalDifference > 0 ? 'border-info' : 'border-danger')">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2">Diferencia Acumulada</h6>
+                    <h3 class="mb-0" [ngClass]="getDifferenceClass(totalDifference)">
+                        {{ formatCurrency(totalDifference) }}
+                    </h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body p-0">
+                    @if (isLoading) {
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Cargando...</span>
+                            </div>
+                        </div>
+                    } @else if (reports.length === 0) {
+                        <div class="text-center py-5 text-muted">
+                            <i class="bi bi-inbox fs-1"></i>
+                            <p class="mt-2">No hay arqueos registrados en el período seleccionado</p>
+                        </div>
+                    } @else {
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th class="text-end">Base Caja</th>
+                                        <th class="text-end">Ingresos</th>
+                                        <th class="text-end">Egresos</th>
+                                        <th class="text-end">Esperado</th>
+                                        <th class="text-end">Contado</th>
+                                        <th class="text-end">Diferencia</th>
+                                        <th class="text-center">Estado</th>
+                                        <th>Cerrado Por</th>
+                                        <th class="text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @for (report of reports; track report.date) {
+                                        <tr>
+                                            <td class="fw-bold">{{ formatDate(report.date) }}</td>
+                                            <td class="text-end">{{ formatCurrency(report.openingBalance) }}</td>
+                                            <td class="text-end text-success">{{ formatCurrency(report.totalIncome) }}</td>
+                                            <td class="text-end text-danger">{{ formatCurrency(report.totalExpense) }}</td>
+                                            <td class="text-end">{{ formatCurrency(report.expectedCash) }}</td>
+                                            <td class="text-end">{{ formatCurrency(report.countedCash) }}</td>
+                                            <td class="text-end fw-bold" [ngClass]="getDifferenceClass(report.difference)">
+                                                {{ formatCurrency(report.difference) }}
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge" [ngClass]="getStatusBadgeClass(report.status)">
+                                                    {{ getStatusLabel(report.status) }}
+                                                </span>
+                                            </td>
+                                            <td>{{ report.closedBy || '-' }}</td>
+                                            <td class="text-center">
+                                                <button class="btn btn-sm btn-outline-primary" (click)="viewDetails(report.date)" title="Ver detalles">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                                <tfoot class="table-light fw-bold">
+                                    <tr>
+                                        <td>TOTALES ({{ reports.length }} arqueos)</td>
+                                        <td></td>
+                                        <td class="text-end text-success">{{ formatCurrency(totalIncome) }}</td>
+                                        <td class="text-end text-danger">{{ formatCurrency(totalExpense) }}</td>
+                                        <td></td>
+                                        <td></td>
+                                        <td class="text-end" [ngClass]="getDifferenceClass(totalDifference)">
+                                            {{ formatCurrency(totalDifference) }}
+                                        </td>
+                                        <td colspan="3"></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

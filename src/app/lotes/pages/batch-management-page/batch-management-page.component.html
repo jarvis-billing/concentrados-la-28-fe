@@ -203,7 +203,9 @@
                         <label class="form-label fw-bold">Nuevo Precio de Venta *</label>
                         <div class="input-group">
                             <span class="input-group-text">$</span>
-                            <input type="number" class="form-control" [(ngModel)]="newPrice" min="1">
+                            <input type="text" class="form-control" 
+                                   [value]="formatCurrencyInput(newPrice)"
+                                   (input)="onNewPriceInput($event)">
                         </div>
                     </div>
                     

@@ -1,0 +1,595 @@
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h4 class="mb-0">
+                <i class="bi bi-cash-stack me-2"></i>
+                Arqueo de Caja
+            </h4>
+            <div class="d-flex gap-2 align-items-center">
+                <div class="input-group" style="width: auto;">
+                    <span class="input-group-text"><i class="bi bi-calendar3"></i></span>
+                    <input type="date" class="form-control" [(ngModel)]="sessionDate" (change)="onDateChange()">
+                </div>
+                <button class="btn btn-outline-primary" (click)="goToReports()">
+                    <i class="bi bi-file-earmark-bar-graph me-1"></i>
+                    Ver Reportes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estado del arqueo existente -->
+    @if (existingSession) {
+        <div class="alert" [ngClass]="existingSession.status === 'CERRADO' ? 'alert-success' : 'alert-info'">
+            <i class="bi" [ngClass]="existingSession.status === 'CERRADO' ? 'bi-check-circle' : 'bi-info-circle'"></i>
+            @if (existingSession.status === 'CERRADO') {
+                <strong>Arqueo cerrado</strong> el {{ existingSession.closedAt | date:'dd/MM/yyyy HH:mm' }} por {{ existingSession.closedBy }}
+            } @else {
+                <strong>Arqueo en progreso</strong> - Guardado el {{ existingSession.createdAt | date:'dd/MM/yyyy HH:mm' }}
+            }
+        </div>
+    }
+
+    <!-- Loading -->
+    @if (isLoading) {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="mt-2 text-muted">Cargando datos del día...</p>
+        </div>
+    } @else {
+        <!-- Tabs de navegación -->
+        <ul class="nav nav-tabs mb-4">
+            <li class="nav-item">
+                <button class="nav-link" [class.active]="activeTab === 'conteo'" (click)="activeTab = 'conteo'">
+                    <i class="bi bi-calculator me-1"></i> Conteo de Efectivo
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" [class.active]="activeTab === 'efectivo'" (click)="activeTab = 'efectivo'">
+                    <i class="bi bi-cash me-1"></i> Movimientos Efectivo
+                    <span class="badge bg-success ms-1">{{ getCashTransactions().length }}</span>
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" [class.active]="activeTab === 'transferencias'" (click)="activeTab = 'transferencias'">
+                    <i class="bi bi-bank me-1"></i> Transferencias
+                    <span class="badge bg-primary ms-1">{{ getTransferTransactions().length }}</span>
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" [class.active]="activeTab === 'otros'" (click)="activeTab = 'otros'">
+                    <i class="bi bi-credit-card me-1"></i> Otros Métodos
+                    <span class="badge bg-secondary ms-1">{{ getOtherTransactions().length }}</span>
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" [class.active]="activeTab === 'resumen'" (click)="activeTab = 'resumen'">
+                    <i class="bi bi-clipboard-data me-1"></i> Resumen
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab: Conteo de Efectivo -->
+        @if (activeTab === 'conteo') {
+            <div class="row">
+                <!-- Saldo de apertura -->
+                <div class="col-12 mb-4">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-primary text-white">
+                            <h6 class="mb-0"><i class="bi bi-box-arrow-in-right me-2"></i>Saldo de Apertura (Base de Caja)</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <div class="col-md-6">
+                                    <div class="input-group input-group-lg">
+                                        <span class="input-group-text">$</span>
+                                        <input type="text" class="form-control" 
+                                               [value]="formatCurrencyInput(openingBalance)"
+                                               (input)="onOpeningBalanceInput($event)"
+                                               [disabled]="existingSession?.status === 'CERRADO'"
+                                               placeholder="0">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    @if (suggestedOpeningBalance > 0) {
+                                        <button class="btn btn-outline-info" (click)="useSuggestedBalance()"
+                                                [disabled]="existingSession?.status === 'CERRADO'">
+                                            <i class="bi bi-arrow-repeat me-1"></i>
+                                            Usar saldo sugerido: {{ formatCurrency(suggestedOpeningBalance) }}
+                                        </button>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Billetes -->
+                <div class="col-lg-6 mb-4">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0"><i class="bi bi-cash me-2"></i>Billetes</h6>
+                            <span class="badge bg-light text-success fs-6">{{ formatCurrency(totalBilletes) }}</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                @for (billete of billetes; track billete.value) {
+                                    <div class="col-6 col-md-4 col-lg-4">
+                                        <div class="card h-100 border denomination-card" [class.border-success]="billete.quantity > 0">
+                                            <div class="card-body p-3 text-center">
+                                                <img [src]="billete.imagePath" [alt]="billete.label" 
+                                                     class="img-fluid mb-2 denomination-img"
+                                                     style="max-height: 75px; object-fit: contain;"
+                                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                                                <div class="denomination-placeholder" style="display: none;">
+                                                    <div class="bg-success text-white rounded p-2 mb-2">
+                                                        <strong>{{ billete.label }}</strong>
+                                                    </div>
+                                                </div>
+                                                <div class="fw-bold text-success mb-2">{{ billete.label }}</div>
+                                                <div class="input-group input-group-sm">
+                                                    <span class="input-group-text">×</span>
+                                                    <input type="number" class="form-control text-center" 
+                                                           [(ngModel)]="billete.quantity"
+                                                           (ngModelChange)="onQuantityChange(billete)"
+                                                           [disabled]="existingSession?.status === 'CERRADO'"
+                                                           min="0" placeholder="0">
+                                                </div>
+                                                @if (billete.subtotal > 0) {
+                                                    <small class="text-muted mt-1 d-block">
+                                                        = {{ formatCurrency(billete.subtotal) }}
+                                                    </small>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Monedas -->
+                <div class="col-lg-6 mb-4">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0"><i class="bi bi-coin me-2"></i>Monedas</h6>
+                            <span class="badge bg-dark fs-6">{{ formatCurrency(totalMonedas) }}</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                @for (moneda of monedas; track moneda.value) {
+                                    <div class="col-6 col-md-4 col-lg-4">
+                                        <div class="card h-100 border denomination-card" [class.border-warning]="moneda.quantity > 0">
+                                            <div class="card-body p-3 text-center">
+                                                <img [src]="moneda.imagePath" [alt]="moneda.label" 
+                                                     class="img-fluid mb-2 denomination-img rounded-circle"
+                                                     style="max-height: 60px; object-fit: contain;"
+                                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                                                <div class="denomination-placeholder" style="display: none;">
+                                                    <div class="bg-warning text-dark rounded-circle p-2 mb-2 mx-auto" style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;">
+                                                        <strong style="font-size: 10px;">{{ moneda.label }}</strong>
+                                                    </div>
+                                                </div>
+                                                <div class="fw-bold text-warning mb-2">{{ moneda.label }}</div>
+                                                <div class="input-group input-group-sm">
+                                                    <span class="input-group-text">×</span>
+                                                    <input type="number" class="form-control text-center" 
+                                                           [(ngModel)]="moneda.quantity"
+                                                           (ngModelChange)="onQuantityChange(moneda)"
+                                                           [disabled]="existingSession?.status === 'CERRADO'"
+                                                           min="0" placeholder="0">
+                                                </div>
+                                                @if (moneda.subtotal > 0) {
+                                                    <small class="text-muted mt-1 d-block">
+                                                        = {{ formatCurrency(moneda.subtotal) }}
+                                                    </small>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resumen del conteo -->
+                <div class="col-12">
+                    <div class="card shadow-sm border-primary">
+                        <div class="card-header bg-primary text-white">
+                            <h6 class="mb-0"><i class="bi bi-calculator me-2"></i>Resultado del Conteo</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row text-center">
+                                <div class="col-md-3 mb-3 mb-md-0">
+                                    <div class="border rounded p-3">
+                                        <small class="text-muted d-block">Base de Caja</small>
+                                        <h4 class="mb-0">{{ formatCurrency(openingBalance) }}</h4>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 mb-3 mb-md-0">
+                                    <div class="border rounded p-3">
+                                        <small class="text-muted d-block">Efectivo Esperado</small>
+                                        <h4 class="mb-0 text-info">{{ formatCurrency(expectedCashAmount) }}</h4>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 mb-3 mb-md-0">
+                                    <div class="border rounded p-3 bg-light">
+                                        <small class="text-muted d-block">Total Esperado</small>
+                                        <h4 class="mb-0 text-primary">{{ formatCurrency(expectedTotalCash) }}</h4>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="border rounded p-3 bg-light">
+                                        <small class="text-muted d-block">Total Contado</small>
+                                        <h4 class="mb-0">{{ formatCurrency(totalCashCounted) }}</h4>
+                                    </div>
+                                </div>
+                            </div>
+                            <hr>
+                            <div class="row">
+                                <div class="col-md-6 offset-md-3">
+                                    <div class="card" [ngClass]="cashDifference === 0 ? 'border-success bg-success-subtle' : (cashDifference > 0 ? 'border-info bg-info-subtle' : 'border-danger bg-danger-subtle')">
+                                        <div class="card-body text-center py-4">
+                                            <h5 class="mb-2">Diferencia</h5>
+                                            <h2 class="mb-1" [ngClass]="differenceClass">
+                                                {{ formatCurrency(Math.abs(cashDifference)) }}
+                                            </h2>
+                                            <span class="badge fs-6" [ngClass]="cashDifference === 0 ? 'bg-success' : (cashDifference > 0 ? 'bg-info' : 'bg-danger')">
+                                                {{ differenceLabel }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notas y acciones -->
+                <div class="col-12 mt-4">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Notas / Observaciones</label>
+                                <textarea class="form-control" [(ngModel)]="notes" rows="2"
+                                          [disabled]="existingSession?.status === 'CERRADO'"
+                                          placeholder="Agregue notas sobre el arqueo..."></textarea>
+                            </div>
+                            <div class="d-flex justify-content-between flex-wrap gap-2">
+                                <button class="btn btn-outline-secondary" (click)="clearCount()"
+                                        [disabled]="existingSession?.status === 'CERRADO'">
+                                    <i class="bi bi-arrow-counterclockwise me-1"></i>
+                                    Limpiar Conteo
+                                </button>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-primary" (click)="saveCount()"
+                                            [disabled]="isSaving || existingSession?.status === 'CERRADO'">
+                                        @if (isSaving) {
+                                            <span class="spinner-border spinner-border-sm me-1"></span>
+                                        }
+                                        <i class="bi bi-save me-1"></i>
+                                        {{ existingSession ? 'Actualizar' : 'Guardar' }} Arqueo
+                                    </button>
+                                    @if (existingSession && existingSession.status !== 'CERRADO') {
+                                        <button class="btn btn-success" (click)="closeCount()">
+                                            <i class="bi bi-check-circle me-1"></i>
+                                            Cerrar Arqueo
+                                        </button>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Tab: Movimientos en Efectivo -->
+        @if (activeTab === 'efectivo') {
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0"><i class="bi bi-cash me-2"></i>Movimientos en Efectivo del Día</h6>
+                </div>
+                <div class="card-body p-0">
+                    @if (getCashTransactions().length === 0) {
+                        <div class="text-center py-5 text-muted">
+                            <i class="bi bi-inbox fs-1"></i>
+                            <p class="mt-2">No hay movimientos en efectivo</p>
+                        </div>
+                    } @else {
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Hora</th>
+                                        <th>Tipo</th>
+                                        <th>Categoría</th>
+                                        <th>Descripción</th>
+                                        <th class="text-end">Monto</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @for (tx of getCashTransactions(); track tx.id) {
+                                        <tr>
+                                            <td>{{ tx.transactionDate | date:'HH:mm' }}</td>
+                                            <td>
+                                                <span class="badge" [ngClass]="tx.type === 'INGRESO' ? 'bg-success' : 'bg-danger'">
+                                                    {{ tx.type }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="badge" [ngClass]="getCategoryBadgeClass(tx.category)">
+                                                    {{ getCategoryLabel(tx.category) }}
+                                                </span>
+                                            </td>
+                                            <td>{{ tx.description }}</td>
+                                            <td class="text-end fw-bold" [ngClass]="tx.type === 'INGRESO' ? 'text-success' : 'text-danger'">
+                                                {{ tx.type === 'INGRESO' ? '+' : '-' }}{{ formatCurrency(tx.amount) }}
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                                <tfoot class="table-light">
+                                    <tr class="fw-bold">
+                                        <td colspan="4">Total Neto en Efectivo</td>
+                                        <td class="text-end" [ngClass]="expectedCashAmount >= 0 ? 'text-success' : 'text-danger'">
+                                            {{ formatCurrency(expectedCashAmount) }}
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <!-- Tab: Transferencias -->
+        @if (activeTab === 'transferencias') {
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="bi bi-bank me-2"></i>Transferencias del Día</h6>
+                </div>
+                <div class="card-body p-0">
+                    @if (getTransferTransactions().length === 0) {
+                        <div class="text-center py-5 text-muted">
+                            <i class="bi bi-inbox fs-1"></i>
+                            <p class="mt-2">No hay transferencias</p>
+                        </div>
+                    } @else {
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Hora</th>
+                                        <th>Tipo</th>
+                                        <th>Categoría</th>
+                                        <th>Descripción</th>
+                                        <th>Referencia</th>
+                                        <th class="text-end">Monto</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @for (tx of getTransferTransactions(); track tx.id) {
+                                        <tr>
+                                            <td>{{ tx.transactionDate | date:'HH:mm' }}</td>
+                                            <td>
+                                                <span class="badge" [ngClass]="tx.type === 'INGRESO' ? 'bg-success' : 'bg-danger'">
+                                                    {{ tx.type }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="badge" [ngClass]="getCategoryBadgeClass(tx.category)">
+                                                    {{ getCategoryLabel(tx.category) }}
+                                                </span>
+                                            </td>
+                                            <td>{{ tx.description }}</td>
+                                            <td><code>{{ tx.reference || '-' }}</code></td>
+                                            <td class="text-end fw-bold" [ngClass]="tx.type === 'INGRESO' ? 'text-success' : 'text-danger'">
+                                                {{ tx.type === 'INGRESO' ? '+' : '-' }}{{ formatCurrency(tx.amount) }}
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                                <tfoot class="table-light">
+                                    <tr class="fw-bold">
+                                        <td colspan="5">Total Neto en Transferencias</td>
+                                        <td class="text-end text-primary">
+                                            {{ formatCurrency(expectedTransferAmount) }}
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <!-- Tab: Otros Métodos -->
+        @if (activeTab === 'otros') {
+            <div class="card shadow-sm">
+                <div class="card-header bg-secondary text-white">
+                    <h6 class="mb-0"><i class="bi bi-credit-card me-2"></i>Otros Métodos de Pago</h6>
+                </div>
+                <div class="card-body p-0">
+                    @if (getOtherTransactions().length === 0) {
+                        <div class="text-center py-5 text-muted">
+                            <i class="bi bi-inbox fs-1"></i>
+                            <p class="mt-2">No hay movimientos con otros métodos de pago</p>
+                        </div>
+                    } @else {
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Hora</th>
+                                        <th>Método</th>
+                                        <th>Tipo</th>
+                                        <th>Categoría</th>
+                                        <th>Descripción</th>
+                                        <th class="text-end">Monto</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @for (tx of getOtherTransactions(); track tx.id) {
+                                        <tr>
+                                            <td>{{ tx.transactionDate | date:'HH:mm' }}</td>
+                                            <td><span class="badge bg-secondary">{{ tx.paymentMethod }}</span></td>
+                                            <td>
+                                                <span class="badge" [ngClass]="tx.type === 'INGRESO' ? 'bg-success' : 'bg-danger'">
+                                                    {{ tx.type }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="badge" [ngClass]="getCategoryBadgeClass(tx.category)">
+                                                    {{ getCategoryLabel(tx.category) }}
+                                                </span>
+                                            </td>
+                                            <td>{{ tx.description }}</td>
+                                            <td class="text-end fw-bold" [ngClass]="tx.type === 'INGRESO' ? 'text-success' : 'text-danger'">
+                                                {{ tx.type === 'INGRESO' ? '+' : '-' }}{{ formatCurrency(tx.amount) }}
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                                <tfoot class="table-light">
+                                    <tr class="fw-bold">
+                                        <td colspan="5">Total Neto Otros Métodos</td>
+                                        <td class="text-end">
+                                            {{ formatCurrency(expectedOtherAmount) }}
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <!-- Tab: Resumen -->
+        @if (activeTab === 'resumen') {
+            <div class="row">
+                <!-- Resumen por método de pago -->
+                <div class="col-lg-6 mb-4">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Resumen por Método de Pago</h6>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Método</th>
+                                            <th class="text-end">Ingresos</th>
+                                            <th class="text-end">Egresos</th>
+                                            <th class="text-end">Neto</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @for (summary of paymentMethodSummaries; track summary.paymentMethod) {
+                                            <tr>
+                                                <td>
+                                                    <i class="bi me-1" [ngClass]="summary.paymentMethod === 'EFECTIVO' ? 'bi-cash' : (summary.paymentMethod === 'TRANSFERENCIA' ? 'bi-bank' : 'bi-credit-card')"></i>
+                                                    {{ summary.paymentMethod }}
+                                                </td>
+                                                <td class="text-end text-success">+{{ formatCurrency(summary.totalIncome) }}</td>
+                                                <td class="text-end text-danger">-{{ formatCurrency(summary.totalExpense) }}</td>
+                                                <td class="text-end fw-bold" [ngClass]="summary.netAmount >= 0 ? 'text-success' : 'text-danger'">
+                                                    {{ formatCurrency(summary.netAmount) }}
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Totales del día -->
+                <div class="col-lg-6 mb-4">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header bg-dark text-white">
+                            <h6 class="mb-0"><i class="bi bi-graph-up me-2"></i>Totales del Día</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-6">
+                                    <div class="border rounded p-3 text-center bg-success-subtle">
+                                        <small class="text-muted d-block">Total Ingresos</small>
+                                        <h4 class="mb-0 text-success">{{ formatCurrency(totalIncome) }}</h4>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="border rounded p-3 text-center bg-danger-subtle">
+                                        <small class="text-muted d-block">Total Egresos</small>
+                                        <h4 class="mb-0 text-danger">{{ formatCurrency(totalExpense) }}</h4>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="border rounded p-4 text-center" [ngClass]="(totalIncome - totalExpense) >= 0 ? 'bg-success-subtle' : 'bg-danger-subtle'">
+                                        <small class="text-muted d-block">Flujo Neto del Día</small>
+                                        <h2 class="mb-0" [ngClass]="(totalIncome - totalExpense) >= 0 ? 'text-success' : 'text-danger'">
+                                            {{ formatCurrency(totalIncome - totalExpense) }}
+                                        </h2>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Desglose por categoría -->
+                <div class="col-12">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-secondary text-white">
+                            <h6 class="mb-0"><i class="bi bi-list-ul me-2"></i>Desglose por Categoría</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="text-success"><i class="bi bi-arrow-down-circle me-1"></i>Ingresos</h6>
+                                    <ul class="list-group list-group-flush">
+                                        <li class="list-group-item d-flex justify-content-between">
+                                            <span><span class="badge bg-success me-2">Ventas</span></span>
+                                            <strong>{{ formatCurrency(totalVentas) }}</strong>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between">
+                                            <span><span class="badge bg-info me-2">Pagos de Crédito</span></span>
+                                            <strong>{{ formatCurrency(totalPagosCredito) }}</strong>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between">
+                                            <span><span class="badge bg-primary me-2">Depósitos/Anticipos</span></span>
+                                            <strong>{{ formatCurrency(totalDepositosAnticipo) }}</strong>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-danger"><i class="bi bi-arrow-up-circle me-1"></i>Egresos</h6>
+                                    <ul class="list-group list-group-flush">
+                                        <li class="list-group-item d-flex justify-content-between">
+                                            <span><span class="badge bg-danger me-2">Gastos</span></span>
+                                            <strong>{{ formatCurrency(totalGastos) }}</strong>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between">
+                                            <span><span class="badge bg-warning text-dark me-2">Pagos a Proveedores</span></span>
+                                            <strong>{{ formatCurrency(totalPagosProveedor) }}</strong>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>

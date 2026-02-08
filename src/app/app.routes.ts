@@ -33,6 +33,8 @@ import { ClientAccountViewComponent } from './cuenta-cliente/components/client-a
 import { AccountsReceivableReportComponent } from './cuenta-cliente/pages/accounts-receivable-report/accounts-receivable-report.component';
 import { CreditsReportComponent } from './cuenta-cliente/pages/credits-report/credits-report.component';
 import { BatchManagementPageComponent } from './lotes/pages/batch-management-page/batch-management-page.component';
+import { CashCountPageComponent } from './arqueo-caja/pages/cash-count-page/cash-count-page.component';
+import { CashCountReportsComponent } from './arqueo-caja/pages/cash-count-reports/cash-count-reports.component';
 
 export const routes: Routes = [
     { path: '', pathMatch: 'full', redirectTo: '/login' },
@@ -140,6 +142,12 @@ export const routes: Routes = [
         },
         {
             path: 'inventario/lotes', component: BatchManagementPageComponent
+        },
+        {
+            path: 'arqueo-caja', component: CashCountPageComponent
+        },
+        {
+            path: 'arqueo-caja/reportes', component: CashCountReportsComponent
         }
     ]}
 ];

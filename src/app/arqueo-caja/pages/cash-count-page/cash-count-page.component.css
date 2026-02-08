@@ -1,0 +1,29 @@
+.denomination-img {
+    transition: transform 0.2s ease;
+}
+
+.denomination-img:hover {
+    transform: scale(1.1);
+}
+
+.card.border-success,
+.card.border-warning {
+    border-width: 2px !important;
+}
+
+.nav-tabs .nav-link {
+    color: #495057;
+}
+
+.nav-tabs .nav-link.active {
+    font-weight: 600;
+}
+
+.badge {
+    font-weight: 500;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    opacity: 1;
+}

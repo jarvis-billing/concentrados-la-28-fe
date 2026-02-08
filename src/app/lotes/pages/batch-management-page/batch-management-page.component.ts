@@ -261,4 +261,21 @@ export class BatchManagementPageComponent implements OnInit {
         const product = this.products.find(p => p.id === productId);
         return product?.description || 'N/A';
     }
+
+    // Formatear input de moneda (sin símbolo $)
+    formatCurrencyInput(value: number): string {
+        if (!value && value !== 0) return '';
+        return new Intl.NumberFormat('es-CO', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(value);
+    }
+
+    // Parsear input de nuevo precio
+    onNewPriceInput(event: Event): void {
+        const input = event.target as HTMLInputElement;
+        const rawValue = input.value.replace(/\D/g, '');
+        this.newPrice = rawValue ? parseInt(rawValue, 10) : 0;
+        input.value = this.formatCurrencyInput(this.newPrice);
+    }
 }

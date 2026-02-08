@@ -74,6 +74,20 @@
                     <a class="nav-link" routerLink="/main/inventario" routerLinkActive="active" (click)="closeMenu()">Inventario</a>
                 </li>
 
+                <li class="nav-item mx-2 dropdown">
+                    <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" routerLinkActive="active" role="button" aria-haspopup="true" aria-expanded="false">
+                        <i class="bi bi-cash-stack me-1"></i>Caja
+                    </a>
+                    <div class="dropdown-menu" style="background-color: white; border-color: black;">
+                      <a class="dropdown-item" routerLink="/main/arqueo-caja" (click)="closeMenu()">
+                        <i class="bi bi-calculator me-1"></i> Arqueo de Caja
+                      </a>
+                      <a class="dropdown-item" routerLink="/main/arqueo-caja/reportes" (click)="closeMenu()">
+                        <i class="bi bi-file-earmark-bar-graph me-1"></i> Reportes de Arqueo
+                      </a>
+                    </div>
+                </li>
+
                 <li class="nav-item mx-2">
                     <a class="nav-link" routerLink="/main/configuracion" routerLinkActive="active" (click)="closeMenu()">Configuracion</a>
                 </li>
