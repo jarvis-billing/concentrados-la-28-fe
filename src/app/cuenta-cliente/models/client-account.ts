@@ -66,3 +66,14 @@ export class AccountSummary {
     lastPaymentDate?: string;
     daysSinceLastPayment?: number;
 }
+
+/**
+ * DTO para registrar una deuda manual (migración de cuaderno)
+ */
+export class ManualDebtRequest {
+    clientId: string = '';
+    amount: number = 0;
+    transactionDate: string = '';  // Fecha original del cuaderno
+    notes: string = '';            // Descripción/nota de la deuda
+    source: string = 'MIGRACION_CUADERNO';  // Origen de la deuda
+}

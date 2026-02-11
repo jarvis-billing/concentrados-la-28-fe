@@ -6,7 +6,8 @@ import {
     ClientAccount, 
     AccountPayment, 
     AccountReportFilter, 
-    AccountSummary 
+    AccountSummary,
+    ManualDebtRequest
 } from '../models/client-account';
 
 @Injectable({
@@ -72,5 +73,12 @@ export class ClientAccountService {
      */
     getCreditBillings(clientId: string): Observable<any[]> {
         return this.http.get<any[]>(`${this.url}/client/${clientId}/credit-billings`);
+    }
+
+    /**
+     * Registra una deuda manual (migración de cuaderno)
+     */
+    registerManualDebt(request: ManualDebtRequest): Observable<any> {
+        return this.http.post<any>(`${this.url}/manual-debt`, request);
     }
 }

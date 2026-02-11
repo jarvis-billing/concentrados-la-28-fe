@@ -1,8 +1,8 @@
 import { Component, EventEmitter, inject, OnInit, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, FormsModule, Validators } from '@angular/forms';
-import { ClientCreditService } from '../../services/client-credit.service';
-import { ManualCreditRequest } from '../../models/client-credit';
+import { ClientAccountService } from '../../services/client-account.service';
+import { ManualDebtRequest } from '../../models/client-account';
 import { ClienteService } from '../../../cliente/cliente.service';
 import { Client } from '../../../cliente/cliente';
 import { toast } from 'ngx-sonner';
@@ -18,18 +18,18 @@ import { CurrencyFormatDirective } from '../../../directive/currency-format.dire
             <div class="modal fade show d-block" tabindex="-1">
                 <div class="modal-dialog modal-dialog-centered modal-lg">
                     <div class="modal-content">
-                        <div class="modal-header bg-info text-white">
+                        <div class="modal-header bg-warning text-dark">
                             <h5 class="modal-title">
                                 <i class="bi bi-journal-text me-2"></i>
-                                Registrar Crédito Manual (Migración de Cuaderno)
+                                Registrar Cuenta por Cobrar (Migración de Cuaderno)
                             </h5>
-                            <button type="button" class="btn-close btn-close-white" (click)="closeModal()"></button>
+                            <button type="button" class="btn-close" (click)="closeModal()"></button>
                         </div>
                         <div class="modal-body">
-                            <div class="alert alert-info mb-3">
+                            <div class="alert alert-warning mb-3">
                                 <i class="bi bi-info-circle me-2"></i>
-                                Use esta opción para migrar créditos registrados previamente en cuaderno.
-                                Estos créditos se agregarán al saldo a favor del cliente.
+                                Use esta opción para migrar deudas registradas previamente en cuaderno.
+                                Estas deudas se agregarán a las cuentas por cobrar del cliente.
                             </div>
 
                             <form [formGroup]="creditForm">
@@ -81,7 +81,7 @@ import { CurrencyFormatDirective } from '../../../directive/currency-format.dire
 
                                 <!-- Monto -->
                                 <div class="mb-3">
-                                    <label class="form-label fw-bold">Monto del Crédito *</label>
+                                    <label class="form-label fw-bold">Monto de la Deuda *</label>
                                     <div class="input-group">
                                         <span class="input-group-text">$</span>
                                         <input type="text" class="form-control form-control-lg" 
@@ -93,7 +93,7 @@ import { CurrencyFormatDirective } from '../../../directive/currency-format.dire
 
                                 <!-- Fecha Original -->
                                 <div class="mb-3">
-                                    <label class="form-label fw-bold">Fecha Original del Crédito *</label>
+                                    <label class="form-label fw-bold">Fecha Original de la Deuda *</label>
                                     <input type="date" class="form-control" formControlName="transactionDate">
                                     <small class="text-muted">Ingrese la fecha en que se registró originalmente en el cuaderno</small>
                                 </div>
@@ -104,8 +104,8 @@ import { CurrencyFormatDirective } from '../../../directive/currency-format.dire
                                     <textarea class="form-control" 
                                               formControlName="notes" 
                                               rows="3"
-                                              placeholder="Ej: Crédito por venta de 2 bultos de concentrado - Migrado del cuaderno"></textarea>
-                                    <small class="text-muted">Describa el origen del crédito para referencia futura</small>
+                                              placeholder="Ej: Deuda por venta de 2 bultos de concentrado - Migrado del cuaderno"></textarea>
+                                    <small class="text-muted">Describa el origen de la deuda para referencia futura</small>
                                 </div>
                             </form>
                         </div>
@@ -113,14 +113,14 @@ import { CurrencyFormatDirective } from '../../../directive/currency-format.dire
                             <button type="button" class="btn btn-secondary" (click)="closeModal()">
                                 Cancelar
                             </button>
-                            <button type="button" class="btn btn-info" 
+                            <button type="button" class="btn btn-warning" 
                                     (click)="onSubmit()"
                                     [disabled]="isSubmitting || !selectedClient || creditForm.invalid">
                                 @if (isSubmitting) {
                                     <span class="spinner-border spinner-border-sm me-1"></span>
                                 }
                                 <i class="bi bi-check-circle me-1"></i>
-                                Registrar Crédito
+                                Registrar Deuda
                             </button>
                         </div>
                     </div>
@@ -134,7 +134,7 @@ export class ManualCreditModalComponent implements OnInit {
     @Output() creditRegistered = new EventEmitter<void>();
 
     private fb = inject(FormBuilder);
-    private creditService = inject(ClientCreditService);
+    private accountService = inject(ClientAccountService);
     private clienteService = inject(ClienteService);
 
     showModal = false;
@@ -242,7 +242,7 @@ export class ManualCreditModalComponent implements OnInit {
         const rawAmount = this.creditForm.value.amount;
         const amount = this.normalizeToNumber(rawAmount);
 
-        const request: ManualCreditRequest = {
+        const request: ManualDebtRequest = {
             clientId: this.selectedClient.id,
             amount: amount,
             transactionDate: this.creditForm.value.transactionDate,
@@ -250,16 +250,16 @@ export class ManualCreditModalComponent implements OnInit {
             source: 'MIGRACION_CUADERNO'
         };
 
-        this.creditService.registerManualCredit(request).subscribe({
+        this.accountService.registerManualDebt(request).subscribe({
             next: () => {
-                toast.success(`Crédito de $${amount.toLocaleString('es-CO')} registrado para ${this.selectedClient?.name}`);
+                toast.success(`Deuda de $${amount.toLocaleString('es-CO')} registrada para ${this.selectedClient?.name}`);
                 this.isSubmitting = false;
                 this.closeModal();
                 this.creditRegistered.emit();
             },
             error: (err) => {
                 this.isSubmitting = false;
-                toast.error('Error al registrar el crédito: ' + (err.error?.message || 'Intente nuevamente'));
+                toast.error('Error al registrar la deuda: ' + (err.error?.message || 'Intente nuevamente'));
             }
         });
     }
