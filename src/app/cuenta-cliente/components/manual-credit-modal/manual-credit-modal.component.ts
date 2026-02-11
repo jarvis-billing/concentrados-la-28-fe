@@ -64,7 +64,7 @@ import { CurrencyFormatDirective } from '../../../directive/currency-format.dire
                                                          (click)="selectClient(client)"
                                                          (mouseenter)="$event.target.style.backgroundColor='#f8f9fa'"
                                                          (mouseleave)="$event.target.style.backgroundColor='white'">
-                                                        <div class="fw-bold">{{ client.name }}</div>
+                                                        <div class="fw-bold">{{ getClientDisplayName(client) }}</div>
                                                         <small class="text-muted">{{ client.documentType }} {{ client.idNumber }}</small>
                                                     </div>
                                                 }
@@ -74,7 +74,7 @@ import { CurrencyFormatDirective } from '../../../directive/currency-format.dire
                                     @if (selectedClient) {
                                         <div class="mt-2 p-2 bg-success-subtle rounded">
                                             <i class="bi bi-person-check me-1"></i>
-                                            <strong>{{ selectedClient.name }}</strong> - {{ selectedClient.documentType }} {{ selectedClient.idNumber }}
+                                            <strong>{{ getClientDisplayName(selectedClient) }}</strong> - {{ selectedClient.documentType }} {{ selectedClient.idNumber }}
                                         </div>
                                     }
                                 </div>
@@ -200,16 +200,29 @@ export class ManualCreditModalComponent implements OnInit {
         const query = searchText.toLowerCase();
         this.filteredClients = this.clients.filter(c => {
             const name = (c.name || '').toLowerCase();
+            const surname = (c.surname || '').toLowerCase();
+            const nickname = (c.nickname || '').toLowerCase();
             const idNumber = (c.idNumber || '').toLowerCase();
-            return name.includes(query) || idNumber.includes(query);
+            return name.includes(query) || surname.includes(query) || nickname.includes(query) || idNumber.includes(query);
         });
         this.showClientDropdown = this.filteredClients.length > 0;
     }
 
     selectClient(client: Client): void {
         this.selectedClient = client;
-        this.clientSearchText = `${client.name} (${client.documentType} ${client.idNumber})`;
+        this.clientSearchText = `${this.getClientDisplayName(client)} (${client.documentType} ${client.idNumber})`;
         this.showClientDropdown = false;
+    }
+
+    getClientDisplayName(client: Client): string {
+        let displayName = client.name || '';
+        if (client.surname) {
+            displayName += ' ' + client.surname;
+        }
+        if (client.nickname) {
+            displayName += ` (${client.nickname})`;
+        }
+        return displayName.trim();
     }
 
     clearClientSelection(): void {
