@@ -1,14 +1,15 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, ViewChild } from '@angular/core';
 import { CommonModule, CurrencyPipe } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { ClientAccountService } from '../../services/client-account.service';
 import { AccountSummary, AccountReportFilter } from '../../models/client-account';
+import { ManualCreditModalComponent } from '../../components/manual-credit-modal/manual-credit-modal.component';
 import { toast } from 'ngx-sonner';
 
 @Component({
     selector: 'app-accounts-receivable-report',
     standalone: true,
-    imports: [CommonModule, FormsModule, ReactiveFormsModule, CurrencyPipe],
+    imports: [CommonModule, FormsModule, ReactiveFormsModule, CurrencyPipe, ManualCreditModalComponent],
     templateUrl: './accounts-receivable-report.component.html',
     styleUrl: './accounts-receivable-report.component.css'
 })
@@ -31,6 +32,9 @@ export class AccountsReceivableReportComponent implements OnInit {
     totalDebt: number = 0;
     totalPaid: number = 0;
     totalBalance: number = 0;
+
+    // Referencia al modal
+    @ViewChild(ManualCreditModalComponent) manualCreditModal!: ManualCreditModalComponent;
 
     ngOnInit(): void {
         this.loadReport();
@@ -81,6 +85,12 @@ export class AccountsReceivableReportComponent implements OnInit {
             month: '2-digit',
             year: 'numeric'
         }).format(date);
+    }
+
+    openManualCreditModal(): void {
+        if (this.manualCreditModal) {
+            this.manualCreditModal.openModal();
+        }
     }
 
     exportToCSV(): void {

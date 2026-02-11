@@ -6,10 +6,6 @@
                 Reporte de Anticipos / Saldos a Favor
             </h4>
             <div class="d-flex gap-2">
-                <button class="btn btn-info" (click)="openManualCreditModal()">
-                    <i class="bi bi-journal-plus me-1"></i>
-                    Migrar Crédito (Cuaderno)
-                </button>
                 <button class="btn btn-success" (click)="exportToCSV()" [disabled]="filteredCredits.length === 0">
                     <i class="bi bi-file-earmark-spreadsheet me-1"></i>
                     Exportar CSV
