@@ -5,11 +5,19 @@
       <h2 class="mb-1">
         <i class="bi bi-upc-scan me-2"></i>Generador de Etiquetas
       </h2>
-      <p class="text-muted mb-0">Etiquetas de código de barras (50x25 mm)</p>
+      <p class="text-muted mb-0">
+        {{ labelConfig.presetName }} - {{ labelConfig.labelWidth }}x{{ labelConfig.labelHeight }}mm 
+        ({{ labelConfig.columns }} columna{{ labelConfig.columns > 1 ? 's' : '' }})
+      </p>
     </div>
-    <a routerLink="/inventario" class="btn btn-outline-secondary">
-      <i class="bi bi-arrow-left me-1"></i>Volver
-    </a>
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-primary" (click)="openConfigModal()">
+        <i class="bi bi-gear me-1"></i>Configurar Etiquetas
+      </button>
+      <a routerLink="/inventario" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Volver
+      </a>
+    </div>
   </div>
 
   <!-- Filtros y controles -->
@@ -147,3 +155,9 @@
     <p class="mt-3 text-muted">No se encontraron productos con código de barras</p>
   </div>
 </div>
+
+<!-- Modal de configuración de etiquetas -->
+<app-label-config-modal 
+  #labelConfigModal
+  (configSaved)="onConfigSaved($event)">
+</app-label-config-modal>

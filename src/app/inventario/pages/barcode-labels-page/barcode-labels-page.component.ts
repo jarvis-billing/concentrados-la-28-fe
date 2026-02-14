@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -7,6 +7,9 @@ import { Product, Presentation, UnitMeasure } from '../../../producto/producto';
 import JsBarcode from 'jsbarcode';
 import jsPDF from 'jspdf';
 import { toast } from 'ngx-sonner';
+import { LabelConfig } from '../../models/label-config';
+import { LabelConfigService } from '../../services/label-config.service';
+import { LabelConfigModalComponent } from '../../components/label-config-modal/label-config-modal.component';
 
 // Mapa de abreviaturas para unidades de medida
 const UNIT_ABBREVIATIONS: Record<string, string> = {
@@ -30,18 +33,18 @@ interface LabelData {
 @Component({
   selector: 'app-barcode-labels-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, LabelConfigModalComponent],
   templateUrl: './barcode-labels-page.component.html',
   styleUrls: ['./barcode-labels-page.component.css']
 })
 export class BarcodeLabelsPageComponent implements OnInit {
   private productService = inject(ProductoService);
+  private labelConfigService = inject(LabelConfigService);
 
-  // Configuración de etiqueta (50x25 mm) para rollo con separación de 5mm
-  readonly LABEL_WIDTH_MM = 50;
-  readonly LABEL_HEIGHT_MM = 25;
-  readonly LABEL_GAP_MM = 5; // Separación entre etiquetas en el rollo
-  readonly COMPANY_NAME = 'CONCENTRADOS LA 28';
+  @ViewChild('labelConfigModal') labelConfigModal!: LabelConfigModalComponent;
+
+  // Configuración dinámica de etiquetas
+  labelConfig: LabelConfig = {} as LabelConfig;
 
   allProducts: Product[] = [];
   products: Product[] = [];
@@ -55,7 +58,17 @@ export class BarcodeLabelsPageComponent implements OnInit {
   copiesPerLabel = 1;
 
   ngOnInit(): void {
+    this.labelConfig = this.labelConfigService.getConfig();
     this.loadProducts();
+  }
+
+  openConfigModal(): void {
+    this.labelConfigModal.openModal();
+  }
+
+  onConfigSaved(config: LabelConfig): void {
+    this.labelConfig = config;
+    this.buildLabels();
   }
 
   private loadProducts(): void {
@@ -96,7 +109,7 @@ export class BarcodeLabelsPageComponent implements OnInit {
             productDescription: pres.label || '',
             presentationLabel: pres.label || '',
             salePrice: salePrice || 0,
-            companyName: this.COMPANY_NAME,
+            companyName: this.labelConfig.companyName || 'CONCENTRADOS LA 28',
             selected: false
           });
         }
@@ -185,6 +198,13 @@ export class BarcodeLabelsPageComponent implements OnInit {
 
     this.isGeneratingPdf = true;
 
+    const config = this.labelConfig;
+    const columns = config.columns || 1;
+    const labelW = config.labelWidth;
+    const labelH = config.labelHeight;
+    const colGap = config.columnGap || 0;
+    const rowGap = config.rowGap || 0;
+
     // Expandir etiquetas según copias
     const expandedLabels: LabelData[] = [];
     this.selectedLabels.forEach(label => {
@@ -193,21 +213,39 @@ export class BarcodeLabelsPageComponent implements OnInit {
       }
     });
 
-    // Crear PDF con tamaño exacto de etiqueta: 50mm ancho x 25mm alto
-    // jsPDF format: [alto, ancho] cuando orientation es 'landscape'
+    // Calcular ancho total del rollo
+    const rollWidth = config.marginLeft + 
+                      (labelW * columns) + 
+                      (colGap * (columns - 1)) + 
+                      config.marginRight;
+
+    // Crear PDF con ancho del rollo y alto de una fila de etiquetas
+    const pageHeight = config.marginTop + labelH + config.marginBottom;
+    
     const doc = new jsPDF({
       orientation: 'landscape',
       unit: 'mm',
-      format: [this.LABEL_HEIGHT_MM, this.LABEL_WIDTH_MM] // [25, 50] -> resultado: 50mm ancho x 25mm alto
+      format: [pageHeight, rollWidth]
     });
 
-    // Dibujar cada etiqueta en su propia página
-    expandedLabels.forEach((label, index) => {
-      if (index > 0) {
-        doc.addPage([this.LABEL_HEIGHT_MM, this.LABEL_WIDTH_MM], 'landscape');
+    // Dibujar etiquetas en filas con múltiples columnas
+    let labelIndex = 0;
+    let isFirstPage = true;
+
+    while (labelIndex < expandedLabels.length) {
+      if (!isFirstPage) {
+        doc.addPage([pageHeight, rollWidth], 'landscape');
       }
-      this.drawLabel(doc, label, 0, 0);
-    });
+      isFirstPage = false;
+
+      // Dibujar una fila de etiquetas (tantas como columnas)
+      for (let col = 0; col < columns && labelIndex < expandedLabels.length; col++) {
+        const x = config.marginLeft + (col * (labelW + colGap));
+        const y = config.marginTop;
+        this.drawLabel(doc, expandedLabels[labelIndex], x, y);
+        labelIndex++;
+      }
+    }
 
     // Guardar PDF
     const fileName = `etiquetas_barcode_${this.formatDateForFile()}.pdf`;
@@ -216,63 +254,81 @@ export class BarcodeLabelsPageComponent implements OnInit {
   }
 
   private drawLabel(doc: jsPDF, label: LabelData, x: number, y: number): void {
-    // Dimensiones: 50mm ancho x 25mm alto
-    const w = this.LABEL_WIDTH_MM; // 50mm
-    const h = this.LABEL_HEIGHT_MM; // 25mm
-    const centerX = x + w / 2; // 25mm
+    const config = this.labelConfig;
+    const w = config.labelWidth;
+    const h = config.labelHeight;
+    const centerX = x + w / 2;
 
-    // Nombre de la empresa - y=4mm
-    doc.setFontSize(6);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 0);
-    doc.text(label.companyName, centerX, y + 4, { align: 'center' });
+    // Calcular posiciones dinámicamente según campos habilitados
+    let currentY = y + 1;
+    const lineSpacing = h / 6; // Dividir el espacio disponible
 
-    // Generar barcode como imagen (sin texto, lo agregamos manualmente)
-    const canvas = document.createElement('canvas');
-    try {
-      JsBarcode(canvas, label.barcode, {
-        format: 'CODE128',
-        width: 2,
-        height: 40,
-        displayValue: false, // Sin texto en el barcode
-        margin: 0,
-        background: '#ffffff'
-      });
-
-      const barcodeImg = canvas.toDataURL('image/png');
-      // Barcode: ancho 42mm, alto 5mm, centrado
-      const barcodeWidth = 42;
-      const barcodeHeight = 5;
-      const barcodeX = x + (w - barcodeWidth) / 2;
-      const barcodeY = y + 5; // empieza en y=5mm
-      doc.addImage(barcodeImg, 'PNG', barcodeX, barcodeY, barcodeWidth, barcodeHeight);
-
-      // Número del código de barras - separado del barcode (y + 12.5mm)
-      doc.setFontSize(9);
+    // Nombre de la empresa
+    if (config.showCompanyName) {
+      const fontSize = Math.max(4, Math.min(6, w / 10));
+      doc.setFontSize(fontSize);
       doc.setFont('helvetica', 'bold');
-      doc.text(label.barcode, centerX, y + 12.5, { align: 'center' });
-    } catch (e) {
-      console.warn(`Error generating barcode: ${label.barcode}`, e);
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'bold');
-      doc.text(label.barcode, centerX, y + 11, { align: 'center' });
+      doc.setTextColor(0, 0, 0);
+      doc.text(label.companyName, centerX, currentY + 2.5, { align: 'center' });
+      currentY += lineSpacing * 0.8;
     }
 
-    // Descripción del producto - con salto de línea si es muy largo
-    doc.setFontSize(5);
-    doc.setFont('helvetica', 'normal');
-    const descLines = this.wrapText(label.productDescription, 30); // máx 30 chars por línea
-    const descY = y + 16;
-    descLines.forEach((line, index) => {
-      doc.text(line, centerX, descY + (index * 2.5), { align: 'center' });
-    });
+    // Código de barras
+    if (config.showBarcode) {
+      const canvas = document.createElement('canvas');
+      try {
+        JsBarcode(canvas, label.barcode, {
+          format: 'CODE128',
+          width: 2,
+          height: 40,
+          displayValue: false,
+          margin: 0,
+          background: '#ffffff'
+        });
 
-    // Precio de venta (parte inferior)
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    const priceText = this.formatPrice(label.salePrice);
-    const priceY = descLines.length > 1 ? y + 22 : y + 21;
-    doc.text(priceText, centerX, priceY, { align: 'center' });
+        const barcodeImg = canvas.toDataURL('image/png');
+        const barcodeWidth = Math.min(w - 4, w * 0.85);
+        const barcodeHeight = Math.min(h * 0.25, 6);
+        const barcodeX = x + (w - barcodeWidth) / 2;
+        doc.addImage(barcodeImg, 'PNG', barcodeX, currentY, barcodeWidth, barcodeHeight);
+        currentY += barcodeHeight + 1;
+      } catch (e) {
+        console.warn(`Error generating barcode: ${label.barcode}`, e);
+      }
+    }
+
+    // Número del código de barras
+    if (config.showBarcodeNumber) {
+      const fontSize = Math.max(5, Math.min(8, w / 7));
+      doc.setFontSize(fontSize);
+      doc.setFont('helvetica', 'bold');
+      doc.text(label.barcode, centerX, currentY + 2, { align: 'center' });
+      currentY += lineSpacing * 0.7;
+    }
+
+    // Descripción del producto
+    if (config.showDescription) {
+      const fontSize = Math.max(4, Math.min(5, w / 12));
+      doc.setFontSize(fontSize);
+      doc.setFont('helvetica', 'normal');
+      const maxChars = Math.floor(w / 1.8);
+      const descLines = this.wrapText(label.productDescription, maxChars);
+      descLines.forEach((line, index) => {
+        doc.text(line, centerX, currentY + 2 + (index * 2), { align: 'center' });
+      });
+      currentY += lineSpacing * 0.6 * descLines.length;
+    }
+
+    // Precio de venta
+    if (config.showPrice) {
+      const fontSize = Math.max(6, Math.min(9, w / 6));
+      doc.setFontSize(fontSize);
+      doc.setFont('helvetica', 'bold');
+      const priceText = this.formatPrice(label.salePrice);
+      // Posicionar el precio cerca del fondo de la etiqueta
+      const priceY = Math.min(currentY + 3, y + h - 2);
+      doc.text(priceText, centerX, priceY, { align: 'center' });
+    }
   }
 
   private wrapText(text: string, maxCharsPerLine: number): string[] {

@@ -21,6 +21,7 @@ import { ProductsSearchModalComponent } from '../producto/components/products-se
 import { ModalClientsListComponent } from '../cliente/components/modal-clients-list/modal-clients-list.component';
 import { ExpensesFabComponent } from '../expenses/expenses-fab.component';
 import { ClientCreditService } from '../cuenta-cliente/services/client-credit.service';
+import { UseCreditRequest } from '../cuenta-cliente/models/client-credit';
 import { UseCreditModalComponent } from '../cuenta-cliente/components/use-credit-modal/use-credit-modal.component';
 import { BatchService } from '../lotes/services/batch.service';
 import { Batch, BATCH_REQUIRED_CATEGORY } from '../lotes/models/batch';
@@ -986,10 +987,40 @@ export class FacturaComponent implements OnInit, AfterViewInit {
     this.closeConfirmSaveModal();
     this.facturaService.save(this.factura).subscribe(factura => {
       if (factura.id) {
+        // Verificar si hay pago con saldo a favor para descontarlo
+        const creditPayment = this.factura.payments?.find(p => p.method === 'SALDO_FAVOR');
+        if (creditPayment && creditPayment.amount > 0 && this.client?.id) {
+          this.useCreditForBilling(factura.id, creditPayment.amount);
+        }
+        
         toast.success('La Factura fue registrada correctamente.');
         this.onInitBilling();
         // Refrescar listado de productos para actualizar stock
         this.productService.fetchAll();
+      }
+    });
+  }
+
+  /**
+   * Descuenta el saldo a favor del cliente cuando se usa en una factura
+   */
+  private useCreditForBilling(billingId: string, amount: number): void {
+    if (!this.client?.id || amount <= 0) return;
+
+    const request: UseCreditRequest = {
+      clientId: this.client.id,
+      amount: amount,
+      billingId: billingId,
+      notes: `Pago aplicado a factura`
+    };
+
+    this.clientCreditService.useCredit(request).subscribe({
+      next: () => {
+        toast.info(`Se descontó $${amount.toLocaleString('es-CO')} del saldo a favor del cliente.`);
+      },
+      error: (err) => {
+        console.error('Error al descontar saldo a favor:', err);
+        toast.warning('La factura se guardó pero hubo un error al descontar el saldo a favor. Verifique manualmente.');
       }
     });
   }
