@@ -29,6 +29,7 @@ import { InventoryAdjustmentsPageComponent } from './inventario/pages/inventory-
 import { InventoryReportPageComponent } from './inventario/pages/inventory-report-page/inventory-report-page.component';
 import { BarcodeLabelsPageComponent } from './inventario/pages/barcode-labels-page/barcode-labels-page.component';
 import { BarcodeAlbumPageComponent } from './inventario/pages/barcode-album-page/barcode-album-page.component';
+import { LabelAlbumBuilderComponent } from './inventario/pages/label-album-builder/label-album-builder.component';
 import { ClientAccountViewComponent } from './cuenta-cliente/components/client-account-view/client-account-view.component';
 import { AccountsReceivableReportComponent } from './cuenta-cliente/pages/accounts-receivable-report/accounts-receivable-report.component';
 import { CreditsReportComponent } from './cuenta-cliente/pages/credits-report/credits-report.component';
@@ -130,6 +131,9 @@ export const routes: Routes = [
         },
         {
             path: 'inventario/album-barcodes', component: BarcodeAlbumPageComponent
+        },
+        {
+            path: 'inventario/album-etiquetas', component: LabelAlbumBuilderComponent
         },
         {
             path: 'clientes/cuenta', component: ClientAccountViewComponent

@@ -21,6 +21,7 @@ export class LoginComponent {
   tokenLoginUser: TokenLoginUser = new TokenLoginUser();
   loginUser: LoginUser = new LoginUser();
   productService = inject(ProductoService);
+  currentYear = new Date().getFullYear();
 
   constructor(private loginService: LoginUserService, 
     private localStorage: StorageService

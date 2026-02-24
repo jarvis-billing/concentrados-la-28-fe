@@ -1,0 +1,255 @@
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.product-header:hover {
+  background-color: #f8f9fa;
+}
+
+.presentation-item {
+  cursor: grab;
+  transition: all 0.2s ease;
+}
+
+.presentation-item:hover {
+  background-color: #e9ecef !important;
+  transform: translateX(4px);
+}
+
+.presentation-item:active {
+  cursor: grabbing;
+}
+
+.drag-handle {
+  cursor: grab;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Canvas Area */
+.canvas-area {
+  background: linear-gradient(135deg, #fff9e6 0%, #fff5d6 100%);
+}
+
+.drop-zone {
+  border: 3px dashed #ffc107 !important;
+  background-color: rgba(255, 193, 7, 0.05);
+  transition: all 0.3s ease;
+}
+
+.drop-zone:hover {
+  background-color: rgba(255, 193, 7, 0.1);
+  border-color: #ff9800 !important;
+}
+
+/* Labels Grid */
+.labels-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.label-card {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  cursor: grab;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.label-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.label-card:active {
+  cursor: grabbing;
+}
+
+.label-card.drag-over {
+  border: 2px dashed #0d6efd;
+  background-color: #e7f1ff;
+}
+
+.label-drag-handle {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  color: #adb5bd;
+  cursor: grab;
+}
+
+.label-drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Label Content */
+.label-content {
+  text-align: center;
+  padding: 8px 0;
+}
+
+.label-product-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #495057;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 8px;
+}
+
+.label-barcode-preview {
+  background: #f8f9fa;
+  border-radius: 4px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+
+.barcode-lines {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  height: 30px;
+  gap: 1px;
+}
+
+.barcode-line {
+  background-color: #212529;
+}
+
+.barcode-number {
+  display: block;
+  font-family: monospace;
+  font-size: 0.7rem;
+  color: #6c757d;
+  margin-top: 4px;
+}
+
+.label-presentation {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #212529;
+  margin-bottom: 4px;
+}
+
+.label-price {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #198754;
+}
+
+/* Label Controls */
+.label-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 8px;
+  border-top: 1px solid #e9ecef;
+}
+
+.quantity-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.quantity-value {
+  font-weight: 600;
+  min-width: 24px;
+  text-align: center;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.action-buttons .btn {
+  padding: 0.25rem 0.4rem;
+}
+
+/* Scrollbar styling */
+.products-list::-webkit-scrollbar,
+.canvas-area::-webkit-scrollbar {
+  width: 8px;
+}
+
+.products-list::-webkit-scrollbar-track,
+.canvas-area::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.products-list::-webkit-scrollbar-thumb,
+.canvas-area::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.products-list::-webkit-scrollbar-thumb:hover,
+.canvas-area::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+/* Config Panel */
+.config-panel {
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.config-panel .form-check {
+  padding: 8px 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+}
+
+.config-panel .form-check:hover {
+  background: #e9ecef;
+}
+
+.config-panel .form-check-input:checked {
+  background-color: #ff8c00;
+  border-color: #ff8c00;
+}
+
+.btn-outline-dark.active {
+  background-color: #212529;
+  color: white;
+}
+
+/* Responsive */
+@media (max-width: 991px) {
+  .labels-grid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .labels-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .label-controls {
+    flex-direction: column;
+    gap: 8px;
+  }
+}

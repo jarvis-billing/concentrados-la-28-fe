@@ -5,8 +5,7 @@ import { catchError, throwError } from 'rxjs';
 import { StorageService } from '../services/localStorage.service';
 import { toast } from 'ngx-sonner';
 
-let sessionPromptShown = false;
-let sessionToastId: string | number | undefined;
+let isRedirecting = false;
 
 export function errorInterceptor(req: HttpRequest<unknown>, next: HttpHandlerFn) {
   return next(req).pipe(
@@ -14,36 +13,38 @@ export function errorInterceptor(req: HttpRequest<unknown>, next: HttpHandlerFn)
       if (error instanceof HttpErrorResponse) {
         // Manejo de expiración / no autorizado
         if (error.status === 401 || error.status === 403) {
-          if (!sessionPromptShown) {
-            sessionPromptShown = true;
+          if (!isRedirecting) {
+            isRedirecting = true;
             try {
               const router = inject(Router);
               const zone = inject(NgZone);
               const storage = inject(StorageService);
               const currentUrl = router.url || '';
-              // Si ya estamos en login, no mostrar el prompt
+              
+              // Si ya estamos en login, no redirigir
               if (currentUrl.startsWith('/login')) {
-                sessionPromptShown = false;
+                isRedirecting = false;
                 return throwError(() => error);
               }
-              sessionToastId = toast.error('Sesión expirada. Por favor inicia sesión nuevamente.', {
-                duration: 0,
-                action: {
-                  label: 'Ir a inicio de sesión',
-                  onClick: () => {
-                    try { if (sessionToastId != null) toast.dismiss(sessionToastId as any); } catch {}
-                    try { storage.allClearItems(); } catch {}
-                    zone.run(() => {
-                      router.navigate(['/login'], { replaceUrl: true }).finally(() => {
-                        sessionPromptShown = false;
-                      });
-                    });
-                  }
-                }
+              
+              // Limpiar storage y redirigir automáticamente
+              storage.allClearItems();
+              
+              // Mostrar notificación breve
+              toast.warning('Tu sesión ha expirado. Redirigiendo al inicio de sesión...', {
+                duration: 3000
+              });
+              
+              // Redirigir automáticamente después de un breve delay
+              zone.run(() => {
+                setTimeout(() => {
+                  router.navigate(['/login'], { replaceUrl: true }).finally(() => {
+                    isRedirecting = false;
+                  });
+                }, 500);
               });
             } catch {
-              // Fallback simple: solo bandera para no spamear
-              sessionPromptShown = false;
+              isRedirecting = false;
             }
           }
         }

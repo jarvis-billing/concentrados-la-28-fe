@@ -1,100 +1,606 @@
-<section class="background-radial-gradient overflow-hidden min-vh-100 d-flex justify-content-center align-items-center">
+<section class="login-page min-vh-100 d-flex">
+  <!-- Panel Izquierdo - Branding -->
+  <div class="branding-panel d-none d-lg-flex flex-column justify-content-center align-items-center text-white p-5">
+    <div class="branding-content text-center">
+      <!-- Logo/Icono con animales -->
+      <div class="logo-container mb-4">
+        <div class="logo-circle">
+          <!-- Icono de saco de concentrado -->
+          <svg viewBox="0 0 64 64" class="logo-svg">
+            <path fill="#fff" d="M16 20h32l-4 36H20L16 20z" opacity="0.9"/>
+            <path fill="#ffe0b2" d="M18 22h28l-3.5 32h-21L18 22z"/>
+            <ellipse cx="32" cy="20" rx="16" ry="4" fill="#fff"/>
+            <text x="32" y="42" text-anchor="middle" font-size="8" font-weight="bold" fill="#ff6b00">28</text>
+          </svg>
+        </div>
+      </div>
+      
+      <!-- Nombre de la empresa -->
+      <h1 class="company-name mb-2">CONCENTRADOS</h1>
+      <h2 class="company-subtitle mb-4">LA 28</h2>
+      
+      <!-- Línea decorativa -->
+      <div class="decorative-line mb-4"></div>
+      
+      <!-- Slogan -->
+      <p class="slogan mb-5">
+        <i class="bi bi-heart-fill text-danger me-2"></i>
+        Nutrición de calidad para tus animales
+      </p>
+      
+      <!-- Features -->
+      <div class="features-list">
+        <div class="feature-item">
+          <i class="bi bi-check-circle-fill me-2"></i>
+          <span>Gestión de inventario</span>
+        </div>
+        <div class="feature-item">
+          <i class="bi bi-check-circle-fill me-2"></i>
+          <span>Facturación rápida</span>
+        </div>
+        <div class="feature-item">
+          <i class="bi bi-check-circle-fill me-2"></i>
+          <span>Control de ventas</span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Animales animados de fondo -->
+    <div class="farm-animals">
+      <!-- Gallina -->
+      <div class="animal chicken">
+        <svg viewBox="0 0 64 64" class="animal-svg">
+          <ellipse cx="32" cy="38" rx="18" ry="14" fill="#f5deb3"/>
+          <circle cx="38" cy="28" r="10" fill="#f5deb3"/>
+          <polygon points="48,28 56,26 48,30" fill="#ff6b00"/>
+          <circle cx="42" cy="26" r="2" fill="#333"/>
+          <path d="M36 18 Q38 12 40 18 Q42 12 44 18" fill="#e53935" stroke="#e53935" stroke-width="1"/>
+          <ellipse cx="38" cy="34" rx="3" ry="2" fill="#e53935"/>
+          <path d="M20 48 L18 56 L22 56 L24 48" fill="#ff9800"/>
+          <path d="M40 48 L38 56 L42 56 L44 48" fill="#ff9800"/>
+          <path d="M14 38 Q8 36 10 42 Q6 44 12 46 Q8 50 16 48" fill="#f5deb3"/>
+        </svg>
+      </div>
+      
+      <!-- Pollito -->
+      <div class="animal chick">
+        <svg viewBox="0 0 64 64" class="animal-svg">
+          <ellipse cx="32" cy="40" rx="14" ry="12" fill="#ffd54f"/>
+          <circle cx="32" cy="26" r="12" fill="#ffd54f"/>
+          <polygon points="32,30 28,34 36,34" fill="#ff9800"/>
+          <circle cx="28" cy="24" r="2" fill="#333"/>
+          <circle cx="36" cy="24" r="2" fill="#333"/>
+          <path d="M28 14 Q32 8 36 14" fill="#ffd54f" stroke="#ffb300" stroke-width="2"/>
+          <path d="M24 52 L22 58 L26 58 L28 52" fill="#ff9800"/>
+          <path d="M36 52 L34 58 L38 58 L40 52" fill="#ff9800"/>
+        </svg>
+      </div>
+      
+      <!-- Cerdo -->
+      <div class="animal pig">
+        <svg viewBox="0 0 64 64" class="animal-svg">
+          <ellipse cx="32" cy="38" rx="20" ry="16" fill="#ffb6c1"/>
+          <circle cx="32" cy="24" r="14" fill="#ffb6c1"/>
+          <ellipse cx="32" cy="30" rx="8" ry="6" fill="#ff9eb5"/>
+          <circle cx="28" cy="28" r="2" fill="#333"/>
+          <circle cx="36" cy="28" r="2" fill="#333"/>
+          <ellipse cx="29" cy="32" rx="1.5" ry="2" fill="#ff69b4"/>
+          <ellipse cx="35" cy="32" rx="1.5" ry="2" fill="#ff69b4"/>
+          <ellipse cx="20" cy="16" rx="6" ry="8" fill="#ffb6c1" transform="rotate(-20 20 16)"/>
+          <ellipse cx="44" cy="16" rx="6" ry="8" fill="#ffb6c1" transform="rotate(20 44 16)"/>
+          <path d="M20 52 L18 58 L22 58 L24 52" fill="#ff9eb5"/>
+          <path d="M40 52 L38 58 L42 58 L44 52" fill="#ff9eb5"/>
+          <path d="M50 40 Q56 38 54 44 Q58 46 52 44" fill="#ffb6c1" stroke="#ff9eb5" stroke-width="1"/>
+        </svg>
+      </div>
+      
+      <!-- Saco de concentrado -->
+      <div class="animal feed-bag">
+        <svg viewBox="0 0 64 64" class="animal-svg">
+          <path d="M18 24h28l-3 32H21L18 24z" fill="#8d6e63"/>
+          <ellipse cx="32" cy="24" rx="14" ry="4" fill="#a1887f"/>
+          <rect x="24" y="32" width="16" height="12" rx="2" fill="#fff"/>
+          <text x="32" y="42" text-anchor="middle" font-size="7" font-weight="bold" fill="#ff6b00">LA 28</text>
+          <path d="M22 28 Q32 32 42 28" fill="none" stroke="#6d4c41" stroke-width="1"/>
+        </svg>
+      </div>
+      
+      <!-- Maíz -->
+      <div class="animal corn">
+        <svg viewBox="0 0 64 64" class="animal-svg">
+          <path d="M28 56 Q32 48 36 56" fill="#8bc34a" stroke="#689f38" stroke-width="1"/>
+          <path d="M24 52 Q28 44 32 52" fill="#8bc34a" stroke="#689f38" stroke-width="1"/>
+          <path d="M32 52 Q36 44 40 52" fill="#8bc34a" stroke="#689f38" stroke-width="1"/>
+          <ellipse cx="32" cy="32" rx="8" ry="18" fill="#ffd54f"/>
+          <ellipse cx="28" cy="24" rx="2" ry="3" fill="#ffb300"/>
+          <ellipse cx="32" cy="22" rx="2" ry="3" fill="#ffb300"/>
+          <ellipse cx="36" cy="24" rx="2" ry="3" fill="#ffb300"/>
+          <ellipse cx="28" cy="32" rx="2" ry="3" fill="#ffb300"/>
+          <ellipse cx="32" cy="30" rx="2" ry="3" fill="#ffb300"/>
+          <ellipse cx="36" cy="32" rx="2" ry="3" fill="#ffb300"/>
+          <ellipse cx="28" cy="40" rx="2" ry="3" fill="#ffb300"/>
+          <ellipse cx="32" cy="38" rx="2" ry="3" fill="#ffb300"/>
+          <ellipse cx="36" cy="40" rx="2" ry="3" fill="#ffb300"/>
+        </svg>
+      </div>
+      
+      <!-- Gallo -->
+      <div class="animal rooster">
+        <svg viewBox="0 0 64 64" class="animal-svg">
+          <ellipse cx="32" cy="42" rx="16" ry="12" fill="#8b4513"/>
+          <circle cx="36" cy="28" r="10" fill="#8b4513"/>
+          <polygon points="46,28 54,26 46,30" fill="#ff6b00"/>
+          <circle cx="40" cy="26" r="2" fill="#333"/>
+          <path d="M32 14 Q36 6 40 14 Q44 6 48 14 Q52 8 50 18" fill="#e53935"/>
+          <ellipse cx="36" cy="34" rx="4" ry="3" fill="#e53935"/>
+          <path d="M18 50 L16 58 L20 58 L22 50" fill="#ff9800"/>
+          <path d="M42 50 L40 58 L44 58 L46 50" fill="#ff9800"/>
+          <path d="M16 42 Q8 38 10 46 Q4 50 14 48" fill="#2e7d32"/>
+          <path d="M14 44 Q6 42 8 50 Q2 54 12 50" fill="#1b5e20"/>
+        </svg>
+      </div>
+    </div>
+    
+    <!-- Decoración de fondo -->
+    <div class="bg-decoration">
+      <div class="circle circle-1"></div>
+      <div class="circle circle-2"></div>
+      <div class="circle circle-3"></div>
+    </div>
+  </div>
 
+  <!-- Panel Derecho - Formulario -->
+  <div class="login-panel flex-grow-1 d-flex flex-column justify-content-center align-items-center p-4">
+    <div class="login-container">
+      <!-- Logo móvil -->
+      <div class="mobile-logo d-lg-none text-center mb-4">
+        <div class="logo-circle-sm mx-auto mb-3">
+          <i class="bi bi-box-seam-fill"></i>
+        </div>
+        <h3 class="text-primary fw-bold mb-0">CONCENTRADOS LA 28</h3>
+      </div>
 
-    <div class="container px-4 py-5 px-md-5 text-center text-lg-start my-5">
-
-        <div class="row gx-lg-5 align-items-center mb-5">
-
-            <div class="col-lg-6 mb-5 mb-lg-0" style="z-index: 10">
-                <h1 class="my-3 display-5 fw-bold ls-tight" style="color: hsl(256, 86%, 92%)">
-                Jarvis<br />
-                <span class="fw-normal" style="color: hsl(261, 82%, 79%)">Asistente Personal</span>
-                </h1>
-                <p class="mb-4 opacity-70 text-light">
-                    JF - RB
-                </p>
-            </div>
-
-            <div class="col-lg-6 mb-5 mb-lg-0 position-relative">
-
-                <div id="radius-shape-1" class="position-absolute rounded-circle shadow-5-strong"></div>
-
-                <div id="radius-shape-2" class="position-absolute shadow-5-strong"></div>
-
-                <div class="card bg-glass">
-                    
-                    <div class="card-body px-4 py-5 px-md-5">
-                        <form class="row gx-3" #formLogin="ngForm">
-
-                            <h2 class="mb-4 fw-bold text-primary">Iniciar sesión</h2>
-
-                            <div class="form-outline mb-4">
-                                <label class="form-label">Usuario</label>
-                                <input type="text" class="form-control" placeholder="Ej: usuario123" [(ngModel)]="loginUser.numberIdentity" name="numberIdentity" />
-                            </div>
-
-                            <div class="form-outline mb-2">
-                                <label class="form-label">Contraseña</label>
-                                <input type="password" class="form-control" placeholder="************" [(ngModel)]="loginUser.password" name="password" />
-                            </div>
-
-                            <div class="d-grid gap-2 mt-4">
-                                <button (click)="login(formLogin)" class="btn btn-primary" type="button">Ingresar</button>
-                            </div>
-
-                        
-                        </form>
-                    </div>
-
-                </div>
-
-            </div>
-
+      <!-- Card de Login -->
+      <div class="login-card">
+        <div class="login-card-header text-center mb-4">
+          <div class="welcome-icon mb-3">
+            <i class="bi bi-person-circle"></i>
+          </div>
+          <h2 class="fw-bold text-dark mb-1">¡Bienvenido!</h2>
+          <p class="text-muted mb-0">Ingresa tus credenciales para continuar</p>
         </div>
 
-    </div>
+        <form #formLogin="ngForm">
+          <!-- Usuario -->
+          <div class="form-floating mb-3">
+            <input 
+              type="text" 
+              class="form-control form-control-lg" 
+              id="numberIdentity"
+              placeholder="Usuario"
+              [(ngModel)]="loginUser.numberIdentity" 
+              name="numberIdentity"
+              required>
+            <label for="numberIdentity">
+              <i class="bi bi-person me-2"></i>Usuario
+            </label>
+          </div>
 
+          <!-- Contraseña -->
+          <div class="form-floating mb-4">
+            <input 
+              type="password" 
+              class="form-control form-control-lg" 
+              id="password"
+              placeholder="Contraseña"
+              [(ngModel)]="loginUser.password" 
+              name="password"
+              required>
+            <label for="password">
+              <i class="bi bi-lock me-2"></i>Contraseña
+            </label>
+          </div>
+
+          <!-- Botón de Login -->
+          <button 
+            type="button"
+            class="btn btn-login w-100 py-3 mb-3"
+            (click)="login(formLogin)">
+            <span class="btn-text">
+              <i class="bi bi-box-arrow-in-right me-2"></i>
+              Iniciar Sesión
+            </span>
+          </button>
+        </form>
+
+        <!-- Footer del card -->
+        <div class="login-card-footer text-center mt-4">
+          <small class="text-muted">
+            <i class="bi bi-shield-lock me-1"></i>
+            Conexión segura
+          </small>
+        </div>
+      </div>
+
+      <!-- Copyright -->
+      <div class="copyright text-center mt-4">
+        <small class="text-muted">
+          © {{ currentYear }} Concentrados La 28 · Jarvis System
+        </small>
+      </div>
+    </div>
+  </div>
 </section>
 
-
 <style>
-    .background-radial-gradient {
-        background-color: hsl(278, 100%, 15%);
-        background-image: radial-gradient(650px circle at 0% 0%,
-            hsl(218, 66%, 8%) 15%,
-            hsl(271, 78%, 11%) 35%,
-            hsl(218, 41%, 20%) 75%,
-            hsl(218, 41%, 19%) 80%,
-            transparent 100%),
-        radial-gradient(1250px circle at 100% 100%,
-            hsl(266, 47%, 56%) 15%,
-            hsl(218, 41%, 30%) 35%,
-            hsl(218, 41%, 20%) 75%,
-            hsl(218, 41%, 19%) 80%,
-            transparent 100%);
+  .login-page {
+    background: #f8f9fa;
+    overflow: hidden;
+  }
+
+  /* Panel de Branding */
+  .branding-panel {
+    width: 45%;
+    background: linear-gradient(135deg, #ff8c00 0%, #ff6b00 50%, #e65100 100%);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .branding-content {
+    position: relative;
+    z-index: 2;
+  }
+
+  .logo-container {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  .logo-circle {
+    width: 120px;
+    height: 120px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    backdrop-filter: blur(10px);
+    border: 3px solid rgba(255, 255, 255, 0.3);
+  }
+
+  .logo-circle i {
+    font-size: 3.5rem;
+    color: white;
+  }
+
+  .logo-svg {
+    width: 70px;
+    height: 70px;
+  }
+
+  /* Animales de granja animados */
+  .farm-animals {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .animal {
+    position: absolute;
+    opacity: 0.85;
+  }
+
+  .animal-svg {
+    width: 60px;
+    height: 60px;
+    filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.2));
+  }
+
+  /* Gallina - esquina superior izquierda */
+  .chicken {
+    top: 8%;
+    left: 5%;
+    animation: pecking 2s ease-in-out infinite;
+  }
+
+  /* Pollito - centro izquierda */
+  .chick {
+    top: 35%;
+    left: 8%;
+    animation: bounce 1.5s ease-in-out infinite;
+  }
+
+  .chick .animal-svg {
+    width: 45px;
+    height: 45px;
+  }
+
+  /* Cerdo - esquina inferior izquierda */
+  .pig {
+    bottom: 15%;
+    left: 5%;
+    animation: wiggle 3s ease-in-out infinite;
+  }
+
+  /* Saco de concentrado - centro derecha */
+  .feed-bag {
+    top: 25%;
+    right: 5%;
+    animation: float-slow 4s ease-in-out infinite;
+  }
+
+  .feed-bag .animal-svg {
+    width: 55px;
+    height: 55px;
+  }
+
+  /* Maíz - esquina superior derecha */
+  .corn {
+    top: 5%;
+    right: 8%;
+    animation: sway 2.5s ease-in-out infinite;
+  }
+
+  .corn .animal-svg {
+    width: 40px;
+    height: 40px;
+  }
+
+  /* Gallo - esquina inferior derecha */
+  .rooster {
+    bottom: 10%;
+    right: 5%;
+    animation: strut 2s ease-in-out infinite;
+  }
+
+  .rooster .animal-svg {
+    width: 65px;
+    height: 65px;
+  }
+
+  /* Animaciones */
+  @keyframes pecking {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(10deg) translateY(3px); }
+    75% { transform: rotate(-5deg); }
+  }
+
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+
+  @keyframes wiggle {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(3deg); }
+    75% { transform: rotate(-3deg); }
+  }
+
+  @keyframes float-slow {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-5px) rotate(2deg); }
+  }
+
+  @keyframes sway {
+    0%, 100% { transform: rotate(-5deg); }
+    50% { transform: rotate(5deg); }
+  }
+
+  @keyframes strut {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(5px) rotate(2deg); }
+    75% { transform: translateX(-5px) rotate(-2deg); }
+  }
+
+  .company-name {
+    font-size: 2.8rem;
+    font-weight: 800;
+    letter-spacing: 4px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  .company-subtitle {
+    font-size: 2rem;
+    font-weight: 300;
+    letter-spacing: 8px;
+    opacity: 0.9;
+  }
+
+  .decorative-line {
+    width: 80px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.5);
+    margin: 0 auto;
+    border-radius: 2px;
+  }
+
+  .slogan {
+    font-size: 1.1rem;
+    opacity: 0.9;
+    font-weight: 300;
+  }
+
+  .features-list {
+    text-align: left;
+    display: inline-block;
+  }
+
+  .feature-item {
+    padding: 8px 0;
+    font-size: 1rem;
+    opacity: 0.9;
+  }
+
+  .feature-item i {
+    color: #ffd54f;
+  }
+
+  /* Decoración de fondo */
+  .bg-decoration {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+  }
+
+  .circle {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .circle-1 {
+    width: 300px;
+    height: 300px;
+    top: -100px;
+    right: -100px;
+  }
+
+  .circle-2 {
+    width: 200px;
+    height: 200px;
+    bottom: 10%;
+    left: -50px;
+  }
+
+  .circle-3 {
+    width: 150px;
+    height: 150px;
+    bottom: -50px;
+    right: 20%;
+  }
+
+  /* Panel de Login */
+  .login-panel {
+    background: linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%);
+  }
+
+  .login-container {
+    width: 100%;
+    max-width: 420px;
+  }
+
+  /* Logo móvil */
+  .logo-circle-sm {
+    width: 70px;
+    height: 70px;
+    background: linear-gradient(135deg, #ff8c00, #ff6b00);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 15px rgba(255, 140, 0, 0.4);
+  }
+
+  .logo-circle-sm i {
+    font-size: 2rem;
+    color: white;
+  }
+
+  /* Card de Login */
+  .login-card {
+    background: white;
+    border-radius: 20px;
+    padding: 40px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+
+  .welcome-icon {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+  }
+
+  .welcome-icon i {
+    font-size: 2.5rem;
+    color: #ff8c00;
+  }
+
+  /* Form Controls */
+  .form-floating > .form-control {
+    border: 2px solid #e9ecef;
+    border-radius: 12px;
+    height: 60px;
+    padding-left: 16px;
+    transition: all 0.3s ease;
+  }
+
+  .form-floating > .form-control:focus {
+    border-color: #ff8c00;
+    box-shadow: 0 0 0 4px rgba(255, 140, 0, 0.1);
+  }
+
+  .form-floating > label {
+    padding-left: 16px;
+    color: #6c757d;
+  }
+
+  /* Botón de Login */
+  .btn-login {
+    background: linear-gradient(135deg, #ff8c00 0%, #ff6b00 100%);
+    border: none;
+    border-radius: 12px;
+    color: white;
+    font-weight: 600;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-login:hover {
+    background: linear-gradient(135deg, #ff9800 0%, #ff8c00 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(255, 140, 0, 0.4);
+    color: white;
+  }
+
+  .btn-login:active {
+    transform: translateY(0);
+  }
+
+  /* Animaciones */
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  /* Responsive */
+  @media (max-width: 991px) {
+    .login-card {
+      padding: 30px;
+    }
+  }
+
+  @media (max-width: 575px) {
+    .login-card {
+      padding: 25px 20px;
+      border-radius: 16px;
     }
 
-    #radius-shape-1 {
-        height: 220px;
-        width: 220px;
-        top: -60px;
-        left: -130px;
-        background: radial-gradient(#44006b, #ad1fff);
-        overflow: hidden;
+    .welcome-icon {
+      width: 60px;
+      height: 60px;
     }
 
-    #radius-shape-2 {
-        border-radius: 38% 62% 63% 37% / 70% 33% 67% 30%;
-        bottom: -60px;
-        right: -110px;
-        width: 300px;
-        height: 300px;
-        background: radial-gradient(#44006b, #ad1fff);
-        overflow: hidden;
+    .welcome-icon i {
+      font-size: 2rem;
     }
-
-    .bg-glass {
-        background-color: hsla(0, 0%, 100%, 0.9) !important;
-        backdrop-filter: saturate(200%) blur(25px);
-    }
+  }
 </style>

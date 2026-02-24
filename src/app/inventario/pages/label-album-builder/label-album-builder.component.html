@@ -1,0 +1,360 @@
+<div class="container-fluid py-4">
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="mb-1">
+        <i class="bi bi-palette text-primary me-2"></i>
+        Constructor de Álbum de Etiquetas
+      </h2>
+      <p class="text-muted mb-0">
+        Arrastra y suelta presentaciones para crear tu álbum de etiquetas personalizado
+      </p>
+    </div>
+    <div>
+      <a routerLink="/main/inventario" class="btn btn-outline-secondary me-2">
+        <i class="bi bi-arrow-left me-1"></i> Volver
+      </a>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Panel Izquierdo: Búsqueda y Productos -->
+    <div class="col-lg-5">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">
+            <i class="bi bi-box-seam me-2"></i>
+            Productos Disponibles
+          </h5>
+        </div>
+        <div class="card-body p-0">
+          <!-- Filtros -->
+          <div class="p-3 border-bottom bg-light">
+            <div class="row g-2">
+              <div class="col-12">
+                <div class="input-group">
+                  <span class="input-group-text bg-white">
+                    <i class="bi bi-search"></i>
+                  </span>
+                  <input type="text" class="form-control" 
+                         placeholder="Buscar producto, código, marca..."
+                         [(ngModel)]="searchTerm" 
+                         (input)="onSearchChange()">
+                  @if (searchTerm) {
+                    <button class="btn btn-outline-secondary" type="button" (click)="searchTerm = ''; onSearchChange()">
+                      <i class="bi bi-x"></i>
+                    </button>
+                  }
+                </div>
+              </div>
+              <div class="col-6">
+                <select class="form-select form-select-sm" [(ngModel)]="selectedBrand" (change)="onFilterChange()">
+                  <option value="">Todas las marcas</option>
+                  @for (brand of brands; track brand) {
+                    <option [value]="brand">{{ brand }}</option>
+                  }
+                </select>
+              </div>
+              <div class="col-6">
+                <select class="form-select form-select-sm" [(ngModel)]="selectedCategory" (change)="onFilterChange()">
+                  <option value="">Todas las categorías</option>
+                  @for (category of categories; track category) {
+                    <option [value]="category">{{ category }}</option>
+                  }
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lista de Productos -->
+          <div class="products-list" style="max-height: 60vh; overflow-y: auto;">
+            @if (isLoading) {
+              <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                  <span class="visually-hidden">Cargando...</span>
+                </div>
+                <p class="mt-2 text-muted">Cargando productos...</p>
+              </div>
+            } @else if (filteredProducts.length === 0) {
+              <div class="text-center py-5 text-muted">
+                <i class="bi bi-inbox display-4"></i>
+                <p class="mt-2">No se encontraron productos</p>
+              </div>
+            } @else {
+              @for (product of filteredProducts; track product.id) {
+                <div class="product-item border-bottom">
+                  <!-- Cabecera del producto -->
+                  <div class="product-header d-flex align-items-center p-3 cursor-pointer"
+                       (click)="toggleProduct(product.id)"
+                       [class.bg-light]="isProductExpanded(product.id)">
+                    <i class="bi me-2" 
+                       [class.bi-chevron-down]="isProductExpanded(product.id)"
+                       [class.bi-chevron-right]="!isProductExpanded(product.id)"></i>
+                    <div class="flex-grow-1">
+                      <div class="fw-bold text-truncate" style="max-width: 280px;">
+                        {{ product.description }}
+                      </div>
+                      <small class="text-muted">
+                        {{ product.brand }} · {{ product.category }} · {{ product.presentations?.length || 0 }} presentaciones
+                      </small>
+                    </div>
+                  </div>
+                  
+                  <!-- Presentaciones (expandible) -->
+                  @if (isProductExpanded(product.id)) {
+                    <div class="presentations-container bg-white px-3 pb-3">
+                      <div class="row g-2">
+                        @for (pres of product.presentations; track pres.barcode) {
+                          <div class="col-12">
+                            <div class="presentation-item d-flex align-items-center p-2 border rounded bg-light"
+                                 draggable="true"
+                                 (dragstart)="onDragStartPresentation($event, product, pres)"
+                                 (dragend)="onDragEnd()">
+                              <div class="drag-handle me-2 text-muted">
+                                <i class="bi bi-grip-vertical"></i>
+                              </div>
+                              <div class="flex-grow-1">
+                                <div class="fw-semibold small">{{ pres.label || 'Sin etiqueta' }}</div>
+                                <div class="d-flex align-items-center gap-2">
+                                  <small class="text-muted font-monospace">{{ pres.barcode }}</small>
+                                  <span class="badge bg-success">{{ formatPrice(pres.salePrice, pres.isBulk || false, pres.unitMeasure) }}</span>
+                                </div>
+                              </div>
+                              <button class="btn btn-sm btn-primary ms-2" 
+                                      (click)="addPresentationToCanvas(product, pres); $event.stopPropagation()"
+                                      title="Agregar al lienzo">
+                                <i class="bi bi-plus-lg"></i>
+                              </button>
+                            </div>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+            }
+          </div>
+        </div>
+        <div class="card-footer bg-light">
+          <small class="text-muted">
+            <i class="bi bi-info-circle me-1"></i>
+            {{ filteredProducts.length }} productos encontrados
+          </small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel Derecho: Lienzo de Etiquetas -->
+    <div class="col-lg-7">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-warning text-dark">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+              <i class="bi bi-grid-3x3-gap me-2"></i>
+              Lienzo de Etiquetas
+              @if (selectedLabels.length > 0) {
+                <span class="badge bg-dark ms-2">{{ getTotalLabels() }} etiquetas</span>
+              }
+            </h5>
+            <div class="btn-group">
+              <button class="btn btn-sm btn-outline-dark" 
+                      (click)="toggleConfigPanel()" 
+                      title="Configurar campos"
+                      [class.active]="showConfigPanel">
+                <i class="bi bi-gear me-1"></i>
+                <span class="badge bg-primary">{{ getActiveFieldsCount() }}</span>
+              </button>
+              <button class="btn btn-sm btn-outline-dark" 
+                      (click)="clearCanvas()" 
+                      [disabled]="selectedLabels.length === 0"
+                      title="Limpiar lienzo">
+                <i class="bi bi-trash"></i>
+              </button>
+              <button class="btn btn-sm btn-dark" 
+                      (click)="generatePdf()" 
+                      [disabled]="selectedLabels.length === 0 || isGeneratingPdf">
+                @if (isGeneratingPdf) {
+                  <span class="spinner-border spinner-border-sm me-1"></span>
+                } @else {
+                  <i class="bi bi-file-pdf me-1"></i>
+                }
+                Generar PDF
+              </button>
+            </div>
+          </div>
+          
+          <!-- Panel de Configuración de Campos -->
+          @if (showConfigPanel) {
+            <div class="config-panel mt-3 p-3 bg-white rounded border">
+              <h6 class="mb-3 fw-bold">
+                <i class="bi bi-sliders me-2"></i>
+                Campos visibles en la etiqueta
+              </h6>
+              <div class="row g-2">
+                <div class="col-6">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" 
+                           id="showProductDescription" 
+                           [(ngModel)]="labelConfig.showProductDescription">
+                    <label class="form-check-label" for="showProductDescription">
+                      <i class="bi bi-card-text me-1"></i> Descripción del producto
+                    </label>
+                  </div>
+                </div>
+                <div class="col-6">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" 
+                           id="showBarcode" 
+                           [(ngModel)]="labelConfig.showBarcode">
+                    <label class="form-check-label" for="showBarcode">
+                      <i class="bi bi-upc me-1"></i> Código de barras
+                    </label>
+                  </div>
+                </div>
+                <div class="col-6">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" 
+                           id="showPresentationLabel" 
+                           [(ngModel)]="labelConfig.showPresentationLabel">
+                    <label class="form-check-label" for="showPresentationLabel">
+                      <i class="bi bi-tag me-1"></i> Presentación
+                    </label>
+                  </div>
+                </div>
+                <div class="col-6">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" 
+                           id="showPrice" 
+                           [(ngModel)]="labelConfig.showPrice">
+                    <label class="form-check-label" for="showPrice">
+                      <i class="bi bi-currency-dollar me-1"></i> Precio
+                    </label>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-2">
+                <small class="text-muted">
+                  <i class="bi bi-info-circle me-1"></i>
+                  Selecciona qué información mostrar en las etiquetas del PDF
+                </small>
+              </div>
+            </div>
+          }
+        </div>
+        
+        <div class="card-body canvas-area p-3"
+             (dragover)="onDragOver($event)"
+             (drop)="onDropOnCanvas($event)"
+             style="min-height: 60vh; overflow-y: auto;">
+          
+          @if (selectedLabels.length === 0) {
+            <div class="drop-zone d-flex flex-column align-items-center justify-content-center h-100 text-muted border-2 border-dashed rounded p-5">
+              <i class="bi bi-cloud-arrow-down display-1 mb-3"></i>
+              <h5>Arrastra etiquetas aquí</h5>
+              <p class="text-center mb-0">
+                Selecciona productos del panel izquierdo y arrastra las presentaciones<br>
+                o haz clic en el botón <i class="bi bi-plus-lg"></i> para agregarlas
+              </p>
+            </div>
+          } @else {
+            <div class="labels-grid">
+              @for (item of selectedLabels; track item.id; let i = $index) {
+                <div class="label-card"
+                     draggable="true"
+                     (dragstart)="onDragStartFromCanvas($event, item, i)"
+                     (dragover)="onDragOverItem($event, i)"
+                     (dragleave)="onDragLeaveItem()"
+                     (drop)="onDropOnItem($event, i)"
+                     (dragend)="onDragEnd()"
+                     [class.drag-over]="dragOverIndex === i">
+                  
+                  <!-- Drag handle -->
+                  <div class="label-drag-handle">
+                    <i class="bi bi-grip-vertical"></i>
+                  </div>
+                  
+                  <!-- Contenido de la etiqueta -->
+                  <div class="label-content">
+                    <div class="label-product-name" title="{{ item.productDescription }}">
+                      {{ item.productDescription }}
+                    </div>
+                    
+                    <div class="label-barcode-preview">
+                      <div class="barcode-lines">
+                        @for (line of [1,2,3,4,5,6,7,8,9,10,11,12]; track line) {
+                          <div class="barcode-line" 
+                               [style.width.px]="line % 3 === 0 ? 2 : 1"
+                               [style.height.px]="20 + (line % 4) * 2"></div>
+                        }
+                      </div>
+                      <small class="barcode-number">{{ item.barcode }}</small>
+                    </div>
+                    
+                    <div class="label-presentation">{{ item.label || 'Sin etiqueta' }}</div>
+                    <div class="label-price">{{ formatPrice(item.salePrice, item.isBulk, item.unitMeasure) }}</div>
+                  </div>
+                  
+                  <!-- Controles -->
+                  <div class="label-controls">
+                    <div class="quantity-control">
+                      <button class="btn btn-sm btn-outline-secondary" 
+                              (click)="updateQuantity(i, -1)"
+                              [disabled]="item.quantity <= 1">
+                        <i class="bi bi-dash"></i>
+                      </button>
+                      <span class="quantity-value">{{ item.quantity }}</span>
+                      <button class="btn btn-sm btn-outline-secondary" 
+                              (click)="updateQuantity(i, 1)"
+                              [disabled]="item.quantity >= 100">
+                        <i class="bi bi-plus"></i>
+                      </button>
+                    </div>
+                    <div class="action-buttons">
+                      <button class="btn btn-sm btn-outline-primary" 
+                              (click)="duplicateItem(i)" 
+                              title="Duplicar">
+                        <i class="bi bi-copy"></i>
+                      </button>
+                      <button class="btn btn-sm btn-outline-secondary" 
+                              (click)="moveItem(i, 'up')" 
+                              [disabled]="i === 0"
+                              title="Mover arriba">
+                        <i class="bi bi-arrow-up"></i>
+                      </button>
+                      <button class="btn btn-sm btn-outline-secondary" 
+                              (click)="moveItem(i, 'down')" 
+                              [disabled]="i === selectedLabels.length - 1"
+                              title="Mover abajo">
+                        <i class="bi bi-arrow-down"></i>
+                      </button>
+                      <button class="btn btn-sm btn-outline-danger" 
+                              (click)="removeFromCanvas(i)" 
+                              title="Eliminar">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+        
+        <div class="card-footer bg-light">
+          <div class="d-flex justify-content-between align-items-center">
+            <small class="text-muted">
+              <i class="bi bi-lightbulb me-1"></i>
+              Arrastra para reordenar · Usa los controles de cantidad para imprimir múltiples copias
+            </small>
+            @if (selectedLabels.length > 0) {
+              <span class="badge bg-primary">
+                {{ selectedLabels.length }} items · {{ getTotalLabels() }} etiquetas totales
+              </span>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
