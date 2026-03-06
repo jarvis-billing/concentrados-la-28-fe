@@ -92,7 +92,14 @@
               <option value="CREDITO">CREDITO</option>
             </select>
           </div>
-          <div class="col-12 col-md-6">
+          <div class="col-12 col-md-3">
+            <label class="form-label">Tarifa de flete por unidad <small class="text-muted">(Opcional)</small></label>
+            <div class="input-group">
+              <span class="input-group-text">$</span>
+              <input class="form-control" type="text" formControlName="freightRate" appCurrencyFormat placeholder="0">
+            </div>
+          </div>
+          <div class="col-12 col-md-3">
             <label class="form-label">Notas</label>
             <input class="form-control" formControlName="notes" placeholder="Opcional">
           </div>
@@ -167,12 +174,17 @@
           <table class="table table-sm table-hover align-middle m-0">
             <thead class="table-light">
               <tr>
-                <th style="min-width: 260px;">Producto / Presentación</th>
+                <th style="min-width: 240px;">Producto / Presentación</th>
                 <th>Descripción</th>
-                <th class="text-end">Cantidad</th>
-                <th class="text-end">Costo unit.</th>
-                <th class="text-end">Total</th>
-                <th class="text-end">Acciones</th>
+                <th class="text-end" style="width: 90px;">Cantidad</th>
+                <th class="text-end" style="width: 120px;">Costo unit.</th>
+                <th class="text-center" style="width: 90px;">IVA %</th>
+                <th class="text-end" style="width: 100px;">Val. IVA</th>
+                <th class="text-center" style="width: 70px;" title="Marcar para aplicar flete a este producto">Flete</th>
+                <th class="text-end" style="width: 100px;" title="Tarifa × cantidad">Val. Flete</th>
+                <th class="text-end" style="width: 120px;" title="Costo unit. + IVA/u + Flete/u">Costo/u total</th>
+                <th class="text-end" style="width: 120px;">Subtotal</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -194,39 +206,64 @@
                 <td class="text-end" style="max-width: 140px;">
                   <input class="form-control text-end" type="text" formControlName="unitCost" appCurrencyFormat>
                 </td>
-                <td class="text-end" style="width: 140px;">
-                  <input class="form-control text-end" [value]="it.get('totalCost')?.value | number:'1.0-0'" readonly>
+                <td class="text-center">
+                  <div class="input-group input-group-sm">
+                    <input class="form-control text-end" type="number" min="0" max="100" step="0.1"
+                      formControlName="vatRate" placeholder="0">
+                    <span class="input-group-text">%</span>
+                  </div>
                 </td>
-                <td class="text-end" style="width: 120px;">
+                <td class="text-end text-success small">
+                  {{ it.get('vatAmount')?.value | number:'1.0-0' }}
+                </td>
+                <td class="text-center">
+                  <div class="form-check d-flex justify-content-center m-0">
+                    <input class="form-check-input" type="checkbox" formControlName="applyFreight"
+                      title="Aplicar flete a este producto">
+                  </div>
+                </td>
+                <td class="text-end text-warning small">
+                  @if ((it.get('freightAmount')?.value ?? 0) > 0) {
+                    {{ it.get('freightAmount')?.value | number:'1.0-0' }}
+                  } @else {
+                    <span class="text-muted">-</span>
+                  }
+                </td>
+                <td class="text-end text-primary small fw-semibold">
+                  {{ getUnitTotal(it) | number:'1.0-0' }}
+                </td>
+                <td class="text-end fw-semibold">
+                  {{ it.get('totalCost')?.value | number:'1.0-0' }}
+                </td>
+                <td>
                   <button type="button" class="btn btn-sm btn-outline-danger" (click)="removeItem(i)">Quitar</button>
                 </td>
               </tr>
               @if (itemsArray.controls.length) {
-                <tr class="table-light fw-bold">
-                  <td colspan="2" class="text-end">
-                    @if (isEditMode) {
-                      Nuevos ítems: {{ itemsArray.length }}
-                    } @else {
-                      Total ítems: {{ itemsArray.length }}
-                    }
-                  </td>
-                  <td></td>
-                  <td class="text-end">
-                    @if (isEditMode) {
-                      Subtotal nuevos:
-                    } @else {
-                      TOTAL COMPRA
-                    }
-                  </td>
-                  <td class="text-end">{{ itemsTotal | number:'1.0-0' }}</td>
+                <tr class="table-light border-top">
+                  <td colspan="9" class="text-end text-muted small py-1">Subtotal (sin IVA ni flete):</td>
+                  <td class="text-end fw-semibold">{{ itemsTotal | number:'1.0-0' }}</td>
                   <td></td>
                 </tr>
-              }
-              @if (isEditMode) {
-                <tr class="table-primary fw-bold">
+                <tr class="table-light">
+                  <td colspan="5" class="text-end text-success small py-1">+ Total IVA:</td>
+                  <td class="text-end text-success fw-semibold">{{ itemsVatTotal | number:'1.0-0' }}</td>
                   <td colspan="3"></td>
-                  <td class="text-end">TOTAL GENERAL:</td>
-                  <td class="text-end">{{ grandTotal | number:'1.0-0' }}</td>
+                  <td class="text-end text-success fw-semibold">{{ itemsVatTotal | number:'1.0-0' }}</td>
+                  <td></td>
+                </tr>
+                @if (freightCost > 0) {
+                  <tr class="table-light">
+                    <td colspan="6" class="text-end text-warning small py-1">+ Flete total:</td>
+                    <td></td>
+                    <td class="text-end text-warning fw-semibold">{{ freightCost | number:'1.0-0' }}</td>
+                    <td colspan="2" class="text-end text-warning fw-semibold">{{ freightCost | number:'1.0-0' }}</td>
+                    <td></td>
+                  </tr>
+                }
+                <tr class="table-primary fw-bold">
+                  <td colspan="9" class="text-end py-2">TOTAL COMPRA:</td>
+                  <td class="text-end fs-6">{{ grandTotalWithVatAndFreight | number:'1.0-0' }}</td>
                   <td></td>
                 </tr>
               }

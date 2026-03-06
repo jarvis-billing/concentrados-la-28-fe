@@ -64,6 +64,7 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
     invoiceNumber: ['', [Validators.required]],
     emissionDate: [this.todayIso(), [Validators.required]],
     paymentType: ['CONTADO', [Validators.required]],
+    freightRate: [0],
     items: this.fb.array([]),
     notes: [''],
     supportDocument: ['']
@@ -88,6 +89,9 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
     if (!this.isEditMode) {
       this.setupAutoSave();
     }
+
+    // Recalcular flete cuando cambie la tarifa de flete en el encabezado
+    this.form.get('freightRate')?.valueChanges.subscribe(() => this.recalcFreight());
   }
 
   ngOnDestroy() {
@@ -106,7 +110,28 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
     }, 0);
   }
 
+  get itemsVatTotal(): number {
+    return this.itemsArray.controls.reduce((acc, ctrl) => {
+      const g = ctrl as FormGroup;
+      const vat = Number(g.get('vatAmount')?.value || 0);
+      return acc + (isFinite(vat) ? vat : 0);
+    }, 0);
+  }
+
+  get freightCost(): number {
+    return this.itemsArray.controls.reduce((acc, ctrl) => {
+      const g = ctrl as FormGroup;
+      const v = Number(g.get('freightAmount')?.value || 0);
+      return acc + (isFinite(v) ? v : 0);
+    }, 0);
+  }
+
+  get grandTotalWithVatAndFreight(): number {
+    return this.itemsTotal + this.itemsVatTotal + this.freightCost;
+  }
+
   addItem() {
+    const defaultVat = this.selectedSupplier?.defaultVatRate ?? 0;
     const g = this.fb.group({
       productId: [''],
       presentationId: ['', [Validators.required]],
@@ -114,7 +139,11 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
       description: ['', [Validators.required]],
       quantity: [1, [Validators.required, Validators.min(0.01)]],
       unitCost: ['0', [Validators.required]],
+      vatRate: [defaultVat],
+      vatAmount: [{ value: 0, disabled: true }],
       totalCost: [{ value: 0, disabled: true }],
+      applyFreight: [false],
+      freightAmount: [{ value: 0, disabled: true }],
       category: ['']
     });
     g.valueChanges.subscribe(() => this.recalcItem(g));
@@ -166,8 +195,31 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
   recalcItem(g: FormGroup) {
     const qty = Number(g.get('quantity')?.value || 0);
     const unit = this.normalizeToNumber(g.get('unitCost')?.value);
-    const total = qty * (unit || 0);
-    g.get('totalCost')?.setValue(total, { emitEvent: false });
+    const vatRate = Number(g.get('vatRate')?.value || 0);
+    const subtotal = qty * (unit || 0);
+    const vatAmount = subtotal * (vatRate / 100);
+    g.get('vatAmount')?.setValue(vatAmount, { emitEvent: false });
+    g.get('totalCost')?.setValue(subtotal, { emitEvent: false });
+    this.recalcFreight();
+  }
+
+  getUnitTotal(g: FormGroup): number {
+    const unit = this.normalizeToNumber(g.get('unitCost')?.value) || 0;
+    const vatRate = Number(g.get('vatRate')?.value || 0);
+    const applies = g.get('applyFreight')?.value === true;
+    const freightRate = this.normalizeToNumber(this.form.get('freightRate')?.value) || 0;
+    return unit + unit * (vatRate / 100) + (applies ? freightRate : 0);
+  }
+
+  recalcFreight() {
+    const freightRate = this.normalizeToNumber(this.form.get('freightRate')?.value) || 0;
+    this.itemsArray.controls.forEach(ctrl => {
+      const g = ctrl as FormGroup;
+      const applies = g.get('applyFreight')?.value === true;
+      const qty = Number(g.get('quantity')?.value || 0);
+      const freightAmount = (applies && freightRate > 0) ? freightRate * qty : 0;
+      g.get('freightAmount')?.setValue(Math.round(freightAmount), { emitEvent: false });
+    });
   }
 
   loadSuppliers() {
@@ -200,6 +252,13 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
     this.supplierSearchText = `${supplier.name} (${supplier.documentType} ${supplier.idNumber})`;
     this.form.patchValue({ supplierId: supplier.id });
     this.showSupplierDropdown = false;
+    // Auto-aplicar IVA por defecto del proveedor a todos los ítems existentes
+    const defaultVat = supplier.defaultVatRate ?? 0;
+    this.itemsArray.controls.forEach(ctrl => {
+      const g = ctrl as FormGroup;
+      g.get('vatRate')?.setValue(defaultVat, { emitEvent: false });
+      this.recalcItem(g);
+    });
   }
 
   clearSupplierSelection() {
@@ -260,15 +319,27 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const mappedItems = validItems.map((it: any) => ({
-      productId: it.productId,
-      presentationId: it.presentationId,
-      presentationBarcode: it.presentationBarcode,
-      description: it.description,
-      quantity: Number(it.quantity),
-      unitCost: this.normalizeToNumber(it.unitCost),
-      totalCost: Number(it.quantity) * this.normalizeToNumber(it.unitCost)
-    }));
+    // getRawValue() ya incluye los campos disabled (vatAmount, totalCost, freightAmount)
+    const mappedItems = validItems.map((it: any) => {
+      const qty = Number(it.quantity);
+      const unit = this.normalizeToNumber(it.unitCost);
+      const vatRate = Number(it.vatRate || 0);
+      const totalCost = qty * unit;
+      const vatAmount = totalCost * (vatRate / 100);
+      return {
+        productId: it.productId,
+        presentationId: it.presentationId,
+        presentationBarcode: it.presentationBarcode,
+        description: it.description,
+        quantity: qty,
+        unitCost: unit,
+        totalCost: totalCost,
+        vatRate: vatRate,
+        vatAmount: vatAmount,
+        applyFreight: it.applyFreight || false,
+        freightAmount: Number(it.freightAmount || 0)
+      };
+    });
 
     if (this.isEditMode && this.editingInvoiceId) {
       // Modo edición: agregar nuevos items a factura existente
@@ -280,6 +351,10 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
   }
 
   private createNewInvoice(raw: any, selectedSupplier: any, mappedItems: any[], validItems: any[]): void {
+    const subtotal = mappedItems.reduce((acc: number, it: any) => acc + it.totalCost, 0);
+    const totalVat = mappedItems.reduce((acc: number, it: any) => acc + it.vatAmount, 0);
+    const freightRate = this.normalizeToNumber(raw.freightRate) || 0;
+    const freightCost = mappedItems.reduce((acc: number, it: any) => acc + (it.freightAmount || 0), 0);
     const payload: any = {
       supplier: {
         id: selectedSupplier.id,
@@ -289,7 +364,11 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
       invoiceDate: raw.emissionDate,
       paymentType: raw.paymentType,
       items: mappedItems,
-      total: mappedItems.reduce((acc: number, it: any) => acc + it.totalCost, 0),
+      subtotal: subtotal,
+      totalVat: totalVat,
+      freightRate: freightRate,
+      freightCost: freightCost,
+      total: subtotal + totalVat + freightCost,
       notes: raw.notes || '',
       supportDocument: raw.supportDocument || undefined
     };
@@ -414,6 +493,7 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
       invoiceNumber: '',
       emissionDate: this.todayIso(),
       paymentType: 'CONTADO',
+      freightRate: 0,
       notes: '',
       supportDocument: ''
     });
@@ -578,7 +658,11 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
             description: [item.description || '', [Validators.required]],
             quantity: [item.quantity || 1, [Validators.required, Validators.min(0.01)]],
             unitCost: [item.unitCost || '0', [Validators.required]],
+            vatRate: [item.vatRate ?? (this.selectedSupplier?.defaultVatRate ?? 0)],
+            vatAmount: [{ value: item.vatAmount || 0, disabled: true }],
             totalCost: [{ value: item.totalCost || 0, disabled: true }],
+            applyFreight: [item.applyFreight || false],
+            freightAmount: [{ value: item.freightAmount || 0, disabled: true }],
             category: [item.category || '']
           });
           g.valueChanges.subscribe(() => this.recalcItem(g));

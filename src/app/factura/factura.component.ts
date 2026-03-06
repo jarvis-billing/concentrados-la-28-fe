@@ -634,6 +634,9 @@ export class FacturaComponent implements OnInit, AfterViewInit {
     const bulkInputAmount = (selectProduct as any)._bulkInputAmount as number | undefined;
     const isBulkSale = !!bulkInputAmount;
     
+    // Obtener batchId si existe (para productos de ANIMALES VIVOS)
+    const batchId = (selectProduct as any).batchId as string | undefined;
+    
     // Para granel: subtotal = monto exacto ingresado por el usuario
     // Para normal: subtotal = cantidad * precio
     const subTotal = bulkInputAmount ?? (selectProduct.amount * selectProduct.price);
@@ -646,11 +649,13 @@ export class FacturaComponent implements OnInit, AfterViewInit {
       subTotal: subTotal,
       totalVat: 0,
       isBulkSale: isBulkSale,
-      bulkInputAmount: bulkInputAmount
+      bulkInputAmount: bulkInputAmount,
+      batchId: batchId
     };
     
-    // Limpiar el campo temporal del producto
+    // Limpiar los campos temporales del producto
     delete (selectProduct as any)._bulkInputAmount;
+    delete (selectProduct as any).batchId;
 
     // Suscribimos a `calculateVatPrice` y asignamos `totalVat` cuando esté listo
     /* this.calculateVatPrice(selectProduct.price, selectProduct.amount, selectProduct.vatType)

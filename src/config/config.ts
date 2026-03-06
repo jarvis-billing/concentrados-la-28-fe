@@ -2,7 +2,7 @@ export const urlConfig = {
     
     //For local server use:
     
-    //baseUrl: 'http://localhost:8080',
+    // baseUrl: 'http://localhost:8080',
     
     
     //For remote server use:

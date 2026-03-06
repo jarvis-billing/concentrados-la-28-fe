@@ -27,6 +27,7 @@ export class SuppliersPageComponent {
     email: ['', [Validators.email]],
     address: ['', [Validators.required]],
     status: ['ACTIVE' as SupplierStatus, [Validators.required]],
+    defaultVatRate: [0],
   });
 
   ngOnInit() {
@@ -46,7 +47,8 @@ export class SuppliersPageComponent {
       phone: '',
       email: '',
       address: '',
-      status: 'ACTIVE'
+      status: 'ACTIVE',
+      defaultVatRate: 0
     });
   }
 

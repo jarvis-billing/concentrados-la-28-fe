@@ -9,4 +9,5 @@ export interface Supplier {
   email?: string;
   address: string; // domicilio
   status: SupplierStatus;
+  defaultVatRate?: number; // % IVA por defecto (ej: 0, 5, 19)
 }

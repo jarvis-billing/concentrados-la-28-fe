@@ -9,4 +9,5 @@ export class SaleDetail {
     totalVat: number = 0;
     isBulkSale: boolean = false;  // Indica si es venta a granel (peso/volumen/longitud)
     bulkInputAmount?: number;     // Monto en dinero ingresado por el usuario (solo para granel)
+    batchId?: string;             // ID del lote para productos de ANIMALES VIVOS
 }
