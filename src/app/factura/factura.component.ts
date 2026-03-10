@@ -308,8 +308,8 @@ export class FacturaComponent implements OnInit, AfterViewInit {
       }
       const totalMoney = numeric;
       bulkInputAmount = totalMoney; // Guardar el monto exacto ingresado
-      // Calcular cantidad con más decimales para referencia visual (sin redondear agresivamente)
-      resolvedAmount = totalMoney / unitPrice;
+      // Calcular cantidad redondeada a 4 decimales
+      resolvedAmount = Math.round((totalMoney / unitPrice) * 10000) / 10000;
     } else {
       // Caso normal: el usuario ingresa la CANTIDAD
       resolvedAmount = numeric;
@@ -1096,8 +1096,8 @@ export class FacturaComponent implements OnInit, AfterViewInit {
       const unitPrice = Number(this.productToSell?.price) || 0;
       // Guardar el monto exacto ingresado (sin redondeo)
       this.bulkInputValue = numeric;
-      // Calcular cantidad con más decimales para referencia visual
-      this.bulkComputedAmount = unitPrice > 0 ? (numeric / unitPrice) : 0;
+      // Calcular cantidad redondeada a 4 decimales para referencia visual
+      this.bulkComputedAmount = unitPrice > 0 ? Math.round((numeric / unitPrice) * 10000) / 10000 : 0;
     } else {
       this.bulkComputedAmount = 0;
       this.bulkInputValue = 0;
