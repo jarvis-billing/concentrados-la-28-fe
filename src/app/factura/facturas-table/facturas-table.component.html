@@ -104,13 +104,29 @@
         
         <!-- BOTONES -->
         <div class="row g-3 mt-2">
-          <div class="col-12">
+          <div class="col-12 d-flex flex-wrap gap-2">
             <button class="btn btn-primary" type="button" (click)="applyFilters()">
               <i class="bi bi-funnel"></i> Aplicar filtros
             </button>
-            <button class="btn btn-outline-secondary ms-2" type="button" (click)="clearFilters()">
+            <button class="btn btn-outline-secondary" type="button" (click)="clearFilters()">
               <i class="bi bi-x-circle"></i> Limpiar
             </button>
+            <div class="vr d-none d-md-block"></div>
+            <div class="btn-group">
+              <button class="btn btn-danger" type="button" (click)="generateSalesReportPdf(true)"
+                      [disabled]="isGeneratingPdf || filteredBilling.length === 0"
+                      title="PDF con detalle de productos por factura">
+                @if (isGeneratingPdf) {
+                  <span class="spinner-border spinner-border-sm me-1"></span>
+                }
+                <i class="bi bi-file-earmark-pdf me-1"></i> PDF Detallado
+              </button>
+              <button class="btn btn-outline-danger" type="button" (click)="generateSalesReportPdf(false)"
+                      [disabled]="isGeneratingPdf || filteredBilling.length === 0"
+                      title="PDF solo resumen (sin detalle de productos)">
+                <i class="bi bi-file-pdf me-1"></i> PDF Resumen
+              </button>
+            </div>
           </div>
         </div>
       </form>
