@@ -43,6 +43,7 @@ export class CashCountPageComponent implements OnInit {
     
     // Totales esperados del sistema
     expectedCashAmount: number = 0;
+    expectedCashTotal: number = 0;
     expectedTransferAmount: number = 0;
     expectedOtherAmount: number = 0;
     totalIncome: number = 0;
@@ -105,6 +106,7 @@ export class CashCountPageComponent implements OnInit {
                 this.totalIncome = summary.totalIncome;
                 this.totalExpense = summary.totalExpense;
                 this.expectedCashAmount = summary.expectedCashAmount;
+                this.expectedCashTotal = summary.expectedCashTotal ?? (this.openingBalance + summary.expectedCashAmount);
                 this.expectedTransferAmount = summary.expectedTransferAmount;
                 this.expectedOtherAmount = summary.expectedOtherAmount;
                 this.isLoading = false;
@@ -168,7 +170,7 @@ export class CashCountPageComponent implements OnInit {
     }
 
     get expectedTotalCash(): number {
-        return this.openingBalance + this.expectedCashAmount;
+        return this.expectedCashTotal || (this.openingBalance + this.expectedCashAmount);
     }
 
     get cashDifference(): number {
@@ -313,7 +315,10 @@ export class CashCountPageComponent implements OnInit {
         input.value = this.formatCurrencyInput(this.openingBalance);
     }
 
-    getCategoryLabel(category: string): string {
+    getCategoryLabel(category: string, description?: string): string {
+        if (category === 'AJUSTE' && description && description.toLowerCase().includes('cambio venta')) {
+            return 'Cambio entregado';
+        }
         const labels: Record<string, string> = {
             'VENTA': 'Venta',
             'PAGO_CREDITO': 'Pago de Crédito',
@@ -323,6 +328,13 @@ export class CashCountPageComponent implements OnInit {
             'AJUSTE': 'Ajuste'
         };
         return labels[category] || category;
+    }
+
+    getCategoryBadgeClassForTx(tx: CashTransaction): string {
+        if (tx.category === 'AJUSTE' && tx.description?.toLowerCase().includes('cambio venta')) {
+            return 'bg-warning text-dark';
+        }
+        return this.getCategoryBadgeClass(tx.category);
     }
 
     getCategoryBadgeClass(category: string): string {
@@ -362,5 +374,17 @@ export class CashCountPageComponent implements OnInit {
 
     get totalPagosProveedor(): number {
         return this.getTotalByCategory('PAGO_PROVEEDOR');
+    }
+
+    get totalCambiosEntregados(): number {
+        return this.transactions
+            .filter(t => t.category === 'AJUSTE' && t.description?.toLowerCase().includes('cambio venta'))
+            .reduce((sum, t) => sum + t.amount, 0);
+    }
+
+    get totalAjustes(): number {
+        return this.transactions
+            .filter(t => t.category === 'AJUSTE' && !t.description?.toLowerCase().includes('cambio venta'))
+            .reduce((sum, t) => sum + t.amount, 0);
     }
 }

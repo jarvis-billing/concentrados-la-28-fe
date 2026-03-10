@@ -126,7 +126,7 @@
                                             <td class="text-end">{{ formatCurrency(report.openingBalance) }}</td>
                                             <td class="text-end text-success">{{ formatCurrency(report.totalIncome) }}</td>
                                             <td class="text-end text-danger">{{ formatCurrency(report.totalExpense) }}</td>
-                                            <td class="text-end">{{ formatCurrency(report.expectedCash) }}</td>
+                                            <td class="text-end">{{ formatCurrency(report.expectedCashTotal ?? report.expectedCash) }}</td>
                                             <td class="text-end">{{ formatCurrency(report.countedCash) }}</td>
                                             <td class="text-end fw-bold" [ngClass]="getDifferenceClass(report.difference)">
                                                 {{ formatCurrency(report.difference) }}

@@ -161,7 +161,7 @@ export class CashCountReportsComponent implements OnInit {
             r.openingBalance,
             r.totalIncome,
             r.totalExpense,
-            r.expectedCash,
+            r.expectedCashTotal ?? r.expectedCash,
             r.countedCash,
             r.difference,
             this.getStatusLabel(r.status),

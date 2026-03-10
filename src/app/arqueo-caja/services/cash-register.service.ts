@@ -29,6 +29,7 @@ export class CashRegisterService {
         totalIncome: number;
         totalExpense: number;
         expectedCashAmount: number;
+        expectedCashTotal: number;
         expectedTransferAmount: number;
         expectedOtherAmount: number;
     }> {

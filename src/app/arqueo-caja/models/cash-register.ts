@@ -61,12 +61,13 @@ export interface CashCountSession {
     paymentMethodSummaries: PaymentMethodSummary[];
     
     // Totales calculados del sistema
-    expectedCashAmount: number;    // Efectivo esperado según sistema
+    expectedCashAmount: number;     // Neto de movimientos en efectivo del día
+    expectedCashTotal: number;      // Efectivo total esperado en caja = openingBalance + expectedCashAmount
     expectedTransferAmount: number; // Transferencias esperadas
-    expectedOtherAmount: number;   // Otros métodos esperados
+    expectedOtherAmount: number;    // Otros métodos esperados
     
     // Diferencias
-    cashDifference: number;        // Diferencia en efectivo (contado - esperado)
+    cashDifference: number;        // Diferencia en efectivo (contado - expectedCashTotal)
     
     // Transacciones del día
     transactions: CashTransaction[];
@@ -99,7 +100,8 @@ export interface DailyCashSummary {
     openingBalance: number;
     totalIncome: number;
     totalExpense: number;
-    expectedCash: number;
+    expectedCash: number;       // Neto de movimientos en efectivo (legacy)
+    expectedCashTotal: number;  // Efectivo total esperado = openingBalance + neto efectivo
     countedCash: number;
     difference: number;
     status: CashCountStatus;

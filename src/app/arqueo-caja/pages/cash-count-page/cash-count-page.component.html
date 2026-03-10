@@ -213,14 +213,15 @@
                                 </div>
                                 <div class="col-md-3 mb-3 mb-md-0">
                                     <div class="border rounded p-3">
-                                        <small class="text-muted d-block">Efectivo Esperado</small>
+                                        <small class="text-muted d-block">Neto Efectivo día</small>
                                         <h4 class="mb-0 text-info">{{ formatCurrency(expectedCashAmount) }}</h4>
                                     </div>
                                 </div>
                                 <div class="col-md-3 mb-3 mb-md-0">
                                     <div class="border rounded p-3 bg-light">
-                                        <small class="text-muted d-block">Total Esperado</small>
+                                        <small class="text-muted d-block">Esperado en Caja</small>
                                         <h4 class="mb-0 text-primary">{{ formatCurrency(expectedTotalCash) }}</h4>
+                                        <small class="text-muted">Base + Neto efectivo</small>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
@@ -230,12 +231,39 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <!-- Desglose por método de pago -->
                             <hr>
+                            <h6 class="text-muted mb-3"><i class="bi bi-wallet2 me-1"></i>Desglose por método de pago</h6>
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-4">
+                                    <div class="border rounded p-3 text-center border-success">
+                                        <small class="text-muted d-block"><i class="bi bi-cash me-1"></i>Efectivo esperado</small>
+                                        <h5 class="mb-0 text-success">{{ formatCurrency(expectedTotalCash) }}</h5>
+                                        <small class="text-muted">Incluye en conteo físico</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="border rounded p-3 text-center border-primary">
+                                        <small class="text-muted d-block"><i class="bi bi-bank me-1"></i>Transferencias (neto)</small>
+                                        <h5 class="mb-0 text-primary">{{ formatCurrency(expectedTransferAmount) }}</h5>
+                                        <small class="text-muted">No aplica conteo físico</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="border rounded p-3 text-center border-secondary">
+                                        <small class="text-muted d-block"><i class="bi bi-credit-card me-1"></i>Otros métodos (neto)</small>
+                                        <h5 class="mb-0">{{ formatCurrency(expectedOtherAmount) }}</h5>
+                                        <small class="text-muted">No aplica conteo físico</small>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="row">
                                 <div class="col-md-6 offset-md-3">
                                     <div class="card" [ngClass]="cashDifference === 0 ? 'border-success bg-success-subtle' : (cashDifference > 0 ? 'border-info bg-info-subtle' : 'border-danger bg-danger-subtle')">
                                         <div class="card-body text-center py-4">
-                                            <h5 class="mb-2">Diferencia</h5>
+                                            <h5 class="mb-2">Diferencia (Contado vs Esperado)</h5>
                                             <h2 class="mb-1" [ngClass]="differenceClass">
                                                 {{ formatCurrency(Math.abs(cashDifference)) }}
                                             </h2>
@@ -323,8 +351,8 @@
                                                 </span>
                                             </td>
                                             <td>
-                                                <span class="badge" [ngClass]="getCategoryBadgeClass(tx.category)">
-                                                    {{ getCategoryLabel(tx.category) }}
+                                                <span class="badge" [ngClass]="getCategoryBadgeClassForTx(tx)">
+                                                    {{ getCategoryLabel(tx.category, tx.description) }}
                                                 </span>
                                             </td>
                                             <td>{{ tx.description }}</td>
@@ -384,8 +412,8 @@
                                                 </span>
                                             </td>
                                             <td>
-                                                <span class="badge" [ngClass]="getCategoryBadgeClass(tx.category)">
-                                                    {{ getCategoryLabel(tx.category) }}
+                                                <span class="badge" [ngClass]="getCategoryBadgeClassForTx(tx)">
+                                                    {{ getCategoryLabel(tx.category, tx.description) }}
                                                 </span>
                                             </td>
                                             <td>{{ tx.description }}</td>
@@ -447,8 +475,8 @@
                                                 </span>
                                             </td>
                                             <td>
-                                                <span class="badge" [ngClass]="getCategoryBadgeClass(tx.category)">
-                                                    {{ getCategoryLabel(tx.category) }}
+                                                <span class="badge" [ngClass]="getCategoryBadgeClassForTx(tx)">
+                                                    {{ getCategoryLabel(tx.category, tx.description) }}
                                                 </span>
                                             </td>
                                             <td>{{ tx.description }}</td>
@@ -583,6 +611,18 @@
                                             <span><span class="badge bg-warning text-dark me-2">Pagos a Proveedores</span></span>
                                             <strong>{{ formatCurrency(totalPagosProveedor) }}</strong>
                                         </li>
+                                        @if (totalCambiosEntregados > 0) {
+                                            <li class="list-group-item d-flex justify-content-between">
+                                                <span><span class="badge bg-warning text-dark me-2">Cambios entregados</span></span>
+                                                <strong>{{ formatCurrency(totalCambiosEntregados) }}</strong>
+                                            </li>
+                                        }
+                                        @if (totalAjustes > 0) {
+                                            <li class="list-group-item d-flex justify-content-between">
+                                                <span><span class="badge bg-secondary me-2">Ajustes</span></span>
+                                                <strong>{{ formatCurrency(totalAjustes) }}</strong>
+                                            </li>
+                                        }
                                     </ul>
                                 </div>
                             </div>
