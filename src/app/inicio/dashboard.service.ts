@@ -42,7 +42,8 @@ export class DashboardService {
       billNumber: '',
       userSale: '',
       client: '',
-      product: ''
+      product: '',
+      paymentMethod: ''
     };
 
     const weekFilter: BillingReportFilter = { 
@@ -51,7 +52,8 @@ export class DashboardService {
       billNumber: '',
       userSale: '',
       client: '',
-      product: ''
+      product: '',
+      paymentMethod: ''
     };
 
     const monthFilter: BillingReportFilter = { 
@@ -60,7 +62,8 @@ export class DashboardService {
       billNumber: '',
       userSale: '',
       client: '',
-      product: ''
+      product: '',
+      paymentMethod: ''
     };
 
     console.log('Dashboard filters:', { todayFilter, weekFilter, monthFilter });

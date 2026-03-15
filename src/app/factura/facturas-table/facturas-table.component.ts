@@ -1,6 +1,6 @@
 import { Component, inject, OnInit, ViewChild } from '@angular/core';
 import { FacturaService } from '../factura.service';
-import { Billing, BillingReportFilter } from '../billing';
+import { Billing, BillingReportFilter, BillingReportFilterPaged, PageResponse, SalesTotals } from '../billing';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ClienteService } from '../../cliente/cliente.service';
 import { Client } from '../../cliente/cliente';
@@ -48,13 +48,27 @@ export class FacturasTableComponent implements OnInit {
   isLoading: boolean = false;
   userLogin = this.loginUserService.getUserFromToken();
 
+  // Paginación server-side
+  Math = Math;
+  currentPage: number = 0;
+  pageSize: number = 20;
+  totalElements: number = 0;
+  totalPages: number = 0;
+  isFirstPage: boolean = true;
+  isLastPage: boolean = false;
+
+  // Totales del servidor
+  salesTotals: SalesTotals | null = null;
+  isLoadingTotals: boolean = false;
+
   filterForm: FormGroup = this.fb.group({
     startDate: [''],
     endDate: [''],
     clientId: [''],
     productSearch: [''],
     saleType: [''],
-    billNumber: ['']
+    billNumber: [''],
+    paymentMethod: ['']
   });
 
   openSaleDetailModal(billing: any): void {
@@ -80,89 +94,153 @@ export class FacturasTableComponent implements OnInit {
   ngOnInit(): void {
     const now = new Date();
     this.today = now.toISOString().split('T')[0];
+    this.filterForm.patchValue({
+      startDate: this.today,
+      endDate: this.today
+    });
     this.clientService.getAll().subscribe(clients => {
       this.clients = clients;
       this.filteredClientsForFilter = clients;
     });
-    this.loadBillings();
+    this.loadBillingsPaged();
   }
 
-  loadBillings() {
+  // Todas las facturas retornadas por el servidor con los filtros actuales
+  allServerResults: Billing[] = [];
+
+  private buildServerFilter(): BillingReportFilter {
+    const f = this.filterForm.value;
+    const filter = new BillingReportFilter();
+    filter.fromDate = f.endDate || '';
+    filter.toDate = f.startDate || '';
+    filter.billNumber = f.billNumber || '';
+    filter.client = this.selectedClient?.id || '';
+    filter.product = this.selectedProduct?.id || '';
+    filter.paymentMethod = f.paymentMethod || '';
+    return filter;
+  }
+
+  loadBillingsPaged(): void {
     this.isLoading = true;
-    const filterReport = new BillingReportFilter();
-    filterReport.toDate = '';
-    filterReport.fromDate = '';
-    
-    this.facturaService.findAllBilling(filterReport).subscribe(billings => {
-      this.reportBilling = billings.sort((a, b) => {
-        const dateA = new Date(a.dateTimeRecord || 0).getTime();
-        const dateB = new Date(b.dateTimeRecord || 0).getTime();
-        return dateB - dateA;
-      });
-      this.filteredBilling = [...this.reportBilling];
-      this.isLoading = false;
+    const filter = this.buildServerFilter();
+
+    this.facturaService.findAllBilling(filter).subscribe({
+      next: (billings) => {
+        this.allServerResults = billings.sort((a, b) => {
+          const dateA = new Date(a.dateTimeRecord || 0).getTime();
+          const dateB = new Date(b.dateTimeRecord || 0).getTime();
+          return dateB - dateA;
+        });
+        this.reportBilling = this.allServerResults;
+        this.totalElements = this.allServerResults.length;
+        this.computeTotals(this.allServerResults);
+        this.paginateResults();
+        this.isLoading = false;
+
+        if (this.allServerResults.length === 0) {
+          toast.info('No se encontraron facturas con los criterios de búsqueda proporcionados.');
+        }
+      },
+      error: () => {
+        toast.error('Error al cargar las facturas');
+        this.isLoading = false;
+      }
     });
   }
 
-  applyFilters() {
-    const filters = this.filterForm.value;
-    let filtered = [...this.reportBilling];
-
-    // Filtro por fecha de inicio
-    if (filters.startDate) {
-      filtered = filtered.filter(billing => {
-        if (!billing.dateTimeRecord) return false;
-        const billingDate = billing.dateTimeRecord.split('T')[0];
-        return billingDate >= filters.startDate;
-      });
+  private paginateResults(): void {
+    const data = this.allServerResults;
+    this.totalPages = Math.ceil(data.length / this.pageSize);
+    if (this.currentPage >= this.totalPages && this.totalPages > 0) {
+      this.currentPage = this.totalPages - 1;
     }
+    const start = this.currentPage * this.pageSize;
+    const end = start + this.pageSize;
+    this.filteredBilling = data.slice(start, end);
+    this.isFirstPage = this.currentPage === 0;
+    this.isLastPage = this.currentPage >= this.totalPages - 1;
+  }
 
-    // Filtro por fecha fin
-    if (filters.endDate) {
-      filtered = filtered.filter(billing => {
-        if (!billing.dateTimeRecord) return false;
-        const billingDate = billing.dateTimeRecord.split('T')[0];
-        return billingDate <= filters.endDate;
-      });
-    }
+  private computeTotals(billings: Billing[]): void {
+    const totals: SalesTotals = {
+      totalInvoices: billings.length,
+      totalSubtotal: billings.reduce((s, b) => s + (b.subTotalSale || 0), 0),
+      totalIva: billings.reduce((s, b) => s + (b.totalIVAT || 0), 0),
+      totalGeneral: 0,
+      countContado: billings.filter(b => b.saleType === 'CONTADO').length,
+      countCredito: billings.filter(b => b.saleType === 'CREDITO').length,
+      totalContado: billings.filter(b => b.saleType === 'CONTADO').reduce((s, b) => s + (b.subTotalSale || 0) + (b.totalIVAT || 0), 0),
+      totalCredito: billings.filter(b => b.saleType === 'CREDITO').reduce((s, b) => s + (b.subTotalSale || 0) + (b.totalIVAT || 0), 0),
+      paymentMethodTotals: []
+    };
+    totals.totalGeneral = totals.totalSubtotal + totals.totalIva;
 
-    // Filtro por cliente
-    if (filters.clientId) {
-      filtered = filtered.filter(billing => 
-        billing.client && billing.client.id === filters.clientId
-      );
-    }
+    const pmMap: Record<string, { method: string; count: number; total: number }> = {};
+    billings.forEach(b => {
+      if (b.payments && b.payments.length > 0) {
+        b.payments.forEach(p => {
+          if (!pmMap[p.method]) pmMap[p.method] = { method: p.method, count: 0, total: 0 };
+          pmMap[p.method].count++;
+          pmMap[p.method].total += p.amount;
+        });
+      } else if (b.paymentMethods && b.paymentMethods.length > 0) {
+        const invoiceTotal = (b.subTotalSale || 0) + (b.totalIVAT || 0);
+        const methodCount = b.paymentMethods.length;
+        b.paymentMethods.forEach(method => {
+          if (!pmMap[method]) pmMap[method] = { method, count: 0, total: 0 };
+          pmMap[method].count++;
+          pmMap[method].total += invoiceTotal / methodCount;
+        });
+      }
+    });
+    totals.paymentMethodTotals = Object.values(pmMap);
 
-    // Filtro por producto
-    if (this.selectedProduct) {
-      filtered = filtered.filter(billing => {
-        return billing.saleDetails?.some(detail => 
-          detail.product?.id === this.selectedProduct!.id ||
-          detail.product?.barcode === this.selectedProduct!.barcode
-        );
-      });
-    }
+    this.salesTotals = totals;
+    this.isLoadingTotals = false;
+  }
 
-    // Filtro por tipo de venta
-    if (filters.saleType) {
-      filtered = filtered.filter(billing => 
-        billing.saleType === filters.saleType
-      );
-    }
+  applyFilters(): void {
+    this.currentPage = 0;
+    this.loadBillingsPaged();
+  }
 
-    // Filtro por número de factura
-    if (filters.billNumber && filters.billNumber.trim()) {
-      const query = filters.billNumber.toLowerCase().trim();
-      filtered = filtered.filter(billing => 
-        billing.billNumber?.toLowerCase().includes(query)
-      );
-    }
+  // Paginación
+  goToPage(page: number): void {
+    if (page < 0 || page >= this.totalPages) return;
+    this.currentPage = page;
+    this.paginateResults();
+  }
 
-    this.filteredBilling = filtered;
-    
-    if (this.filteredBilling.length === 0) {
-      toast.info('No se encontraron facturas con los criterios de búsqueda proporcionados.');
+  nextPage(): void {
+    if (!this.isLastPage) this.goToPage(this.currentPage + 1);
+  }
+
+  prevPage(): void {
+    if (!this.isFirstPage) this.goToPage(this.currentPage - 1);
+  }
+
+  onPageSizeChange(): void {
+    this.currentPage = 0;
+    this.paginateResults();
+  }
+
+  get visiblePages(): number[] {
+    const pages: number[] = [];
+    const maxVisible = 5;
+    let start = Math.max(0, this.currentPage - Math.floor(maxVisible / 2));
+    let end = Math.min(this.totalPages, start + maxVisible);
+    if (end - start < maxVisible) {
+      start = Math.max(0, end - maxVisible);
     }
+    for (let i = start; i < end; i++) {
+      pages.push(i);
+    }
+    return pages;
+  }
+
+  // Cargar TODAS las facturas filtradas para PDF
+  loadAllForPdf(callback: (billings: Billing[]) => void): void {
+    callback(this.reportBilling);
   }
 
   subTotal(): number {
@@ -247,14 +325,16 @@ export class FacturasTableComponent implements OnInit {
     this.clientSearchText = '';
     this.filteredClientsForFilter = this.clients;
     this.filterForm.reset({
-      startDate: '',
-      endDate: '',
+      startDate: this.today,
+      endDate: this.today,
       clientId: '',
       productSearch: '',
       saleType: '',
-      billNumber: ''
+      billNumber: '',
+      paymentMethod: ''
     });
-    this.filteredBilling = [...this.reportBilling];
+    this.currentPage = 0;
+    this.loadBillingsPaged();
   }
 
   toggleBillingDetails(billingId: string) {
@@ -273,6 +353,7 @@ export class FacturasTableComponent implements OnInit {
       case 'TARJETA_CREDITO': return 'bi-credit-card';
       case 'TARJETA_DEBITO': return 'bi-credit-card-2-front';
       case 'CHEQUE': return 'bi-file-earmark-text';
+      case 'SALDO_FAVOR': return 'bi-piggy-bank';
       default: return 'bi-wallet2';
     }
   }
@@ -284,6 +365,7 @@ export class FacturasTableComponent implements OnInit {
       case 'TARJETA_CREDITO': return 'bg-info';
       case 'TARJETA_DEBITO': return 'bg-info';
       case 'CHEQUE': return 'bg-warning text-dark';
+      case 'SALDO_FAVOR': return 'bg-info text-white';
       default: return 'bg-secondary';
     }
   }
@@ -295,6 +377,7 @@ export class FacturasTableComponent implements OnInit {
       case 'TARJETA_CREDITO': return 'border-info';
       case 'TARJETA_DEBITO': return 'border-info';
       case 'CHEQUE': return 'border-warning';
+      case 'SALDO_FAVOR': return 'border-info';
       default: return 'border-secondary';
     }
   }
@@ -306,6 +389,7 @@ export class FacturasTableComponent implements OnInit {
       case 'TARJETA_CREDITO': return 'T. Crédito';
       case 'TARJETA_DEBITO': return 'T. Débito';
       case 'CHEQUE': return 'Cheque';
+      case 'SALDO_A_FAVOR': return 'Saldo a Favor';
       default: return method;
     }
   }
@@ -336,13 +420,25 @@ export class FacturasTableComponent implements OnInit {
   }
 
   generateSalesReportPdf(includeDetails: boolean = true): void {
-    if (this.filteredBilling.length === 0) {
+    if (this.totalElements === 0 && this.filteredBilling.length === 0) {
       toast.warning('No hay facturas para generar el reporte.');
       return;
     }
 
     this.isGeneratingPdf = true;
 
+    // Cargar TODAS las facturas filtradas (sin paginación) para el PDF
+    this.loadAllForPdf((allBillings) => {
+      if (allBillings.length === 0) {
+        toast.warning('No hay facturas para generar el reporte.');
+        this.isGeneratingPdf = false;
+        return;
+      }
+      this.buildPdf(allBillings, includeDetails);
+    });
+  }
+
+  private buildPdf(allBillings: Billing[], includeDetails: boolean): void {
     try {
       const doc = new jsPDF('landscape', 'mm', 'letter');
       const pageW = doc.internal.pageSize.getWidth();
@@ -401,12 +497,12 @@ export class FacturasTableComponent implements OnInit {
       // ═══════════════════════════════════════════
       // SECCIÓN 1 — RESUMEN GENERAL (cards)
       // ═══════════════════════════════════════════
-      const totalFacturas = this.filteredBilling.length;
-      const totalVentas = this.subTotal();
-      const totalIva = this.totalIvat();
+      const totalFacturas = allBillings.length;
+      const totalVentas = allBillings.reduce((sum, b) => sum + (b.subTotalSale || 0), 0);
+      const totalIva = allBillings.reduce((sum, b) => sum + (b.totalIVAT || 0), 0);
       const totalGeneral = totalVentas + totalIva;
-      const totalContado = this.filteredBilling.filter(b => b.saleType === 'CONTADO').length;
-      const totalCredito = this.filteredBilling.filter(b => b.saleType === 'CREDITO').length;
+      const totalContado = allBillings.filter(b => b.saleType === 'CONTADO').length;
+      const totalCredito = allBillings.filter(b => b.saleType === 'CREDITO').length;
 
       // Dibujar "cards" de resumen
       const cardW = contentW / 4 - 3;
@@ -445,11 +541,11 @@ export class FacturasTableComponent implements OnInit {
       doc.text('LISTADO DE FACTURAS', marginL, y);
       y += 2;
 
-      const summaryData = this.filteredBilling.map((b, idx) => {
-        const payments = (b.payments || []).filter(p => p.amount > 0)
+      const summaryData = allBillings.map((b, idx) => {
+        const payments = (b.payments || [])
           .map(p => `${this.formatPaymentMethod(p.method)}: ${this.fmtCurrency(p.amount)}`)
           .join('\n');
-        const paymentDisplay = payments || (b.paymentMethods?.join(', ') || 'N/A');
+        const paymentDisplay = payments || (b.paymentMethods?.map(m => this.formatPaymentMethod(m)).join(', ') || 'N/A');
         return [
           String(idx + 1),
           b.billNumber || '-',
@@ -499,26 +595,29 @@ export class FacturasTableComponent implements OnInit {
       // SECCIÓN 3 — TOTALES POR MÉTODO DE PAGO
       // ═══════════════════════════════════════════
       const paymentTotals: Record<string, { count: number; total: number }> = {};
-      this.filteredBilling.forEach(b => {
+      allBillings.forEach(b => {
         if (b.payments && b.payments.length > 0) {
-          b.payments.filter(p => p.amount > 0).forEach(p => {
+          b.payments.forEach(p => {
             if (!paymentTotals[p.method]) paymentTotals[p.method] = { count: 0, total: 0 };
             paymentTotals[p.method].count++;
             paymentTotals[p.method].total += p.amount;
           });
         } else if (b.paymentMethods && b.paymentMethods.length > 0) {
-          const method = b.paymentMethods[0];
-          if (!paymentTotals[method]) paymentTotals[method] = { count: 0, total: 0 };
-          paymentTotals[method].count++;
-          paymentTotals[method].total += (b.subTotalSale || 0) + (b.totalIVAT || 0);
+          const invoiceTotal = (b.subTotalSale || 0) + (b.totalIVAT || 0);
+          const methodCount = b.paymentMethods.length;
+          b.paymentMethods.forEach(method => {
+            if (!paymentTotals[method]) paymentTotals[method] = { count: 0, total: 0 };
+            paymentTotals[method].count++;
+            paymentTotals[method].total += invoiceTotal / methodCount;
+          });
         }
       });
 
       // Totales por tipo de venta
-      const contadoTotal = this.filteredBilling
+      const contadoTotal = allBillings
         .filter(b => b.saleType === 'CONTADO')
         .reduce((s, b) => s + (b.subTotalSale || 0) + (b.totalIVAT || 0), 0);
-      const creditoTotal = this.filteredBilling
+      const creditoTotal = allBillings
         .filter(b => b.saleType === 'CREDITO')
         .reduce((s, b) => s + (b.subTotalSale || 0) + (b.totalIVAT || 0), 0);
 
@@ -598,7 +697,7 @@ export class FacturasTableComponent implements OnInit {
       // SECCIÓN 4 — DETALLE POR FACTURA (opcional)
       // ═══════════════════════════════════════════
       if (includeDetails) {
-        this.filteredBilling.forEach((billing, bIdx) => {
+        allBillings.forEach((billing, bIdx) => {
           // Verificar espacio — cada detalle necesita al menos ~40mm
           if (y + 40 > pageH - 20) {
             doc.addPage();
@@ -619,7 +718,7 @@ export class FacturasTableComponent implements OnInit {
 
           // Detalle de pagos en línea
           if (billing.payments && billing.payments.length > 0) {
-            const payLine = billing.payments.filter(p => p.amount > 0)
+            const payLine = billing.payments
               .map(p => {
                 let txt = `${this.formatPaymentMethod(p.method)}: ${this.fmtCurrency(p.amount)}`;
                 if (p.reference) txt += ` (Ref: ${p.reference})`;

@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { urlConfig } from '../../config/config';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Billing, BillingReportFilter, ProductSalesSummary } from './billing';
+import { Billing, BillingReportFilter, BillingReportFilterPaged, PageResponse, ProductSalesSummary, SalesTotals } from './billing';
 
 @Injectable({
   providedIn: 'root'
@@ -57,5 +57,13 @@ export class FacturaService {
 
   getProductSalesSummary(filterReport: BillingReportFilter): Observable<ProductSalesSummary[]> {
     return this.http.post<ProductSalesSummary[]>(`${this.url}/report/product/summary`, filterReport);
+  }
+
+  findAllBillingPaged(filter: BillingReportFilterPaged): Observable<PageResponse<Billing>> {
+    return this.http.post<PageResponse<Billing>>(`${this.url}/report/list-sales-paged`, filter);
+  }
+
+  getSalesTotals(filter: BillingReportFilter): Observable<SalesTotals> {
+    return this.http.post<SalesTotals>(`${this.url}/report/sales-totals`, filter);
   }
 }

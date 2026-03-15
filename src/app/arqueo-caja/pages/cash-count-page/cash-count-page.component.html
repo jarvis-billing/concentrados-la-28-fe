@@ -15,9 +15,62 @@
                     <i class="bi bi-file-earmark-bar-graph me-1"></i>
                     Ver Reportes
                 </button>
+                <button class="btn btn-outline-warning" (click)="navigateToLoans()">
+                    <i class="bi bi-cash-coin me-1"></i>
+                    Préstamos
+                    @if (pendingLoans.length > 0) {
+                        <span class="badge bg-danger ms-1">{{ pendingLoans.length }}</span>
+                    }
+                </button>
             </div>
         </div>
     </div>
+
+    <!-- Widget préstamos pendientes -->
+    @if (pendingLoans.length > 0) {
+        <div class="card mb-3" [ngClass]="hasOverdueLoans ? 'border-danger' : 'border-warning'">
+            <div class="card-header d-flex justify-content-between align-items-center"
+                 [ngClass]="hasOverdueLoans ? 'bg-danger text-white' : 'bg-warning text-dark'">
+                <span>
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    Préstamos Pendientes de Devolución
+                </span>
+                <button class="btn btn-sm" [ngClass]="hasOverdueLoans ? 'btn-light' : 'btn-outline-dark'" (click)="navigateToLoans()">
+                    Ver todos <i class="bi bi-arrow-right ms-1"></i>
+                </button>
+            </div>
+            <div class="card-body py-2">
+                <div class="row align-items-center">
+                    <div class="col-md-3 text-center border-end">
+                        <small class="text-muted d-block">Total pendiente</small>
+                        <h4 class="mb-0 text-danger">{{ formatCurrency(pendingLoansTotal) }}</h4>
+                        <small class="text-muted">{{ pendingLoans.length }} préstamo(s)</small>
+                    </div>
+                    <div class="col-md-9">
+                        <div class="table-responsive" style="max-height: 120px; overflow-y: auto;">
+                            <table class="table table-sm table-hover mb-0">
+                                <tbody>
+                                    @for (loan of pendingLoans; track loan.id) {
+                                        <tr [class.table-danger]="isLoanOverdue(loan)">
+                                            <td>
+                                                {{ formatLoanDate(loan.loanDate) }}
+                                                @if (isLoanOverdue(loan)) {
+                                                    <i class="bi bi-exclamation-triangle-fill text-danger ms-1" title="Vencido"></i>
+                                                }
+                                            </td>
+                                            <td class="fw-semibold">{{ loan.borrower }}</td>
+                                            <td>{{ loan.reason || '-' }}</td>
+                                            <td class="text-end fw-bold">{{ formatCurrency(loan.amount) }}</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
 
     <!-- Estado del arqueo existente -->
     @if (existingSession) {

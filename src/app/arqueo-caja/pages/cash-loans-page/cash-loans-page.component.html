@@ -1,0 +1,370 @@
+<div class="container-fluid py-3">
+
+    <!-- HEADER -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h4 class="mb-0"><i class="bi bi-cash-coin me-2"></i>Préstamos de Caja</h4>
+            <small class="text-muted">Registro y seguimiento de préstamos de efectivo</small>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary btn-sm" (click)="navigateToArqueo()">
+                <i class="bi bi-arrow-left me-1"></i> Arqueo de Caja
+            </button>
+            <button class="btn btn-primary" (click)="openNewLoanModal()">
+                <i class="bi bi-plus-circle me-1"></i> Nuevo Préstamo
+            </button>
+        </div>
+    </div>
+
+    <!-- CARDS RESUMEN -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <small class="text-muted d-block"><i class="bi bi-hourglass-split me-1"></i>Pendientes</small>
+                    <h3 class="mb-0 text-warning">{{ formatCurrency(totalPendiente) }}</h3>
+                    <small class="text-muted">{{ countPendiente }} préstamo(s)</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <small class="text-muted d-block"><i class="bi bi-check-circle me-1"></i>Devueltos</small>
+                    <h3 class="mb-0 text-success">{{ formatCurrency(totalDevuelto) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-primary">
+                <div class="card-body text-center">
+                    <small class="text-muted d-block"><i class="bi bi-list-check me-1"></i>Total registros</small>
+                    <h3 class="mb-0 text-primary">{{ loans.length }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FILTROS -->
+    <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-funnel me-1"></i>Filtros</span>
+            <button class="btn btn-sm btn-outline-secondary" (click)="clearFilters()">Limpiar</button>
+        </div>
+        <div class="card-body">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label">Desde</label>
+                    <input type="date" class="form-control" [(ngModel)]="filterFromDate">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Hasta</label>
+                    <input type="date" class="form-control" [(ngModel)]="filterToDate">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Estado</label>
+                    <select class="form-select" [(ngModel)]="filterStatus">
+                        <option value="">Todos</option>
+                        <option value="PENDIENTE">Pendiente</option>
+                        <option value="DEVUELTO">Devuelto</option>
+                        <option value="ANULADO">Anulado</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <button class="btn btn-primary w-100" (click)="loadLoans()">
+                        <i class="bi bi-search me-1"></i> Buscar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABLA -->
+    <div class="card">
+        <div class="card-body p-0">
+            @if (isLoading) {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-2 text-muted">Cargando préstamos...</p>
+                </div>
+            } @else if (loans.length === 0) {
+                <div class="text-center py-5">
+                    <i class="bi bi-inbox fs-1 text-muted"></i>
+                    <p class="mt-2 text-muted">No se encontraron préstamos</p>
+                </div>
+            } @else {
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0 align-middle">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Prestado a</th>
+                                <th>Motivo</th>
+                                <th class="text-end">Monto</th>
+                                <th class="text-center">Estado</th>
+                                <th>Fecha devolución</th>
+                                <th class="text-end">Monto devuelto</th>
+                                <th class="text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (loan of loans; track loan.id) {
+                                <tr [class.table-warning]="isOverdue(loan)">
+                                    <td>
+                                        {{ formatDate(loan.loanDate) }}
+                                        @if (isOverdue(loan)) {
+                                            <br><small class="text-danger fw-bold">
+                                                <i class="bi bi-exclamation-triangle-fill me-1"></i>Vencido
+                                            </small>
+                                        }
+                                    </td>
+                                    <td class="fw-semibold">{{ loan.borrower }}</td>
+                                    <td>{{ loan.reason || '-' }}</td>
+                                    <td class="text-end fw-bold">{{ formatCurrency(loan.amount) }}</td>
+                                    <td class="text-center">
+                                        <span class="badge" [ngClass]="getStatusBadgeClass(loan.status)">
+                                            {{ getStatusLabel(loan.status) }}
+                                        </span>
+                                    </td>
+                                    <td>{{ loan.returnDate ? formatDate(loan.returnDate) : '-' }}</td>
+                                    <td class="text-end">
+                                        @if (loan.returnedAmount) {
+                                            <span class="text-success fw-bold">{{ formatCurrency(loan.returnedAmount) }}</span>
+                                            @if (loan.returnedAmount < loan.amount) {
+                                                <br><small class="text-danger">Faltan {{ formatCurrency(loan.amount - loan.returnedAmount) }}</small>
+                                            }
+                                        } @else {
+                                            -
+                                        }
+                                    </td>
+                                    <td class="text-center">
+                                        @if (loan.status === 'PENDIENTE') {
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-success btn-sm" (click)="openReturnModal(loan)"
+                                                        title="Registrar devolución">
+                                                    <i class="bi bi-arrow-return-left"></i>
+                                                </button>
+                                                <button class="btn btn-outline-danger btn-sm" (click)="cancelLoan(loan)"
+                                                        title="Anular préstamo">
+                                                    <i class="bi bi-x-circle"></i>
+                                                </button>
+                                            </div>
+                                        } @else {
+                                            <button class="btn btn-outline-secondary btn-sm" (click)="openDetailModal(loan)"
+                                                    title="Ver detalle">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- ================================================== -->
+<!-- MODAL: NUEVO PRÉSTAMO                              -->
+<!-- ================================================== -->
+@if (showNewLoanModal) {
+    <div class="modal-backdrop fade show"></div>
+    <div class="modal fade show d-block" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Nuevo Préstamo</h5>
+                    <button type="button" class="btn-close btn-close-white" (click)="closeNewLoanModal()"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Fecha</label>
+                        <input type="date" class="form-control" [(ngModel)]="newLoan.loanDate">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Prestado a <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" [(ngModel)]="newLoan.borrower"
+                               placeholder="Nombre de quien recibe el préstamo">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Monto <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="text" class="form-control text-end"
+                                   [value]="formatCurrencyInput(newLoan.amount)"
+                                   (input)="onAmountInput($event, 'new')"
+                                   placeholder="0">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Motivo</label>
+                        <input type="text" class="form-control" [(ngModel)]="newLoan.reason"
+                               placeholder="Motivo del préstamo (opcional)">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notas</label>
+                        <textarea class="form-control" rows="2" [(ngModel)]="newLoan.notes"
+                                  placeholder="Notas adicionales (opcional)"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" (click)="closeNewLoanModal()" [disabled]="isSavingNew">Cancelar</button>
+                    <button class="btn btn-primary" (click)="saveNewLoan()" [disabled]="isSavingNew">
+                        @if (isSavingNew) {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        <i class="bi bi-check-lg me-1"></i> Registrar Préstamo
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ================================================== -->
+<!-- MODAL: REGISTRAR DEVOLUCIÓN                        -->
+<!-- ================================================== -->
+@if (showReturnModal && returnTarget) {
+    <div class="modal-backdrop fade show"></div>
+    <div class="modal fade show d-block" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title"><i class="bi bi-arrow-return-left me-2"></i>Registrar Devolución</h5>
+                    <button type="button" class="btn-close btn-close-white" (click)="closeReturnModal()"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Info del préstamo -->
+                    <div class="alert alert-info mb-3">
+                        <div class="row">
+                            <div class="col-6">
+                                <small class="text-muted d-block">Prestado a</small>
+                                <strong>{{ returnTarget.borrower }}</strong>
+                            </div>
+                            <div class="col-6 text-end">
+                                <small class="text-muted d-block">Monto prestado</small>
+                                <strong class="fs-5">{{ formatCurrency(returnTarget.amount) }}</strong>
+                            </div>
+                        </div>
+                        @if (returnTarget.reason) {
+                            <hr class="my-2">
+                            <small class="text-muted">Motivo: {{ returnTarget.reason }}</small>
+                        }
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Fecha de devolución</label>
+                        <input type="date" class="form-control" [(ngModel)]="returnForm.returnDate">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Monto devuelto <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="text" class="form-control text-end"
+                                   [value]="formatCurrencyInput(returnForm.returnedAmount)"
+                                   (input)="onAmountInput($event, 'return')"
+                                   placeholder="0">
+                        </div>
+                        <small class="text-muted">Máximo: {{ formatCurrency(returnTarget.amount) }}</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notas</label>
+                        <textarea class="form-control" rows="2" [(ngModel)]="returnForm.returnNotes"
+                                  placeholder="Notas sobre la devolución (opcional)"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" (click)="closeReturnModal()" [disabled]="isSavingReturn">Cancelar</button>
+                    <button class="btn btn-success" (click)="saveReturn()" [disabled]="isSavingReturn">
+                        @if (isSavingReturn) {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        <i class="bi bi-check-lg me-1"></i> Confirmar Devolución
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ================================================== -->
+<!-- MODAL: DETALLE DEL PRÉSTAMO                        -->
+<!-- ================================================== -->
+@if (showDetailModal && detailLoan) {
+    <div class="modal-backdrop fade show"></div>
+    <div class="modal fade show d-block" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-info-circle me-2"></i>Detalle del Préstamo</h5>
+                    <button type="button" class="btn-close" (click)="closeDetailModal()"></button>
+                </div>
+                <div class="modal-body">
+                    <table class="table table-sm table-borderless mb-0">
+                        <tbody>
+                            <tr>
+                                <td class="text-muted" style="width:40%">Fecha préstamo</td>
+                                <td class="fw-bold">{{ formatDate(detailLoan.loanDate) }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Prestado a</td>
+                                <td class="fw-bold">{{ detailLoan.borrower }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Monto</td>
+                                <td class="fw-bold">{{ formatCurrency(detailLoan.amount) }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Motivo</td>
+                                <td>{{ detailLoan.reason || '-' }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Notas</td>
+                                <td>{{ detailLoan.notes || '-' }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Estado</td>
+                                <td>
+                                    <span class="badge" [ngClass]="getStatusBadgeClass(detailLoan.status)">
+                                        {{ getStatusLabel(detailLoan.status) }}
+                                    </span>
+                                </td>
+                            </tr>
+                            @if (detailLoan.status === 'DEVUELTO') {
+                                <tr><td colspan="2"><hr class="my-1"></td></tr>
+                                <tr>
+                                    <td class="text-muted">Fecha devolución</td>
+                                    <td class="fw-bold">{{ formatDate(detailLoan.returnDate!) }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Monto devuelto</td>
+                                    <td class="fw-bold text-success">{{ formatCurrency(detailLoan.returnedAmount!) }}</td>
+                                </tr>
+                                @if (detailLoan.returnNotes) {
+                                    <tr>
+                                        <td class="text-muted">Notas devolución</td>
+                                        <td>{{ detailLoan.returnNotes }}</td>
+                                    </tr>
+                                }
+                            }
+                            <tr><td colspan="2"><hr class="my-1"></td></tr>
+                            <tr>
+                                <td class="text-muted">Registrado por</td>
+                                <td>{{ detailLoan.createdBy }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Fecha registro</td>
+                                <td>{{ formatDateTime(detailLoan.createdAt) }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" (click)="closeDetailModal()">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}

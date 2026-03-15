@@ -41,6 +41,48 @@ export class BillingReportFilter {
     userSale: string = '';
     client: string = '';
     product: string = '';
+    paymentMethod: string = '';
+}
+
+export class BillingReportFilterPaged {
+    toDate: string = '';
+    fromDate: string = '';
+    billNumber: string = '';
+    userSale: string = '';
+    client: string = '';
+    product: string = '';
+    saleType: string = '';
+    paymentMethod: string = '';
+    page: number = 0;
+    size: number = 20;
+}
+
+export interface PageResponse<T> {
+    content: T[];
+    totalElements: number;
+    totalPages: number;
+    number: number;
+    size: number;
+    first: boolean;
+    last: boolean;
+}
+
+export interface PaymentMethodTotal {
+    method: string;
+    count: number;
+    total: number;
+}
+
+export interface SalesTotals {
+    totalInvoices: number;
+    totalSubtotal: number;
+    totalIva: number;
+    totalGeneral: number;
+    countContado: number;
+    countCredito: number;
+    totalContado: number;
+    totalCredito: number;
+    paymentMethodTotals: PaymentMethodTotal[];
 }
 
 export class ProductSalesSummary {

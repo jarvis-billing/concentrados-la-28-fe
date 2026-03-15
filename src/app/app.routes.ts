@@ -36,6 +36,7 @@ import { CreditsReportComponent } from './cuenta-cliente/pages/credits-report/cr
 import { BatchManagementPageComponent } from './lotes/pages/batch-management-page/batch-management-page.component';
 import { CashCountPageComponent } from './arqueo-caja/pages/cash-count-page/cash-count-page.component';
 import { CashCountReportsComponent } from './arqueo-caja/pages/cash-count-reports/cash-count-reports.component';
+import { CashLoansPageComponent } from './arqueo-caja/pages/cash-loans-page/cash-loans-page.component';
 
 export const routes: Routes = [
     { path: '', pathMatch: 'full', redirectTo: '/login' },
@@ -152,6 +153,9 @@ export const routes: Routes = [
         },
         {
             path: 'arqueo-caja/reportes', component: CashCountReportsComponent
+        },
+        {
+            path: 'arqueo-caja/prestamos', component: CashLoansPageComponent
         }
     ]}
 ];

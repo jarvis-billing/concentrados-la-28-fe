@@ -94,6 +94,20 @@
               <option value="CREDITO">Crédito</option>
             </select>
           </div>
+
+          <!-- MÉTODO DE PAGO -->
+          <div class="col-12 col-md-3">
+            <label class="form-label">Método de pago</label>
+            <select class="form-select" formControlName="paymentMethod">
+              <option value="">Todos</option>
+              <option value="EFECTIVO">Efectivo</option>
+              <option value="TRANSFERENCIA">Transferencia</option>
+              <option value="TARJETA_CREDITO">T. Crédito</option>
+              <option value="TARJETA_DEBITO">T. Débito</option>
+              <option value="CHEQUE">Cheque</option>
+              <option value="SALDO_FAVOR">Saldo a Favor</option>
+            </select>
+          </div>
           
           <!-- NÚMERO DE FACTURA -->
           <div class="col-12 col-md-3">
@@ -270,7 +284,7 @@
                     <h6 class="mb-3"><i class="bi bi-box-seam"></i> Productos vendidos</h6>
                     <div class="table-responsive">
                       <table class="table table-sm table-bordered mb-0">
-                        <thead style="background-color: #e9ecef;">
+                        <thead style="background-color: #496d91;">
                           <tr>
                             <th>Producto</th>
                             <th>Código de barras</th>
@@ -305,38 +319,168 @@
       </tbody>
     </table>
   </div>
+
+  <!-- PAGINACIÓN -->
+  @if (!isLoading && totalPages > 0) {
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3 px-2">
+      <div class="d-flex align-items-center gap-2">
+        <small class="text-muted">
+          Mostrando {{ currentPage * pageSize + 1 }}–{{ Math.min((currentPage + 1) * pageSize, totalElements) }}
+          de <strong>{{ totalElements }}</strong> facturas
+        </small>
+        <select class="form-select form-select-sm" style="width: auto;" [(ngModel)]="pageSize" (change)="onPageSizeChange()">
+          <option [value]="10">10</option>
+          <option [value]="20">20</option>
+          <option [value]="50">50</option>
+          <option [value]="100">100</option>
+        </select>
+        <small class="text-muted">por página</small>
+      </div>
+
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+          <li class="page-item" [class.disabled]="isFirstPage">
+            <button class="page-link" (click)="goToPage(0)" title="Primera página">
+              <i class="bi bi-chevron-double-left"></i>
+            </button>
+          </li>
+          <li class="page-item" [class.disabled]="isFirstPage">
+            <button class="page-link" (click)="prevPage()">
+              <i class="bi bi-chevron-left"></i>
+            </button>
+          </li>
+          @for (p of visiblePages; track p) {
+            <li class="page-item" [class.active]="p === currentPage">
+              <button class="page-link" (click)="goToPage(p)">{{ p + 1 }}</button>
+            </li>
+          }
+          <li class="page-item" [class.disabled]="isLastPage">
+            <button class="page-link" (click)="nextPage()">
+              <i class="bi bi-chevron-right"></i>
+            </button>
+          </li>
+          <li class="page-item" [class.disabled]="isLastPage">
+            <button class="page-link" (click)="goToPage(totalPages - 1)" title="Última página">
+              <i class="bi bi-chevron-double-right"></i>
+            </button>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  }
+
   @if (!isLoading) {
     <!-- TOTALS SECTION -->
-    <div class="container mt-4 ">
-
-      <div class="row g-3 justify-content-center">
-        <div class="col-md-2">
-          <div class="card text-white bg-primary">
-            <div class="card-header">Facturas:</div>
-            <div class="card-body">
-              <p class="card-text fw-bold">{{filteredBilling.length}}</p>
+    <div class="container mt-4">
+      @if (salesTotals) {
+        <div class="row g-3 justify-content-center">
+          <div class="col-md-2">
+            <div class="card text-white bg-primary">
+              <div class="card-header">Facturas:</div>
+              <div class="card-body">
+                <p class="card-text fw-bold">{{ salesTotals.totalInvoices }}</p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card text-white bg-success">
+              <div class="card-header">Total Ventas:</div>
+              <div class="card-body">
+                <p class="card-text fw-bold">{{ salesTotals.totalSubtotal | currency:'$ ':'symbol':'.0-0' }}</p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card text-white bg-warning">
+              <div class="card-header">Total IVA:</div>
+              <div class="card-body">
+                <p class="card-text fw-bold">{{ salesTotals.totalIva | currency:'$ ':'symbol':'.0-0' }}</p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card text-white bg-dark">
+              <div class="card-header">Total General:</div>
+              <div class="card-body">
+                <p class="card-text fw-bold">{{ salesTotals.totalGeneral | currency:'$ ':'symbol':'.0-0' }}</p>
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="col-md-3">
-          <div class="card text-white bg-primary">
-            <div class="card-header">Total Ventas:</div>
-            <div class="card-body">
-              <p class="card-text fw-bold">{{subTotal() | currency:'$ ':'symbol':'.0-0'}}</p>
+        <!-- Resumen por tipo de venta -->
+        <div class="row g-3 mt-2 justify-content-center">
+          <div class="col-md-3">
+            <div class="card border-success">
+              <div class="card-body text-center py-2">
+                <small class="text-muted d-block">Contado</small>
+                <strong class="text-success">{{ salesTotals.totalContado | currency:'$ ':'symbol':'.0-0' }}</strong>
+                <small class="text-muted d-block">{{ salesTotals.countContado }} facturas</small>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card border-warning">
+              <div class="card-body text-center py-2">
+                <small class="text-muted d-block">Crédito</small>
+                <strong class="text-warning">{{ salesTotals.totalCredito | currency:'$ ':'symbol':'.0-0' }}</strong>
+                <small class="text-muted d-block">{{ salesTotals.countCredito }} facturas</small>
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="col-md-3">
-          <div class="card text-white bg-primary">
-            <div class="card-header">Total Iva:</div>
-            <div class="card-body">
-              <p class="card-text fw-bold">{{totalIvat() | currency:'$ ':'symbol':'.0-0'}}</p>
+        <!-- Resumen por método de pago -->
+        @if (salesTotals.paymentMethodTotals && salesTotals.paymentMethodTotals.length > 0) {
+          <div class="row g-2 mt-2 justify-content-center">
+            @for (pm of salesTotals.paymentMethodTotals; track pm.method) {
+              <div class="col-auto">
+                <div class="card border-secondary">
+                  <div class="card-body text-center py-2 px-3">
+                    <small class="text-muted d-block">{{ formatPaymentMethod(pm.method) }}</small>
+                    <strong>{{ pm.total | currency:'$ ':'symbol':'.0-0' }}</strong>
+                    <small class="text-muted d-block">{{ pm.count }} tx</small>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      } @else if (!isLoadingTotals) {
+        <!-- Fallback: totales de la página actual -->
+        <div class="row g-3 justify-content-center">
+          <div class="col-md-2">
+            <div class="card text-white bg-primary">
+              <div class="card-header">Facturas (página):</div>
+              <div class="card-body">
+                <p class="card-text fw-bold">{{ filteredBilling.length }}</p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card text-white bg-primary">
+              <div class="card-header">Total Ventas:</div>
+              <div class="card-body">
+                <p class="card-text fw-bold">{{ subTotal() | currency:'$ ':'symbol':'.0-0' }}</p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card text-white bg-primary">
+              <div class="card-header">Total IVA:</div>
+              <div class="card-body">
+                <p class="card-text fw-bold">{{ totalIvat() | currency:'$ ':'symbol':'.0-0' }}</p>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      }
+      @if (isLoadingTotals) {
+        <div class="text-center mt-3">
+          <div class="spinner-border spinner-border-sm text-muted"></div>
+          <small class="text-muted ms-2">Cargando totales...</small>
+        </div>
+      }
     </div>
   }
   <app-modal-sale-detail

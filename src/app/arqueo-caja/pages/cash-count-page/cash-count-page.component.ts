@@ -3,6 +3,8 @@ import { CommonModule, CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { CashRegisterService } from '../../services/cash-register.service';
+import { CashLoanService } from '../../services/cash-loan.service';
+import { CashLoan } from '../../models/cash-loan';
 import { 
     CashDenomination, 
     CashTransaction, 
@@ -24,6 +26,7 @@ import { formatInTimeZone } from 'date-fns-tz';
 export class CashCountPageComponent implements OnInit {
 
     private cashService = inject(CashRegisterService);
+    private loanService = inject(CashLoanService);
     private router = inject(Router);
 
     // Fecha del arqueo
@@ -55,6 +58,11 @@ export class CashCountPageComponent implements OnInit {
     existingSession: CashCountSession | null = null;
     notes: string = '';
 
+    // Préstamos pendientes
+    pendingLoans: CashLoan[] = [];
+    pendingLoansTotal: number = 0;
+    hasOverdueLoans: boolean = false;
+
     // Tabs
     activeTab: 'conteo' | 'efectivo' | 'transferencias' | 'otros' | 'resumen' = 'conteo';
 
@@ -65,10 +73,36 @@ export class CashCountPageComponent implements OnInit {
         this.initializeDenominations();
         this.loadSuggestedOpeningBalance();
         this.loadDailySummary();
+        this.loadPendingLoans();
     }
 
     private todayIso(): string {
         return formatInTimeZone(new Date(), 'America/Bogota', 'yyyy-MM-dd');
+    }
+
+    loadPendingLoans(): void {
+        this.loanService.list({ status: 'PENDIENTE' }).subscribe({
+            next: (loans) => {
+                this.pendingLoans = loans;
+                this.pendingLoansTotal = loans.reduce((s, l) => s + l.amount, 0);
+                const today = this.todayIso();
+                this.hasOverdueLoans = loans.some(l => l.loanDate < today);
+            }
+        });
+    }
+
+    navigateToLoans(): void {
+        this.router.navigate(['/main/arqueo-caja/prestamos']);
+    }
+
+    formatLoanDate(dateStr: string): string {
+        if (!dateStr) return '-';
+        const parts = dateStr.split('-');
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+
+    isLoanOverdue(loan: CashLoan): boolean {
+        return loan.loanDate < this.todayIso();
     }
 
     private initializeDenominations(): void {
@@ -316,8 +350,11 @@ export class CashCountPageComponent implements OnInit {
     }
 
     getCategoryLabel(category: string, description?: string): string {
-        if (category === 'AJUSTE' && description && description.toLowerCase().includes('cambio venta')) {
-            return 'Cambio entregado';
+        if (category === 'AJUSTE' && description) {
+            const descLower = description.toLowerCase();
+            if (descLower.includes('cambio venta')) return 'Cambio entregado';
+            if (descLower.includes('préstamo caja') || descLower.includes('prestamo caja')) return 'Préstamo';
+            if (descLower.includes('devolución préstamo') || descLower.includes('devolucion prestamo')) return 'Devolución préstamo';
         }
         const labels: Record<string, string> = {
             'VENTA': 'Venta',
@@ -331,8 +368,11 @@ export class CashCountPageComponent implements OnInit {
     }
 
     getCategoryBadgeClassForTx(tx: CashTransaction): string {
-        if (tx.category === 'AJUSTE' && tx.description?.toLowerCase().includes('cambio venta')) {
-            return 'bg-warning text-dark';
+        if (tx.category === 'AJUSTE' && tx.description) {
+            const descLower = tx.description.toLowerCase();
+            if (descLower.includes('cambio venta')) return 'bg-warning text-dark';
+            if (descLower.includes('préstamo caja') || descLower.includes('prestamo caja')) return 'bg-danger';
+            if (descLower.includes('devolución préstamo') || descLower.includes('devolucion prestamo')) return 'bg-info';
         }
         return this.getCategoryBadgeClass(tx.category);
     }
