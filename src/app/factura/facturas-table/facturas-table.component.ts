@@ -116,6 +116,7 @@ export class FacturasTableComponent implements OnInit {
     filter.billNumber = f.billNumber || '';
     filter.client = this.selectedClient?.id || '';
     filter.product = this.selectedProduct?.id || '';
+    filter.saleType = f.saleType || '';
     filter.paymentMethod = f.paymentMethod || '';
     return filter;
   }
@@ -177,14 +178,15 @@ export class FacturasTableComponent implements OnInit {
 
     const pmMap: Record<string, { method: string; count: number; total: number }> = {};
     billings.forEach(b => {
+      const invoiceTotal = (b.subTotalSale || 0) + (b.totalIVAT || 0);
       if (b.payments && b.payments.length > 0) {
+        const totalPaid = b.payments.reduce((s, p) => s + p.amount, 0);
         b.payments.forEach(p => {
           if (!pmMap[p.method]) pmMap[p.method] = { method: p.method, count: 0, total: 0 };
           pmMap[p.method].count++;
-          pmMap[p.method].total += p.amount;
+          pmMap[p.method].total += totalPaid > 0 ? (p.amount / totalPaid) * invoiceTotal : 0;
         });
       } else if (b.paymentMethods && b.paymentMethods.length > 0) {
-        const invoiceTotal = (b.subTotalSale || 0) + (b.totalIVAT || 0);
         const methodCount = b.paymentMethods.length;
         b.paymentMethods.forEach(method => {
           if (!pmMap[method]) pmMap[method] = { method, count: 0, total: 0 };
@@ -596,14 +598,15 @@ export class FacturasTableComponent implements OnInit {
       // ═══════════════════════════════════════════
       const paymentTotals: Record<string, { count: number; total: number }> = {};
       allBillings.forEach(b => {
+        const invoiceTotal = (b.subTotalSale || 0) + (b.totalIVAT || 0);
         if (b.payments && b.payments.length > 0) {
+          const totalPaid = b.payments.reduce((s, p) => s + p.amount, 0);
           b.payments.forEach(p => {
             if (!paymentTotals[p.method]) paymentTotals[p.method] = { count: 0, total: 0 };
             paymentTotals[p.method].count++;
-            paymentTotals[p.method].total += p.amount;
+            paymentTotals[p.method].total += totalPaid > 0 ? (p.amount / totalPaid) * invoiceTotal : 0;
           });
         } else if (b.paymentMethods && b.paymentMethods.length > 0) {
-          const invoiceTotal = (b.subTotalSale || 0) + (b.totalIVAT || 0);
           const methodCount = b.paymentMethods.length;
           b.paymentMethods.forEach(method => {
             if (!paymentTotals[method]) paymentTotals[method] = { count: 0, total: 0 };

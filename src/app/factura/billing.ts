@@ -41,6 +41,7 @@ export class BillingReportFilter {
     userSale: string = '';
     client: string = '';
     product: string = '';
+    saleType: string = '';
     paymentMethod: string = '';
 }
 

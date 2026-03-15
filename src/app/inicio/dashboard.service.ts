@@ -43,6 +43,7 @@ export class DashboardService {
       userSale: '',
       client: '',
       product: '',
+      saleType: '',
       paymentMethod: ''
     };
 
@@ -53,6 +54,7 @@ export class DashboardService {
       userSale: '',
       client: '',
       product: '',
+      saleType: '',
       paymentMethod: ''
     };
 
@@ -63,6 +65,7 @@ export class DashboardService {
       userSale: '',
       client: '',
       product: '',
+      saleType: '',
       paymentMethod: ''
     };
 
