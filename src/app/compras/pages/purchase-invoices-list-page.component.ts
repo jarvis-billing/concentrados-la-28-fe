@@ -101,10 +101,10 @@ export class PurchaseInvoicesListPageComponent implements OnInit {
           invoice.emissionDate = invoice.invoiceDate;
         }
         
-        // Calcular total si no viene del backend
+        // Calcular total si no viene del backend (subtotal + IVA + flete)
         if (!invoice.total || invoice.total === 0) {
           invoice.total = (invoice.items || []).reduce((sum: number, item: any) => 
-            sum + (item.totalCost || (item.quantity * item.unitCost) || 0), 0
+            sum + ((item.totalCost || (item.quantity * item.unitCost) || 0) + (item.vatAmount || 0) + (item.freightAmount || 0)), 0
           );
         }
         

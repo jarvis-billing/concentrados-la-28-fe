@@ -135,13 +135,18 @@
                     <h6 class="mb-3">Detalle de ítems</h6>
                     <div class="table-responsive">
                       <table class="table table-sm table-bordered m-0">
-                        <thead>
+                        <thead class="table-secondary">
                           <tr>
                             <th>Producto</th>
                             <th>Código barras</th>
-                            <th class="text-end">Cantidad</th>
+                            <th class="text-end">Cant.</th>
                             <th class="text-end">Costo unit.</th>
-                            <th class="text-end">Total</th>
+                            <th class="text-end">Subtotal</th>
+                            <th class="text-end">Flete/Unid</th>
+                            <th class="text-end">% IVA</th>
+                            <th class="text-end">IVA/Unid</th>
+                            <th class="text-end">Total/Unid</th>
+                            <th class="text-end">Total ítem</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -151,8 +156,39 @@
                             <td class="text-end">{{ item.quantity }}</td>
                             <td class="text-end">{{ formatCurrency(item.unitCost) }}</td>
                             <td class="text-end">{{ formatCurrency(item.totalCost) }}</td>
+                            <td class="text-end">{{ item.applyFreight ? formatCurrency(invoice.freightRate) : '-' }}</td>
+                            <td class="text-end">{{ item.vatRate }}%</td>
+                            <td class="text-end">{{ formatCurrency(item.unitCost * (item.vatRate / 100)) }}</td>
+                            <td class="text-end fw-semibold">{{ formatCurrency(item.unitCost + (item.unitCost * (item.vatRate / 100)) + (item.applyFreight ? invoice.freightRate : 0)) }}</td>
+                            <td class="text-end fw-semibold">{{ formatCurrency(item.totalCost + item.vatAmount + item.freightAmount) }}</td>
                           </tr>
                         </tbody>
+                        <tfoot class="table-light fw-semibold">
+                          <tr>
+                            <td colspan="4" class="text-end">Subtotal:</td>
+                            <td class="text-end">{{ formatCurrency(invoice.subtotal) }}</td>
+                            <td colspan="4"></td>
+                            <td class="text-end">{{ formatCurrency(invoice.subtotal) }}</td>
+                          </tr>
+                          <tr>
+                            <td colspan="4" class="text-end">Total IVA:</td>
+                            <td class="text-end">{{ formatCurrency(invoice.totalVat) }}</td>
+                            <td colspan="4"></td>
+                            <td class="text-end">{{ formatCurrency(invoice.totalVat) }}</td>
+                          </tr>
+                          <tr>
+                            <td colspan="4" class="text-end">Total Flete:</td>
+                            <td class="text-end">{{ formatCurrency(invoice.freightCost) }}</td>
+                            <td colspan="4"></td>
+                            <td class="text-end">{{ formatCurrency(invoice.freightCost) }}</td>
+                          </tr>
+                          <tr class="table-primary">
+                            <td colspan="4" class="text-end fw-bold">TOTAL FACTURA:</td>
+                            <td class="text-end fw-bold">{{ formatCurrency(invoice.total) }}</td>
+                            <td colspan="4"></td>
+                            <td class="text-end fw-bold">{{ formatCurrency(invoice.total) }}</td>
+                          </tr>
+                        </tfoot>
                       </table>
                     </div>
                     <div class="mt-2" *ngIf="invoice.notes">
