@@ -40,6 +40,9 @@
                 <li class="nav-item mx-2 dropdown">
                     <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" routerLinkActive="active" role="button" aria-haspopup="true" aria-expanded="false">Clientes</a>
                     <div class="dropdown-menu" style="background-color: white; border-color: black;">
+                      <a class="dropdown-item" routerLink="/main/clientes" (click)="closeMenu()">
+                        <i class="bi bi-people me-1"></i> Gestionar clientes
+                      </a>
                       <a class="dropdown-item" routerLink="/main/clientes/cuenta" (click)="closeMenu()">
                         <i class="bi bi-person-lines-fill me-1"></i> Estado de cuenta
                       </a>

@@ -67,12 +67,15 @@ export class ModalClientsListComponent implements OnInit {
   });
 
   searchClient() {
-    const searchClient = this.formClient.controls.searchClient.value ?? '';
+    const searchClient = (this.formClient.controls.searchClient.value ?? '').toLowerCase().trim();
     if (searchClient) {
       this.filteredListClients = this.originalListClients.filter(client =>
-        client.idNumber.toLowerCase().includes(searchClient) ||
-        client.name.toLowerCase().includes(searchClient) ||
-        client.surname.toLowerCase().includes(searchClient)
+        (client.idNumber || '').toLowerCase().includes(searchClient) ||
+        (client.name || '').toLowerCase().includes(searchClient) ||
+        (client.surname || '').toLowerCase().includes(searchClient) ||
+        (client.businessName || '').toLowerCase().includes(searchClient) ||
+        (client.nickname || '').toLowerCase().includes(searchClient) ||
+        (client.phone || '').toLowerCase().includes(searchClient)
       );
     } else {
       this.filteredListClients = [...this.originalListClients];

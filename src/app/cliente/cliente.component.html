@@ -1,1 +1,16 @@
-<p>cliente works!</p>
+<div class="container py-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="m-0"><i class="bi bi-people me-2"></i>Gestión de Clientes</h4>
+    <button class="btn btn-primary" (click)="openClientModal()">
+      <i class="bi bi-person-plus me-1"></i> Buscar / Registrar Cliente
+    </button>
+  </div>
+  <div class="card shadow-sm">
+    <div class="card-body text-center py-5 text-muted">
+      <i class="bi bi-person-badge fs-1"></i>
+      <p class="mt-3">Use el botón superior para buscar, registrar o editar clientes.</p>
+    </div>
+  </div>
+</div>
+
+<app-modal-clients-list (clientSelected)="openClientModal()"></app-modal-clients-list>

@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, ViewChild } from '@angular/core';
 import { CommonModule, CurrencyPipe } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ClientAccountService } from '../../services/client-account.service';
@@ -10,6 +10,7 @@ import { ClientCredit, CreditTransaction } from '../../models/client-credit';
 import { toast } from 'ngx-sonner';
 import { PaymentRegisterModalComponent } from '../payment-register-modal/payment-register-modal.component';
 import { CreditRegisterModalComponent } from '../credit-register-modal/credit-register-modal.component';
+import { ModalClientsListComponent } from '../../../cliente/components/modal-clients-list/modal-clients-list.component';
 
 @Component({
     selector: 'app-client-account-view',
@@ -20,12 +21,15 @@ import { CreditRegisterModalComponent } from '../credit-register-modal/credit-re
         ReactiveFormsModule, 
         CurrencyPipe,
         PaymentRegisterModalComponent,
-        CreditRegisterModalComponent
+        CreditRegisterModalComponent,
+        ModalClientsListComponent
     ],
     templateUrl: './client-account-view.component.html',
     styleUrl: './client-account-view.component.css'
 })
 export class ClientAccountViewComponent implements OnInit {
+
+    @ViewChild(ModalClientsListComponent) clientModalComp!: ModalClientsListComponent;
 
     clientService = inject(ClienteService);
     accountService = inject(ClientAccountService);
@@ -101,6 +105,14 @@ export class ClientAccountViewComponent implements OnInit {
         this.paymentHistory = [];
         this.creditTransactions = [];
         this.filteredClients = [...this.clients];
+    }
+
+    openClientModal(): void {
+        this.clientModalComp?.openModal();
+    }
+
+    onClientSelectedFromModal(client: Client): void {
+        this.selectClient(client);
     }
 
     loadClientData(): void {
