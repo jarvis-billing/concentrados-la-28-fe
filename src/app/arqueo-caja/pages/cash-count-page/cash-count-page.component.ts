@@ -66,6 +66,21 @@ export class CashCountPageComponent implements OnInit {
     // Tabs
     activeTab: 'conteo' | 'efectivo' | 'transferencias' | 'otros' | 'resumen' = 'conteo';
 
+    // Acordeones de categorías de efectivo (cerrados por defecto)
+    expandedCashCategories = new Set<string>();
+
+    toggleCashCategory(cat: string): void {
+        if (this.expandedCashCategories.has(cat)) {
+            this.expandedCashCategories.delete(cat);
+        } else {
+            this.expandedCashCategories.add(cat);
+        }
+    }
+
+    isCashCategoryExpanded(cat: string): boolean {
+        return this.expandedCashCategories.has(cat);
+    }
+
     // Para usar en el template
     Math = Math;
 
@@ -204,7 +219,7 @@ export class CashCountPageComponent implements OnInit {
     }
 
     get expectedTotalCash(): number {
-        return this.expectedCashTotal || (this.openingBalance + this.expectedCashAmount);
+        return this.expectedCashTotal ?? (this.openingBalance + this.expectedCashAmount);
     }
 
     get cashDifference(): number {
@@ -230,6 +245,50 @@ export class CashCountPageComponent implements OnInit {
 
     getCashTransactions(): CashTransaction[] {
         return this.transactions.filter(t => t.paymentMethod === 'EFECTIVO');
+    }
+
+    // Categorías únicas presentes en las transacciones de efectivo
+    getCashCategories(): string[] {
+        const cats = new Set(this.getCashTransactions().map(t => t.category));
+        return Array.from(cats);
+    }
+
+    // Transacciones de efectivo filtradas por categoría
+    getCashTransactionsByCategory(category: string): CashTransaction[] {
+        return this.getCashTransactions().filter(t => t.category === category);
+    }
+
+    // Total ingresos en efectivo por categoría
+    getCashIncomeByCategory(category: string): number {
+        return this.getCashTransactionsByCategory(category)
+            .filter(t => t.type === 'INGRESO')
+            .reduce((sum, t) => sum + t.amount, 0);
+    }
+
+    // Total egresos en efectivo por categoría
+    getCashExpenseByCategory(category: string): number {
+        return this.getCashTransactionsByCategory(category)
+            .filter(t => t.type === 'EGRESO')
+            .reduce((sum, t) => sum + t.amount, 0);
+    }
+
+    // Neto en efectivo por categoría
+    getCashNetByCategory(category: string): number {
+        return this.getCashIncomeByCategory(category) - this.getCashExpenseByCategory(category);
+    }
+
+    // Total ingresos solo en efectivo
+    get totalCashIncome(): number {
+        return this.getCashTransactions()
+            .filter(t => t.type === 'INGRESO')
+            .reduce((sum, t) => sum + t.amount, 0);
+    }
+
+    // Total egresos solo en efectivo
+    get totalCashExpense(): number {
+        return this.getCashTransactions()
+            .filter(t => t.type === 'EGRESO')
+            .reduce((sum, t) => sum + t.amount, 0);
     }
 
     getTransferTransactions(): CashTransaction[] {

@@ -74,7 +74,7 @@ export class CashCountReportsComponent implements OnInit {
     calculateTotals(): void {
         this.totalIncome = this.reports.reduce((sum, r) => sum + r.totalIncome, 0);
         this.totalExpense = this.reports.reduce((sum, r) => sum + r.totalExpense, 0);
-        this.totalDifference = this.reports.reduce((sum, r) => sum + r.difference, 0);
+        this.totalDifference = this.totalIncome - this.totalExpense;
     }
 
     applyFilters(): void {

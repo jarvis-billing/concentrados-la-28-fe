@@ -77,7 +77,7 @@
         <div class="col-md-4">
             <div class="card shadow-sm" [ngClass]="totalDifference === 0 ? 'border-success' : (totalDifference > 0 ? 'border-info' : 'border-danger')">
                 <div class="card-body text-center">
-                    <h6 class="text-muted mb-2">Diferencia Acumulada</h6>
+                    <h6 class="text-muted mb-2">Flujo Neto (Ingresos - Egresos)</h6>
                     <h3 class="mb-0" [ngClass]="getDifferenceClass(totalDifference)">
                         {{ formatCurrency(totalDifference) }}
                     </h3>
@@ -111,9 +111,10 @@
                                         <th class="text-end">Base Caja</th>
                                         <th class="text-end">Ingresos</th>
                                         <th class="text-end">Egresos</th>
+                                        <th class="text-end">Flujo Neto</th>
                                         <th class="text-end">Esperado</th>
                                         <th class="text-end">Contado</th>
-                                        <th class="text-end">Diferencia</th>
+                                        <th class="text-end">Dif. Conteo</th>
                                         <th class="text-center">Estado</th>
                                         <th>Cerrado Por</th>
                                         <th class="text-center">Acciones</th>
@@ -126,6 +127,9 @@
                                             <td class="text-end">{{ formatCurrency(report.openingBalance) }}</td>
                                             <td class="text-end text-success">{{ formatCurrency(report.totalIncome) }}</td>
                                             <td class="text-end text-danger">{{ formatCurrency(report.totalExpense) }}</td>
+                                            <td class="text-end fw-semibold" [ngClass]="getDifferenceClass(report.totalIncome - report.totalExpense)">
+                                                {{ formatCurrency(report.totalIncome - report.totalExpense) }}
+                                            </td>
                                             <td class="text-end">{{ formatCurrency(report.expectedCashTotal ?? report.expectedCash) }}</td>
                                             <td class="text-end">{{ formatCurrency(report.countedCash) }}</td>
                                             <td class="text-end fw-bold" [ngClass]="getDifferenceClass(report.difference)">
@@ -151,11 +155,12 @@
                                         <td></td>
                                         <td class="text-end text-success">{{ formatCurrency(totalIncome) }}</td>
                                         <td class="text-end text-danger">{{ formatCurrency(totalExpense) }}</td>
-                                        <td></td>
-                                        <td></td>
                                         <td class="text-end" [ngClass]="getDifferenceClass(totalDifference)">
                                             {{ formatCurrency(totalDifference) }}
                                         </td>
+                                        <td></td>
+                                        <td></td>
+                                        <td></td>
                                         <td colspan="3"></td>
                                     </tr>
                                 </tfoot>

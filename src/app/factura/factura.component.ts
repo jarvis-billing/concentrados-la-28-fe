@@ -900,6 +900,12 @@ export class FacturaComponent implements OnInit, AfterViewInit {
         order: new Order(),
         company: new Company(),
       }
+      // Tipo de venta CONTADO y cliente Consumidor Final por defecto
+      this.paymentType = 'CONTADO';
+      this.client = new Client();
+      this.creditToApply = 0;
+      this.clientCreditBalance = 0;
+      this.ensureDefaultClientForContado();
       this.resetPaymentsForm();
     });
   }
