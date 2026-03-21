@@ -3,7 +3,7 @@ import { CommonModule, CurrencyPipe } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { Router } from '@angular/router';
 import { CashRegisterService } from '../../services/cash-register.service';
-import { DailyCashSummary, CashCountFilter, CashCountStatus } from '../../models/cash-register';
+import { DailyCashSummary, CashCountFilter, CashCountStatus, AuditTrailEntry } from '../../models/cash-register';
 import { toast } from 'ngx-sonner';
 
 @Component({
@@ -124,6 +124,11 @@ export class CashCountReportsComponent implements OnInit {
         }
     }
 
+    getClosedByName(report: DailyCashSummary): string {
+        const entry = report.auditTrail?.find(e => e.action === 'CIERRE');
+        return entry?.userName || '-';
+    }
+
     getDifferenceClass(difference: number): string {
         if (difference === 0) return 'text-success';
         if (difference > 0) return 'text-info';
@@ -165,7 +170,7 @@ export class CashCountReportsComponent implements OnInit {
             r.countedCash,
             r.difference,
             this.getStatusLabel(r.status),
-            r.closedBy || ''
+            this.getClosedByName(r)
         ]);
 
         const csvContent = [

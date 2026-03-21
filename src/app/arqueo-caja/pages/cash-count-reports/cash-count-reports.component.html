@@ -140,7 +140,7 @@
                                                     {{ getStatusLabel(report.status) }}
                                                 </span>
                                             </td>
-                                            <td>{{ report.closedBy || '-' }}</td>
+                                            <td>{{ getClosedByName(report) }}</td>
                                             <td class="text-center">
                                                 <button class="btn btn-sm btn-outline-primary" (click)="viewDetails(report.date)" title="Ver detalles">
                                                     <i class="bi bi-eye"></i>

@@ -11,7 +11,8 @@ import {
     PaymentMethodSummary,
     COLOMBIAN_DENOMINATIONS,
     CreateCashCountRequest,
-    CashCountSession
+    CashCountSession,
+    AuditTrailEntry
 } from '../../models/cash-register';
 import { toast } from 'ngx-sonner';
 import { formatInTimeZone } from 'date-fns-tz';
@@ -380,6 +381,36 @@ export class CashCountPageComponent implements OnInit {
     // Limpiar conteo
     clearCount(): void {
         this.initializeDenominations();
+    }
+
+    // Helpers para auditTrail
+    getAuditEntry(action: string): AuditTrailEntry | undefined {
+        return this.existingSession?.auditTrail?.find(e => e.action === action);
+    }
+
+    getLastAuditUpdate(): AuditTrailEntry | undefined {
+        return this.existingSession?.auditTrail?.filter(e => e.action === 'ACTUALIZACION').pop();
+    }
+
+    get openedByName(): string {
+        return this.getAuditEntry('APERTURA')?.userName || '-';
+    }
+
+    get openedAt(): string | undefined {
+        return this.getAuditEntry('APERTURA')?.timestamp;
+    }
+
+    get closedByName(): string {
+        return this.getAuditEntry('CIERRE')?.userName || '-';
+    }
+
+    get closedAt(): string | undefined {
+        return this.getAuditEntry('CIERRE')?.timestamp;
+    }
+
+    get lastUpdatedAt(): string | undefined {
+        const entry = this.getLastAuditUpdate();
+        return entry?.timestamp || this.getAuditEntry('APERTURA')?.timestamp;
     }
 
     formatCurrency(value: number): string {

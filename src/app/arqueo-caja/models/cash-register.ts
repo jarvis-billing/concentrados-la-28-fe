@@ -80,16 +80,23 @@ export interface CashCountSession {
     // Metadata
     status: CashCountStatus;
     notes?: string;
-    closedBy?: string;
-    closedAt?: string;
-    createdBy: string;
-    createdAt: string;
+    auditTrail: AuditTrailEntry[];
 }
 
 export enum CashCountStatus {
     EN_PROGRESO = 'EN_PROGRESO',
     CERRADO = 'CERRADO',
     ANULADO = 'ANULADO'
+}
+
+export type AuditAction = 'APERTURA' | 'ACTUALIZACION' | 'CIERRE' | 'ANULACION';
+
+export interface AuditTrailEntry {
+    userId: string;
+    userName: string;
+    action: AuditAction;
+    timestamp: string;
+    details?: string | null;
 }
 
 /**
@@ -105,7 +112,7 @@ export interface DailyCashSummary {
     countedCash: number;
     difference: number;
     status: CashCountStatus;
-    closedBy?: string;
+    auditTrail: AuditTrailEntry[];
 }
 
 /**

@@ -77,9 +77,9 @@
         <div class="alert" [ngClass]="existingSession.status === 'CERRADO' ? 'alert-success' : 'alert-info'">
             <i class="bi" [ngClass]="existingSession.status === 'CERRADO' ? 'bi-check-circle' : 'bi-info-circle'"></i>
             @if (existingSession.status === 'CERRADO') {
-                <strong>Arqueo cerrado</strong> el {{ existingSession.closedAt | date:'dd/MM/yyyy HH:mm' }} por {{ existingSession.closedBy }}
+                <strong>Arqueo cerrado</strong> el {{ closedAt | date:'dd/MM/yyyy HH:mm' }} por {{ closedByName }}
             } @else {
-                <strong>Arqueo en progreso</strong> - Guardado el {{ existingSession.createdAt | date:'dd/MM/yyyy HH:mm' }}
+                <strong>Arqueo en progreso</strong> - Guardado el {{ lastUpdatedAt | date:'dd/MM/yyyy HH:mm' }}
             }
         </div>
     }
