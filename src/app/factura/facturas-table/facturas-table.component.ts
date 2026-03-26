@@ -111,8 +111,8 @@ export class FacturasTableComponent implements OnInit {
   private buildServerFilter(): BillingReportFilter {
     const f = this.filterForm.value;
     const filter = new BillingReportFilter();
-    filter.fromDate = f.endDate || '';
-    filter.toDate = f.startDate || '';
+    filter.fromDate = f.startDate || '';
+    filter.toDate = f.endDate || '';
     filter.billNumber = f.billNumber || '';
     filter.client = this.selectedClient?.id || '';
     filter.product = this.selectedProduct?.id || '';

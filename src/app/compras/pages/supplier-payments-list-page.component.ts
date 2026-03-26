@@ -20,6 +20,7 @@ export class SupplierPaymentsListPageComponent {
 
   suppliers: Supplier[] = [];
   payments: SupplierPayment[] = [];
+  today: string = '';
 
   filter: FormGroup = this.fb.group({
     supplierId: [''],
@@ -28,6 +29,8 @@ export class SupplierPaymentsListPageComponent {
   });
 
   ngOnInit() {
+    this.today = new Date().toISOString().split('T')[0];
+    this.filter.patchValue({ from: this.today, to: this.today });
     this.loadSuppliers();
     this.search();
   }
@@ -42,11 +45,17 @@ export class SupplierPaymentsListPageComponent {
       supplierId: f.supplierId || undefined,
       from: f.from || undefined,
       to: f.to || undefined
-    }).subscribe(res => this.payments = res);
+    }).subscribe(res => {
+      this.payments = res.sort((a, b) => {
+        const dateA = new Date(a.paymentDate || 0).getTime();
+        const dateB = new Date(b.paymentDate || 0).getTime();
+        return dateB - dateA;
+      });
+    });
   }
 
   clearFilters() {
-    this.filter.reset({ supplierId: '', from: '', to: '' });
+    this.filter.reset({ supplierId: '', from: this.today, to: this.today });
     this.search();
   }
 
