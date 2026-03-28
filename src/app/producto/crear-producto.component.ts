@@ -477,8 +477,8 @@ export class CrearProductoComponent implements OnInit, AfterViewInit {
           return;
         }
         if (isFixed && amt > 0) {
-          c.get('saleMode')?.setValue('FIXED_FULL');
           c.get('packSize')?.setValue(amt, { emitEvent: false });
+          c.get('saleMode')?.setValue('FIXED_FULL');
           c.get('label')?.setValue(`${desc} ${amt} ${unitLabel}`.trim(), { emitEvent: false });
         }
       });
@@ -486,6 +486,9 @@ export class CrearProductoComponent implements OnInit, AfterViewInit {
     }
 
     // Para WEIGHT conservar lógica de FULL/HALF
+    // IMPORTANTE: packSize se debe setear ANTES de saleMode porque el valueChanges
+    // de saleMode lee packSize para derivar fixedAmount. Si se setea después,
+    // el handler lee el packSize viejo y corrompe fixedAmount (ej: 20 / 2 = 10).
     const max = Math.max(...fixedValues);
     const eps = 1e-6;
     ctrls.forEach(c => {
@@ -495,14 +498,14 @@ export class CrearProductoComponent implements OnInit, AfterViewInit {
         return;
       }
       if (Math.abs(amt - max) <= eps) {
-        c.get('saleMode')?.setValue('FIXED_FULL');
         c.get('packSize')?.setValue(max, { emitEvent: false });
+        c.get('saleMode')?.setValue('FIXED_FULL');
       } else if (Math.abs(amt - (max / 2)) <= eps) {
-        c.get('saleMode')?.setValue('FIXED_HALF');
         c.get('packSize')?.setValue(max, { emitEvent: false });
+        c.get('saleMode')?.setValue('FIXED_HALF');
       } else {
-        c.get('saleMode')?.setValue('FIXED_FULL');
         c.get('packSize')?.setValue(amt, { emitEvent: false });
+        c.get('saleMode')?.setValue('FIXED_FULL');
       }
     });
   }
