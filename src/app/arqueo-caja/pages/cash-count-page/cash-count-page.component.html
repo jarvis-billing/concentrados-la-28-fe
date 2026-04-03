@@ -775,12 +775,6 @@
                                             <span><span class="badge bg-warning text-dark me-2">Pagos a Proveedores</span></span>
                                             <strong>{{ formatCurrency(totalPagosProveedor) }}</strong>
                                         </li>
-                                        @if (totalCambiosEntregados > 0) {
-                                            <li class="list-group-item d-flex justify-content-between">
-                                                <span><span class="badge bg-warning text-dark me-2">Cambios entregados</span></span>
-                                                <strong>{{ formatCurrency(totalCambiosEntregados) }}</strong>
-                                            </li>
-                                        }
                                         @if (totalAjustes > 0) {
                                             <li class="list-group-item d-flex justify-content-between">
                                                 <span><span class="badge bg-secondary me-2">Ajustes</span></span>
