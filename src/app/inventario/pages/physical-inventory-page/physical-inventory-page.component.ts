@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormArray, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { InventoryService } from '../../services/inventory.service';
-import { PhysicalInventory, AdjustmentReason, AdjustmentReasonLabels, PresentationCount } from '../../models/physical-inventory';
+import { PhysicalInventory, AdjustmentReason, AdjustmentReasonLabels, PresentationCount, PhysicalInventoryByPresentationsRequest } from '../../models/physical-inventory';
 import { ProductsSearchModalComponent } from '../../../producto/components/products-search-modal/products-search-modal.component';
 import { Product, Presentation, ESaleType } from '../../../producto/producto';
 import { toast } from 'ngx-sonner';
@@ -29,9 +29,13 @@ export class PhysicalInventoryPageComponent implements OnInit {
   adjustmentReasonLabels = AdjustmentReasonLabels;
   isLoading = false;
   userLogin = this.loginUserService.getUserFromToken();
+  private readonly ADJUSTMENT_DATE_KEY = 'physical_inventory_adjustment_date';
   
   // Para productos con múltiples presentaciones
   presentationCounts: { presentation: Presentation; quantity: number }[] = [];
+
+  // Resultado del último registro (para mostrar desglose de ajuste)
+  lastResult: PhysicalInventory | null = null;
 
   constructor() {
     this.form = this.fb.group({
@@ -39,13 +43,29 @@ export class PhysicalInventoryPageComponent implements OnInit {
       presentationBarcode: ['', Validators.required],
       physicalStock: [0, [Validators.required, Validators.min(0)]],
       adjustmentReason: [AdjustmentReason.CONTEO_FISICO, Validators.required],
-      notes: ['']
+      notes: [''],
+      adjustmentFromDate: ['']
     });
   }
 
   ngOnInit(): void {
     const today = new Date().toISOString();
     this.form.patchValue({ date: today });
+
+    // Restaurar adjustmentFromDate desde localStorage
+    const savedDate = localStorage.getItem(this.ADJUSTMENT_DATE_KEY);
+    if (savedDate) {
+      this.form.patchValue({ adjustmentFromDate: savedDate });
+    }
+
+    // Persistir cambios de adjustmentFromDate en localStorage
+    this.form.get('adjustmentFromDate')?.valueChanges.subscribe((val: string) => {
+      if (val) {
+        localStorage.setItem(this.ADJUSTMENT_DATE_KEY, val);
+      } else {
+        localStorage.removeItem(this.ADJUSTMENT_DATE_KEY);
+      }
+    });
   }
 
   openProductModal(): void {
@@ -186,6 +206,8 @@ export class PhysicalInventoryPageComponent implements OnInit {
   private submitDirect(): void {
     this.isLoading = true;
 
+    const adjustmentFromDate = this.form.value.adjustmentFromDate || undefined;
+
     const physicalInventory: Partial<PhysicalInventory> = {
       date: new Date().toISOString(),
       productId: this.form.value.productId,
@@ -195,11 +217,13 @@ export class PhysicalInventoryPageComponent implements OnInit {
       difference: this.getDifference(),
       adjustmentReason: this.form.value.adjustmentReason,
       notes: this.form.value.notes,
-      userId: this.userLogin?.id || ''
+      userId: this.userLogin?.id || '',
+      adjustmentFromDate: adjustmentFromDate
     };
 
     this.inventoryService.createPhysicalInventory(physicalInventory).subscribe({
-      next: () => {
+      next: (result) => {
+        this.lastResult = result;
         toast.success('Inventario físico registrado correctamente');
         this.resetForm();
         this.isLoading = false;
@@ -221,17 +245,21 @@ export class PhysicalInventoryPageComponent implements OnInit {
       quantity: item.quantity || 0
     }));
 
-    const request = {
+    const adjustmentFromDate = this.form.value.adjustmentFromDate || undefined;
+
+    const request: PhysicalInventoryByPresentationsRequest = {
       productId: this.selectedProduct!.id,
       date: new Date().toISOString(),
       presentationCounts: presentationCountsData,
       adjustmentReason: this.form.value.adjustmentReason,
       notes: this.form.value.notes,
-      userId: this.userLogin?.id || ''
+      userId: this.userLogin?.id || '',
+      adjustmentFromDate: adjustmentFromDate
     };
 
     this.inventoryService.createPhysicalInventoryByPresentations(request).subscribe({
-      next: () => {
+      next: (result) => {
+        this.lastResult = result;
         toast.success('Inventario físico registrado correctamente');
         this.resetForm();
         this.isLoading = false;
@@ -244,10 +272,16 @@ export class PhysicalInventoryPageComponent implements OnInit {
     });
   }
 
+  dismissResult(): void {
+    this.lastResult = null;
+  }
+
   resetForm(): void {
+    const savedDate = this.form.get('adjustmentFromDate')?.value || '';
     this.form.reset({
       adjustmentReason: AdjustmentReason.CONTEO_FISICO,
-      physicalStock: 0
+      physicalStock: 0,
+      adjustmentFromDate: savedDate
     });
     this.selectedProduct = null;
     this.presentationCounts = [];

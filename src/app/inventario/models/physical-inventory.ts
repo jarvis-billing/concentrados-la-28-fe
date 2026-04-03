@@ -15,6 +15,11 @@ export interface PhysicalInventory {
   userId: string;
   user?: User;
   createdAt: Date | string;
+  // Campos de ajuste por ventas/compras
+  adjustmentFromDate?: string;
+  soldAfterCount?: number;
+  purchasedAfterCount?: number;
+  adjustedStock?: number;
 }
 
 export enum AdjustmentReason {
@@ -59,4 +64,5 @@ export interface PhysicalInventoryByPresentationsRequest {
   adjustmentReason?: AdjustmentReason;
   notes?: string;
   userId: string;
+  adjustmentFromDate?: string;
 }

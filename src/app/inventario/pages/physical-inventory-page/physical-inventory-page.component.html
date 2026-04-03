@@ -177,6 +177,21 @@
             </div>
           }
 
+          <!-- Ajuste por ventas/compras (siempre visible) -->
+          <div class="col-md-6">
+            <label class="form-label">
+              <i class="bi bi-clock-history"></i> Ajustar por ventas/compras desde
+            </label>
+            <input 
+              type="datetime-local" 
+              class="form-control" 
+              formControlName="adjustmentFromDate"
+            >
+            <small class="text-muted">
+              Opcional. Si el conteo se hizo antes de registrarlo, indique desde cuándo considerar ventas/compras posteriores.
+            </small>
+          </div>
+
           <!-- Motivo del Ajuste -->
           <div class="col-md-6">
             <label class="form-label">Motivo del Ajuste <span class="text-danger">*</span></label>
@@ -229,6 +244,56 @@
       </form>
     </div>
   </div>
+
+  <!-- Resultado del último registro (desglose de ajuste) -->
+  @if (lastResult) {
+    <div class="card mt-3 border-success">
+      <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+        <h6 class="m-0"><i class="bi bi-check-circle"></i> Inventario registrado correctamente</h6>
+        <button type="button" class="btn btn-sm btn-outline-light" (click)="dismissResult()">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-3">
+            <div class="text-muted small">Conteo Físico</div>
+            <div class="fs-5 fw-bold">{{ lastResult.physicalStock | number:'1.2-2' }}</div>
+          </div>
+          @if (lastResult.adjustmentFromDate) {
+            <div class="col-md-2">
+              <div class="text-muted small">Vendido</div>
+              <div class="fs-5 fw-bold text-danger">- {{ lastResult.soldAfterCount | number:'1.2-2' }}</div>
+            </div>
+            <div class="col-md-2">
+              <div class="text-muted small">Comprado</div>
+              <div class="fs-5 fw-bold text-success">+ {{ lastResult.purchasedAfterCount | number:'1.2-2' }}</div>
+            </div>
+            <div class="col-md-3">
+              <div class="text-muted small">Stock Ajustado</div>
+              <div class="fs-5 fw-bold text-primary">{{ lastResult.adjustedStock | number:'1.2-2' }}</div>
+            </div>
+          }
+          <div class="col-md-2">
+            <div class="text-muted small">Diferencia</div>
+            <div class="fs-5 fw-bold" [ngClass]="{
+              'text-success': lastResult.difference >= 0,
+              'text-danger': lastResult.difference < 0
+            }">
+              {{ lastResult.difference >= 0 ? '+' : '' }}{{ lastResult.difference | number:'1.2-2' }}
+            </div>
+          </div>
+        </div>
+        @if (lastResult.adjustmentFromDate) {
+          <div class="mt-2">
+            <small class="text-muted">
+              <i class="bi bi-clock-history"></i> Ajustado por ventas/compras desde: {{ lastResult.adjustmentFromDate }}
+            </small>
+          </div>
+        }
+      </div>
+    </div>
+  }
 
   <!-- Información adicional -->
   <div class="card mt-3">

@@ -718,6 +718,16 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
     }
     if (e.key === 'Escape') {
       e.preventDefault();
+      // Si hay datos significativos, guardar borrador y pedir confirmación
+      const raw = this.form.getRawValue();
+      const hasData = raw.invoiceNumber || raw.supplierId ||
+        raw.items?.some((i: any) => i.description || i.productId);
+      if (hasData) {
+        this.saveDraft();
+        if (!confirm('¿Desea cancelar? Los datos se guardaron como borrador y podrá restaurarlos al volver.')) {
+          return;
+        }
+      }
       this.resetForm();
     }
   }
