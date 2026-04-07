@@ -18,51 +18,88 @@
                         </div>
                     }
 
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Monto del Pago *</label>
-                        <div class="input-group">
+                    <!-- Saldo a favor del cliente -->
+                    @if (clientCreditBalance > 0) {
+                        <div class="mb-3 p-3 bg-success bg-opacity-10 rounded border border-success">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div>
+                                    <i class="bi bi-wallet2 text-success me-1"></i>
+                                    <strong class="text-success">Saldo a favor disponible:</strong>
+                                </div>
+                                <span class="text-success fw-bold">{{ clientCreditBalance | currency:'COP':'symbol-narrow':'1.0-0' }}</span>
+                            </div>
+                            @if (creditToApply > 0) {
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <small class="text-muted">Aplicado a este pago:</small>
+                                    <span class="text-success fw-bold">-{{ creditToApply | currency:'COP':'symbol-narrow':'1.0-0' }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <small class="fw-bold">Restante a pagar:</small>
+                                    <span class="fw-bold text-primary">{{ remainingAfterCredit | currency:'COP':'symbol-narrow':'1.0-0' }}</span>
+                                </div>
+                                <button type="button" class="btn btn-outline-danger btn-sm w-100" (click)="removeCredit()">
+                                    <i class="bi bi-x-circle me-1"></i> Quitar saldo a favor
+                                </button>
+                            } @else {
+                                <button type="button" class="btn btn-outline-success btn-sm w-100" (click)="applyCredit()">
+                                    <i class="bi bi-check-circle me-1"></i> Usar saldo a favor
+                                </button>
+                            }
+                        </div>
+                    }
+
+                    <!-- Monto del pago (efectivo/otro método) -->
+                    @if (remainingAfterCredit > 0 || creditToApply === 0) {
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">
+                                {{ creditToApply > 0 ? 'Monto adicional a pagar' : 'Monto del Pago' }} *
+                            </label>
+                            <div class="input-group">
+                                <input 
+                                    type="text" 
+                                    class="form-control form-control-lg text-end" 
+                                    formControlName="amount"
+                                    placeholder="$ 0"
+                                    appCurrencyFormat
+                                >
+                                <button 
+                                    type="button" 
+                                    class="btn btn-outline-secondary"
+                                    (click)="setFullAmount()"
+                                    title="Pagar todo"
+                                >
+                                    Total
+                                </button>
+                            </div>
+                            @if (amountControl?.errors?.['required'] && amountControl?.touched && creditToApply === 0) {
+                                <small class="text-danger">El monto es requerido</small>
+                            }
+                            @if (amountControl?.errors?.['min'] && creditToApply === 0) {
+                                <small class="text-danger">El monto debe ser mayor a 0</small>
+                            }
+                        </div>
+                    }
+
+                    @if (remainingAfterCredit > 0 || creditToApply === 0) {
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Método de Pago *</label>
+                            <select class="form-select" formControlName="paymentMethod">
+                                @for (method of paymentMethods; track method) {
+                                    <option [value]="method">{{ method }}</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Referencia</label>
                             <input 
                                 type="text" 
-                                class="form-control form-control-lg text-end" 
-                                formControlName="amount"
-                                placeholder="$ 0"
-                                appCurrencyFormat
+                                class="form-control" 
+                                formControlName="reference"
+                                placeholder="No. transferencia, cheque, etc."
                             >
-                            <button 
-                                type="button" 
-                                class="btn btn-outline-secondary"
-                                (click)="setFullAmount()"
-                                title="Pagar todo"
-                            >
-                                Total
-                            </button>
                         </div>
-                        @if (amountControl?.errors?.['required'] && amountControl?.touched) {
-                            <small class="text-danger">El monto es requerido</small>
-                        }
-                        @if (amountControl?.errors?.['min']) {
-                            <small class="text-danger">El monto debe ser mayor a 0</small>
-                        }
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Método de Pago *</label>
-                        <select class="form-select" formControlName="paymentMethod">
-                            @for (method of paymentMethods; track method) {
-                                <option [value]="method">{{ method }}</option>
-                            }
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Referencia</label>
-                        <input 
-                            type="text" 
-                            class="form-control" 
-                            formControlName="reference"
-                            placeholder="No. transferencia, cheque, etc."
-                        >
-                    </div>
+                    }
 
                     <div class="mb-3">
                         <label class="form-label">Notas</label>
@@ -73,6 +110,28 @@
                             placeholder="Observaciones adicionales..."
                         ></textarea>
                     </div>
+
+                    <!-- Resumen del pago -->
+                    @if (creditToApply > 0) {
+                        <div class="alert alert-warning mb-0">
+                            <h6 class="mb-2"><i class="bi bi-receipt me-1"></i>Resumen del pago</h6>
+                            <div class="d-flex justify-content-between">
+                                <small>Saldo a favor:</small>
+                                <strong>{{ creditToApply | currency:'COP':'symbol-narrow':'1.0-0' }}</strong>
+                            </div>
+                            @if ((+paymentForm.value.amount) > 0) {
+                                <div class="d-flex justify-content-between">
+                                    <small>{{ paymentForm.value.paymentMethod }}:</small>
+                                    <strong>{{ (+paymentForm.value.amount) | currency:'COP':'symbol-narrow':'1.0-0' }}</strong>
+                                </div>
+                            }
+                            <hr class="my-1">
+                            <div class="d-flex justify-content-between">
+                                <strong>Total abono:</strong>
+                                <strong class="text-primary">{{ totalPayment | currency:'COP':'symbol-narrow':'1.0-0' }}</strong>
+                            </div>
+                        </div>
+                    }
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
@@ -81,7 +140,7 @@
                     <button 
                         type="submit" 
                         class="btn btn-primary"
-                        [disabled]="paymentForm.invalid || isSubmitting"
+                        [disabled]="(creditToApply === 0 && paymentForm.invalid) || isSubmitting"
                     >
                         @if (isSubmitting) {
                             <span class="spinner-border spinner-border-sm me-2"></span>

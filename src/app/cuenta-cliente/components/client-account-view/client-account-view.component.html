@@ -292,6 +292,7 @@
 <app-payment-register-modal
     [client]="selectedClient"
     [maxAmount]="clientAccount?.currentBalance || 0"
+    [clientCreditBalance]="clientCredit?.currentBalance || 0"
     (paymentRegistered)="onPaymentRegistered()"
 ></app-payment-register-modal>
 

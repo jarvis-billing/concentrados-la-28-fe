@@ -85,7 +85,7 @@ export class LabelAlbumBuilderComponent implements OnInit {
     showProductDescription: true,
     showBarcode: true,
     showPresentationLabel: true,
-    showPrice: true
+    showPrice: false
   };
   
   showConfigPanel = false;

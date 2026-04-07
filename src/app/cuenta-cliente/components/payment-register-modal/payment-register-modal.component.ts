@@ -3,12 +3,15 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Client } from '../../../cliente/cliente';
 import { ClientAccountService } from '../../services/client-account.service';
+import { ClientCreditService } from '../../services/client-credit.service';
 import { AccountPayment, PaymentMethod } from '../../models/client-account';
+import { UseCreditRequest } from '../../models/client-credit';
 import { LoginUserService } from '../../../auth/login/loginUser.service';
 import { toast } from 'ngx-sonner';
 import { formatInTimeZone } from 'date-fns-tz';
 import { CurrencyFormatDirective } from '../../../directive/currency-format.directive';
 import jsPDF from 'jspdf';
+import { forkJoin, of } from 'rxjs';
 
 @Component({
     selector: 'app-payment-register-modal',
@@ -21,14 +24,17 @@ export class PaymentRegisterModalComponent {
 
     @Input() client: Client | null = null;
     @Input() maxAmount: number = 0;
+    @Input() clientCreditBalance: number = 0;
     @Output() paymentRegistered = new EventEmitter<void>();
 
     fb = inject(FormBuilder);
     accountService = inject(ClientAccountService);
+    creditService = inject(ClientCreditService);
     loginUserService = inject(LoginUserService);
 
-    paymentMethods = Object.values(PaymentMethod);
+    paymentMethods = Object.values(PaymentMethod).filter(m => m !== PaymentMethod.SALDO_FAVOR);
     isSubmitting: boolean = false;
+    creditToApply: number = 0;
     showPrintConfirmation: boolean = false;
     
     // Datos para el comprobante de pago
@@ -53,57 +59,136 @@ export class PaymentRegisterModalComponent {
         return this.paymentForm.get('amount');
     }
 
+    get totalPayment(): number {
+        return this.creditToApply + Number(this.paymentForm.value.amount || 0);
+    }
+
+    get remainingAfterCredit(): number {
+        return Math.max(0, this.maxAmount - this.creditToApply);
+    }
+
+    get maxCreditApplicable(): number {
+        return Math.min(this.clientCreditBalance, this.maxAmount);
+    }
+
+    applyCredit(): void {
+        if (this.clientCreditBalance <= 0) {
+            toast.warning('El cliente no tiene saldo a favor disponible.');
+            return;
+        }
+        this.creditToApply = this.maxCreditApplicable;
+        toast.success(`Se aplicará ${this.formatCurrency(this.creditToApply)} del saldo a favor.`);
+    }
+
+    removeCredit(): void {
+        this.creditToApply = 0;
+        toast.info('Saldo a favor removido.');
+    }
+
+    applyCreditPartial(amount: number): void {
+        if (amount <= 0 || amount > this.clientCreditBalance || amount > this.maxAmount) return;
+        this.creditToApply = amount;
+    }
+
     onSubmit(): void {
-        if (this.paymentForm.invalid || !this.client) {
-            toast.warning('Complete los campos requeridos');
+        if (!this.client) {
+            toast.warning('Seleccione un cliente');
             return;
         }
 
-        const amount = Number(this.paymentForm.value.amount);
-        if (amount > this.maxAmount) {
-            toast.warning(`El monto no puede ser mayor a la deuda pendiente (${this.maxAmount})`);
+        const cashAmount = Number(this.paymentForm.value.amount || 0);
+        const totalPaying = this.creditToApply + cashAmount;
+
+        if (totalPaying <= 0) {
+            toast.warning('Ingrese un monto de pago o aplique saldo a favor');
+            return;
+        }
+
+        if (totalPaying > this.maxAmount) {
+            toast.warning(`El monto total no puede ser mayor a la deuda pendiente (${this.formatCurrency(this.maxAmount)})`);
+            return;
+        }
+
+        if (this.creditToApply > 0 && cashAmount <= 0 && this.paymentForm.invalid) {
+            // Solo paga con saldo a favor, no necesita validar el form de monto
+        } else if (cashAmount > 0 && this.paymentForm.invalid) {
+            toast.warning('Complete los campos requeridos');
             return;
         }
 
         this.isSubmitting = true;
         const user = this.loginUserService.getUserFromToken();
-
-        const payment: AccountPayment = {
-            id: '',
-            clientAccountId: '',
-            amount: amount,
-            paymentMethod: this.paymentForm.value.paymentMethod,
-            reference: this.paymentForm.value.reference || undefined,
-            notes: this.paymentForm.value.notes || undefined,
-            paymentDate: formatInTimeZone(new Date(), 'America/Bogota', "yyyy-MM-dd'T'HH:mm:ssXXX"),
-            createdBy: user?.username || '',
-            createdAt: ''
-        };
-
         const previousBalance = this.maxAmount;
-        const newBalance = previousBalance - amount;
+        const newBalance = previousBalance - totalPaying;
 
-        this.accountService.registerPayment({
-            ...payment,
-            clientAccountId: this.client.id
-        }).subscribe({
+        // Preparar observables
+        const creditNotes = this.creditToApply > 0 ? `Pago con saldo a favor: ${this.formatCurrency(this.creditToApply)}` : '';
+        const cashNotes = cashAmount > 0 ? this.paymentForm.value.notes || '' : '';
+        const combinedNotes = [creditNotes, cashNotes].filter(n => n).join(' | ');
+
+        // 1) Registrar pago con saldo a favor si aplica
+        const creditObs$ = this.creditToApply > 0
+            ? this.creditService.useCredit({
+                clientId: this.client.id,
+                amount: this.creditToApply,
+                notes: `Abono a cuenta crédito`
+            } as UseCreditRequest)
+            : of(null);
+
+        // 2) Registrar pago normal si hay monto en efectivo/otro
+        const paymentObs$ = cashAmount > 0
+            ? this.accountService.registerPayment({
+                id: '',
+                clientAccountId: this.client.id,
+                amount: cashAmount,
+                paymentMethod: this.paymentForm.value.paymentMethod || PaymentMethod.EFECTIVO,
+                reference: this.paymentForm.value.reference || undefined,
+                notes: combinedNotes || undefined,
+                paymentDate: formatInTimeZone(new Date(), 'America/Bogota', "yyyy-MM-dd'T'HH:mm:ssXXX"),
+                createdBy: user?.username || '',
+                createdAt: ''
+            })
+            : of(null);
+
+        // 3) Si solo paga con saldo a favor (sin cash), registrar un pago con método SALDO_FAVOR
+        const creditOnlyPaymentObs$ = (this.creditToApply > 0 && cashAmount <= 0)
+            ? this.accountService.registerPayment({
+                id: '',
+                clientAccountId: this.client.id,
+                amount: this.creditToApply,
+                paymentMethod: PaymentMethod.SALDO_FAVOR,
+                reference: undefined,
+                notes: combinedNotes || 'Pago con saldo a favor',
+                paymentDate: formatInTimeZone(new Date(), 'America/Bogota', "yyyy-MM-dd'T'HH:mm:ssXXX"),
+                createdBy: user?.username || '',
+                createdAt: ''
+            })
+            : of(null);
+
+        forkJoin([creditObs$, cashAmount > 0 ? paymentObs$ : creditOnlyPaymentObs$]).subscribe({
             next: () => {
                 this.isSubmitting = false;
-                
-                // Guardar datos para el comprobante
+
+                const paymentMethodLabel = this.creditToApply > 0 && cashAmount > 0
+                    ? `SALDO_FAVOR + ${this.paymentForm.value.paymentMethod}`
+                    : this.creditToApply > 0
+                        ? 'SALDO_FAVOR'
+                        : this.paymentForm.value.paymentMethod;
+
                 this.lastPaymentData = {
-                    amount: amount,
-                    paymentMethod: this.paymentForm.value.paymentMethod,
+                    amount: totalPaying,
+                    paymentMethod: paymentMethodLabel,
                     reference: this.paymentForm.value.reference || undefined,
                     paymentDate: new Date(),
                     createdBy: user?.username || '',
                     previousBalance: previousBalance,
                     newBalance: newBalance
                 };
-                
+
                 this.paymentForm.reset({
                     paymentMethod: PaymentMethod.EFECTIVO
                 });
+                this.creditToApply = 0;
                 this.closeModal();
                 this.showPrintConfirmation = true;
                 this.paymentRegistered.emit();
@@ -261,6 +346,6 @@ export class PaymentRegisterModalComponent {
     }
 
     setFullAmount(): void {
-        this.paymentForm.patchValue({ amount: this.maxAmount });
+        this.paymentForm.patchValue({ amount: this.remainingAfterCredit });
     }
 }

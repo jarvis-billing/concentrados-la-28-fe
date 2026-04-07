@@ -40,6 +40,7 @@ export enum PaymentMethod {
     TARJETA_DEBITO = 'TARJETA_DEBITO',
     TARJETA_CREDITO = 'TARJETA_CREDITO',
     CHEQUE = 'CHEQUE',
+    SALDO_FAVOR = 'SALDO_FAVOR',
     OTRO = 'OTRO'
 }
 

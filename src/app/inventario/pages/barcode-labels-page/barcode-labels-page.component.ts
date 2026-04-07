@@ -308,20 +308,23 @@ export class BarcodeLabelsPageComponent implements OnInit {
 
     // Descripción del producto
     if (config.showDescription) {
-      const fontSize = Math.max(4, Math.min(5, w / 12));
-      doc.setFontSize(fontSize);
+      doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
-      const maxChars = Math.floor(w / 1.8);
-      const descLines = this.wrapText(label.productDescription, maxChars);
-      descLines.forEach((line, index) => {
-        doc.text(line, centerX, currentY + 2 + (index * 2), { align: 'center' });
+      const maxWidth = w - 2; // margen interno de 1mm por lado
+      let descLines: string[] = doc.splitTextToSize(label.productDescription || '', maxWidth);
+      if (descLines.length > 4) {
+        descLines = descLines.slice(0, 4);
+        descLines[3] = descLines[3].substring(0, descLines[3].length - 3) + '...';
+      }
+      descLines.forEach((line: string, index: number) => {
+        doc.text(line, centerX, currentY + 2.5 + (index * 2.5), { align: 'center' });
       });
-      currentY += lineSpacing * 0.6 * descLines.length;
+      currentY += 2.5 * descLines.length;
     }
 
     // Precio de venta
     if (config.showPrice) {
-      const fontSize = Math.max(6, Math.min(9, w / 6));
+      const fontSize = Math.max(8, Math.min(9, w / 6));
       doc.setFontSize(fontSize);
       doc.setFont('helvetica', 'bold');
       const priceText = this.formatPrice(label.salePrice);
@@ -329,6 +332,7 @@ export class BarcodeLabelsPageComponent implements OnInit {
       const priceY = Math.min(currentY + 3, y + h - 2);
       doc.text(priceText, centerX, priceY, { align: 'center' });
     }
+      
   }
 
   private wrapText(text: string, maxCharsPerLine: number): string[] {
@@ -349,10 +353,10 @@ export class BarcodeLabelsPageComponent implements OnInit {
     });
     if (currentLine) lines.push(currentLine);
 
-    // Máximo 2 líneas
-    if (lines.length > 2) {
-      lines[1] = lines[1].substring(0, maxCharsPerLine - 3) + '...';
-      return lines.slice(0, 2);
+    // Máximo 4 líneas para mostrar descripción completa
+    if (lines.length > 4) {
+      lines[3] = lines[3].substring(0, maxCharsPerLine - 3) + '...';
+      return lines.slice(0, 4);
     }
     return lines;
   }

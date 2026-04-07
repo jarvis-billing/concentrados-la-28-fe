@@ -68,7 +68,7 @@ export const DEFAULT_LABEL_CONFIG: LabelConfig = {
     showBarcode: true,
     showBarcodeNumber: true,
     showDescription: true,
-    showPrice: true,
+    showPrice: false,
     companyName: 'CONCENTRADOS LA 28',
     presetName: 'Etiqueta 50x25mm (1 columna)'
 };
@@ -95,7 +95,7 @@ export const LABEL_PRESETS: LabelConfig[] = [
         showBarcode: true,
         showBarcodeNumber: true,
         showDescription: true,
-        showPrice: true,
+        showPrice: false,
         companyName: 'CONCENTRADOS LA 28',
         presetName: 'Etiqueta 32x25mm (2 columnas)'
     },
@@ -113,7 +113,7 @@ export const LABEL_PRESETS: LabelConfig[] = [
         showBarcode: true,
         showBarcodeNumber: true,
         showDescription: true,
-        showPrice: true,
+        showPrice: false,
         companyName: 'CONCENTRADOS LA 28',
         presetName: 'Etiqueta 40x30mm (2 columnas)'
     },
@@ -131,7 +131,7 @@ export const LABEL_PRESETS: LabelConfig[] = [
         showBarcode: true,
         showBarcodeNumber: true,
         showDescription: true,
-        showPrice: true,
+        showPrice: false,
         companyName: 'CONCENTRADOS LA 28',
         presetName: 'Etiqueta 30x20mm (3 columnas, sin empresa)'
     }
