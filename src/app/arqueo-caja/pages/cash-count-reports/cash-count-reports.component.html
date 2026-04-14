@@ -58,7 +58,15 @@
 
     <!-- Resumen -->
     <div class="row mb-4">
-        <div class="col-md-4">
+        <div class="col-md-3">
+            <div class="card shadow-sm border-primary">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2"><i class="bi bi-safe me-1"></i>Total Bases</h6>
+                    <h3 class="text-primary mb-0">{{ formatCurrency(totalOpeningBalance) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
             <div class="card shadow-sm border-success">
                 <div class="card-body text-center">
                     <h6 class="text-muted mb-2">Total Ingresos</h6>
@@ -66,7 +74,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="card shadow-sm border-danger">
                 <div class="card-body text-center">
                     <h6 class="text-muted mb-2">Total Egresos</h6>
@@ -74,13 +82,14 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="card shadow-sm" [ngClass]="totalDifference === 0 ? 'border-success' : (totalDifference > 0 ? 'border-info' : 'border-danger')">
                 <div class="card-body text-center">
-                    <h6 class="text-muted mb-2">Flujo Neto (Ingresos - Egresos)</h6>
+                    <h6 class="text-muted mb-2">Flujo Neto</h6>
                     <h3 class="mb-0" [ngClass]="getDifferenceClass(totalDifference)">
                         {{ formatCurrency(totalDifference) }}
                     </h3>
+                    <small class="text-muted">Base + Ingresos - Egresos</small>
                 </div>
             </div>
         </div>
@@ -108,13 +117,12 @@
                                 <thead class="table-light">
                                     <tr>
                                         <th>Fecha</th>
-                                        <th class="text-end">Base Caja</th>
-                                        <th class="text-end">Ingresos</th>
-                                        <th class="text-end">Egresos</th>
-                                        <th class="text-end">Flujo Neto</th>
-                                        <th class="text-end">Esperado</th>
-                                        <th class="text-end">Contado</th>
-                                        <th class="text-end">Dif. Conteo</th>
+                                        <th class="text-end">Base Caja <i class="bi bi-info-circle-fill text-muted" style="font-size: 0.7rem; cursor: help;" title="Efectivo disponible al iniciar el día"></i></th>
+                                        <th class="text-end">Ingresos <i class="bi bi-info-circle-fill text-muted" style="font-size: 0.7rem; cursor: help;" title="Total de ingresos en efectivo del día"></i></th>
+                                        <th class="text-end">Egresos <i class="bi bi-info-circle-fill text-muted" style="font-size: 0.7rem; cursor: help;" title="Total de egresos en efectivo del día"></i></th>
+                                        <th class="text-end">Flujo Neto <i class="bi bi-info-circle-fill text-muted" style="font-size: 0.7rem; cursor: help;" title="Base + Ingresos - Egresos = Efectivo que debería haber en caja"></i></th>
+                                        <th class="text-end">Contado <i class="bi bi-info-circle-fill text-muted" style="font-size: 0.7rem; cursor: help;" title="Efectivo físico contado en billetes y monedas"></i></th>
+                                        <th class="text-end">Dif. Conteo <i class="bi bi-info-circle-fill text-muted" style="font-size: 0.7rem; cursor: help;" title="Contado - Flujo Neto = Sobrante (+) o Faltante (-)"></i></th>
                                         <th class="text-center">Estado</th>
                                         <th>Cerrado Por</th>
                                         <th class="text-center">Acciones</th>
@@ -127,10 +135,9 @@
                                             <td class="text-end">{{ formatCurrency(report.openingBalance) }}</td>
                                             <td class="text-end text-success">{{ formatCurrency(report.totalIncome) }}</td>
                                             <td class="text-end text-danger">{{ formatCurrency(report.totalExpense) }}</td>
-                                            <td class="text-end fw-semibold" [ngClass]="getDifferenceClass(report.totalIncome - report.totalExpense)">
-                                                {{ formatCurrency(report.totalIncome - report.totalExpense) }}
+                                            <td class="text-end fw-semibold" [ngClass]="getDifferenceClass(report.openingBalance + report.totalIncome - report.totalExpense)">
+                                                {{ formatCurrency(report.openingBalance + report.totalIncome - report.totalExpense) }}
                                             </td>
-                                            <td class="text-end">{{ formatCurrency(report.expectedCashTotal ?? report.expectedCash) }}</td>
                                             <td class="text-end">{{ formatCurrency(report.countedCash) }}</td>
                                             <td class="text-end fw-bold" [ngClass]="getDifferenceClass(report.difference)">
                                                 {{ formatCurrency(report.difference) }}
@@ -152,13 +159,12 @@
                                 <tfoot class="table-light fw-bold">
                                     <tr>
                                         <td>TOTALES ({{ reports.length }} arqueos)</td>
-                                        <td></td>
+                                        <td class="text-end text-primary">{{ formatCurrency(totalOpeningBalance) }}</td>
                                         <td class="text-end text-success">{{ formatCurrency(totalIncome) }}</td>
                                         <td class="text-end text-danger">{{ formatCurrency(totalExpense) }}</td>
                                         <td class="text-end" [ngClass]="getDifferenceClass(totalDifference)">
                                             {{ formatCurrency(totalDifference) }}
                                         </td>
-                                        <td></td>
                                         <td></td>
                                         <td></td>
                                         <td colspan="3"></td>

@@ -714,6 +714,12 @@
                         </div>
                         <div class="card-body">
                             <div class="row g-3">
+                                <div class="col-12">
+                                    <div class="border rounded p-3 text-center bg-primary-subtle">
+                                        <small class="text-muted d-block"><i class="bi bi-safe me-1"></i>Base de Apertura</small>
+                                        <h4 class="mb-0 text-primary">{{ formatCurrency(openingBalance) }}</h4>
+                                    </div>
+                                </div>
                                 <div class="col-6">
                                     <div class="border rounded p-3 text-center bg-success-subtle">
                                         <small class="text-muted d-block">Total Ingresos</small>
@@ -727,11 +733,12 @@
                                     </div>
                                 </div>
                                 <div class="col-12">
-                                    <div class="border rounded p-4 text-center" [ngClass]="(totalIncome - totalExpense) >= 0 ? 'bg-success-subtle' : 'bg-danger-subtle'">
-                                        <small class="text-muted d-block">Flujo Neto del Día</small>
-                                        <h2 class="mb-0" [ngClass]="(totalIncome - totalExpense) >= 0 ? 'text-success' : 'text-danger'">
-                                            {{ formatCurrency(totalIncome - totalExpense) }}
+                                    <div class="border rounded p-4 text-center border-primary bg-light">
+                                        <small class="text-muted d-block"><i class="bi bi-cash-stack me-1"></i>Flujo Neto del Día</small>
+                                        <h2 class="mb-0 text-primary fw-bold">
+                                            {{ formatCurrency(openingBalance + totalIncome - totalExpense) }}
                                         </h2>
+                                        <small class="text-muted">Base + Ingresos - Egresos</small>
                                     </div>
                                 </div>
                             </div>

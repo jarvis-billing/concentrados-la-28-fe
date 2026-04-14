@@ -29,6 +29,7 @@ export class CashCountReportsComponent implements OnInit {
     });
 
     // Totales
+    totalOpeningBalance: number = 0;
     totalIncome: number = 0;
     totalExpense: number = 0;
     totalDifference: number = 0;
@@ -72,9 +73,10 @@ export class CashCountReportsComponent implements OnInit {
     }
 
     calculateTotals(): void {
+        this.totalOpeningBalance = this.reports.reduce((sum, r) => sum + r.openingBalance, 0);
         this.totalIncome = this.reports.reduce((sum, r) => sum + r.totalIncome, 0);
         this.totalExpense = this.reports.reduce((sum, r) => sum + r.totalExpense, 0);
-        this.totalDifference = this.totalIncome - this.totalExpense;
+        this.totalDifference = this.totalOpeningBalance + this.totalIncome - this.totalExpense;
     }
 
     applyFilters(): void {
@@ -160,13 +162,13 @@ export class CashCountReportsComponent implements OnInit {
             return;
         }
 
-        const headers = ['Fecha', 'Base Caja', 'Ingresos', 'Egresos', 'Esperado', 'Contado', 'Diferencia', 'Estado', 'Cerrado Por'];
+        const headers = ['Fecha', 'Base Caja', 'Ingresos', 'Egresos', 'Flujo Neto', 'Contado', 'Dif. Conteo', 'Estado', 'Cerrado Por'];
         const rows = this.reports.map(r => [
             r.date,
             r.openingBalance,
             r.totalIncome,
             r.totalExpense,
-            r.expectedCashTotal ?? r.expectedCash,
+            r.openingBalance + r.totalIncome - r.totalExpense,
             r.countedCash,
             r.difference,
             this.getStatusLabel(r.status),

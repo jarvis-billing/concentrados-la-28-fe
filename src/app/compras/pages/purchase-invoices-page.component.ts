@@ -283,11 +283,13 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
   }
 
   saveInvoice() {
+    console.log('[saveInvoice] isEditMode:', this.isEditMode, 'editingInvoiceId:', this.editingInvoiceId);
     // En modo edición, validar que haya nuevos items para agregar
     const hasNewItems = this.itemsArray.controls.some(ctrl => {
       const g = ctrl as FormGroup;
       return g.get('description')?.value && g.get('presentationId')?.value;
     });
+    console.log('[saveInvoice] hasNewItems:', hasNewItems, 'itemsArray.length:', this.itemsArray.length);
 
     if (this.isEditMode) {
       if (!hasNewItems) {
@@ -303,9 +305,11 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
     }
 
     const raw = this.form.getRawValue();
+    console.log('[saveInvoice] raw items:', JSON.stringify(raw.items));
     
     // Filtrar items vacíos
     const validItems = raw.items.filter((it: any) => it.description && it.presentationId);
+    console.log('[saveInvoice] validItems count:', validItems.length);
     
     if (validItems.length === 0) {
       toast.warning('Agregue al menos un producto válido');
@@ -313,6 +317,7 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
     }
 
     const selectedSupplier = this.suppliers.find(s => s.id === raw.supplierId);
+    console.log('[saveInvoice] supplierId:', raw.supplierId, 'suppliers count:', this.suppliers.length, 'found:', !!selectedSupplier);
     
     if (!selectedSupplier) {
       toast.error('Error: No se encontró el proveedor seleccionado');
