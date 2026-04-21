@@ -85,6 +85,17 @@ export class UseCreditRequest {
 }
 
 /**
+ * DTO para procesar devolución de anticipo al cliente
+ */
+export class RefundCreditRequest {
+    clientId: string = '';
+    amount: number = 0;
+    paymentMethod: PaymentMethodCredit = PaymentMethodCredit.EFECTIVO;
+    reference?: string;
+    notes?: string;
+}
+
+/**
  * Filtros para consultar anticipos
  */
 export class CreditReportFilter {

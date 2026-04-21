@@ -10,6 +10,7 @@ import { ClientCredit, CreditTransaction } from '../../models/client-credit';
 import { toast } from 'ngx-sonner';
 import { PaymentRegisterModalComponent } from '../payment-register-modal/payment-register-modal.component';
 import { CreditRegisterModalComponent } from '../credit-register-modal/credit-register-modal.component';
+import { RefundCreditModalComponent } from '../refund-credit-modal/refund-credit-modal.component';
 import { ModalClientsListComponent } from '../../../cliente/components/modal-clients-list/modal-clients-list.component';
 
 @Component({
@@ -22,6 +23,7 @@ import { ModalClientsListComponent } from '../../../cliente/components/modal-cli
         CurrencyPipe,
         PaymentRegisterModalComponent,
         CreditRegisterModalComponent,
+        RefundCreditModalComponent,
         ModalClientsListComponent
     ],
     templateUrl: './client-account-view.component.html',
@@ -182,6 +184,13 @@ export class ClientAccountViewComponent implements OnInit {
         if (this.selectedClient) {
             this.loadClientData();
             toast.success('Anticipo registrado exitosamente');
+        }
+    }
+
+    onRefundProcessed(): void {
+        if (this.selectedClient) {
+            this.loadClientData();
+            toast.success('Devolución procesada exitosamente');
         }
     }
 

@@ -1,0 +1,105 @@
+<div class="modal fade" id="refundCreditModal" tabindex="-1" aria-labelledby="refundCreditModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="refundCreditModalLabel">
+                    <i class="bi bi-arrow-return-left me-2"></i>
+                    Devolver Anticipo
+                </h5>
+                <button type="button" class="btn-close btn-close-white" (click)="closeModal()" aria-label="Close"></button>
+            </div>
+            <form [formGroup]="refundForm" (ngSubmit)="onSubmit()">
+                <div class="modal-body">
+                    @if (client) {
+                        <div class="text-center mb-4">
+                            <div class="display-6 text-success fw-bold">
+                                {{ availableCredit | currency:'COP':'symbol-narrow':'1.0-0' }}
+                            </div>
+                            <p class="text-muted">Saldo a favor disponible de {{ client.businessName || (client.name + ' ' + client.surname) }}</p>
+                        </div>
+
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            <strong>Atención:</strong> Esta acción devolverá dinero al cliente y reducirá su saldo a favor.
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Monto a devolver <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input 
+                                    type="text" 
+                                    class="form-control form-control-lg text-end" 
+                                    formControlName="amount"
+                                    placeholder="$ 0"
+                                    appCurrencyFormat
+                                >
+                                <button 
+                                    type="button" 
+                                    class="btn btn-outline-success"
+                                    (click)="setFullAmount()"
+                                    title="Devolver saldo completo"
+                                >
+                                    Total
+                                </button>
+                            </div>
+                            @if (amountControl?.errors?.['required'] && amountControl?.touched) {
+                                <small class="text-danger">El monto es requerido</small>
+                            }
+                            @if (amountControl?.errors?.['min']) {
+                                <small class="text-danger">El monto debe ser mayor a 0</small>
+                            }
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Método de devolución <span class="text-danger">*</span></label>
+                            <select class="form-select" formControlName="paymentMethod">
+                                @for (method of paymentMethods; track method) {
+                                    <option [value]="method">{{ method.replace('_', ' ') }}</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Referencia</label>
+                            <input 
+                                type="text" 
+                                class="form-control" 
+                                formControlName="reference"
+                                placeholder="Número de transferencia, cheque, etc."
+                            >
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Notas</label>
+                            <textarea 
+                                class="form-control" 
+                                formControlName="notes"
+                                rows="2"
+                                placeholder="Motivo de la devolución..."
+                            ></textarea>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" (click)="closeModal()">
+                        <i class="bi bi-x-lg me-1"></i>
+                        Cancelar
+                    </button>
+                    <button 
+                        type="submit" 
+                        class="btn btn-danger"
+                        [disabled]="refundForm.invalid || isSubmitting || availableCredit <= 0"
+                    >
+                        @if (isSubmitting) {
+                            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                            Procesando...
+                        } @else {
+                            <i class="bi bi-arrow-return-left me-1"></i>
+                            Procesar Devolución
+                        }
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

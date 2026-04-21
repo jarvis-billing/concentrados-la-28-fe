@@ -9,7 +9,8 @@ import {
     UseCreditRequest,
     CreditReportFilter,
     CreditSummary,
-    ManualCreditRequest
+    ManualCreditRequest,
+    RefundCreditRequest
 } from '../models/client-credit';
 
 @Injectable({
@@ -86,5 +87,12 @@ export class ClientCreditService {
      */
     registerManualCredit(request: ManualCreditRequest): Observable<CreditTransaction> {
         return this.http.post<CreditTransaction>(`${this.url}/manual`, request);
+    }
+
+    /**
+     * Procesa una devolución de anticipo al cliente
+     */
+    processRefund(request: RefundCreditRequest): Observable<CreditTransaction> {
+        return this.http.post<CreditTransaction>(`${this.url}/refund`, request);
     }
 }

@@ -108,6 +108,15 @@
                         <i class="bi bi-plus-circle me-2"></i>
                         Registrar Anticipo
                     </button>
+                    <button 
+                        class="btn btn-danger"
+                        data-bs-toggle="modal" 
+                        data-bs-target="#refundCreditModal"
+                        [disabled]="!clientCredit || clientCredit.currentBalance <= 0"
+                    >
+                        <i class="bi bi-arrow-return-left me-2"></i>
+                        Devolver Anticipo
+                    </button>
                 </div>
             </div>
         </div>
@@ -301,6 +310,13 @@
     [client]="selectedClient"
     (creditRegistered)="onCreditRegistered()"
 ></app-credit-register-modal>
+
+<!-- Modal Devolver Anticipo -->
+<app-refund-credit-modal
+    [client]="selectedClient"
+    [availableCredit]="clientCredit?.currentBalance || 0"
+    (refundProcessed)="onRefundProcessed()"
+></app-refund-credit-modal>
 
 <!-- Modal Gestionar Clientes -->
 <app-modal-clients-list
