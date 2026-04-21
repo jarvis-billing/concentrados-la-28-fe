@@ -1,0 +1,147 @@
+@if (isOpen) {
+    <div class="modal-backdrop fade show"></div>
+    <div class="modal fade show d-block" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-bank me-2"></i>Nueva Consignación a Banco
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" (click)="close()"></button>
+                </div>
+
+                <div class="modal-body">
+                    <form [formGroup]="form" (ngSubmit)="onSubmit()">
+                        <div class="row g-3">
+                            <!-- Monto -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Monto a consignar <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="text"
+                                        class="form-control form-control-lg text-end fw-bold"
+                                        [ngClass]="{'is-invalid': form.controls.amount.touched && form.controls.amount.invalid}"
+                                        [value]="formatCurrencyInput(form.controls.amount.value)"
+                                        (input)="onAmountInput($event)"
+                                        placeholder="0">
+                                </div>
+                                @if (form.controls.amount.touched && form.controls.amount.hasError('min')) {
+                                    <div class="text-danger small mt-1">El monto debe ser mayor a $0</div>
+                                }
+                            </div>
+
+                            <!-- Referencia / Comprobante -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">N° Comprobante / Referencia <span class="text-danger">*</span></label>
+                                <input type="text"
+                                    class="form-control"
+                                    formControlName="reference"
+                                    placeholder="Ej: COMP-98123"
+                                    [ngClass]="{'is-invalid': form.controls.reference.touched && form.controls.reference.invalid}">
+                                @if (form.controls.reference.touched && form.controls.reference.invalid) {
+                                    <div class="invalid-feedback">La referencia es obligatoria</div>
+                                }
+                            </div>
+
+                            <!-- Número de cuenta -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Número de Cuenta <span class="text-danger">*</span></label>
+                                <input type="text"
+                                    class="form-control"
+                                    formControlName="accountNumber"
+                                    placeholder="Ej: 12345678901"
+                                    [ngClass]="{'is-invalid': form.controls.accountNumber.touched && form.controls.accountNumber.invalid}">
+                                @if (form.controls.accountNumber.touched && form.controls.accountNumber.invalid) {
+                                    <div class="invalid-feedback">El número de cuenta es obligatorio</div>
+                                }
+                            </div>
+
+                            <!-- Nombre del banco -->
+                            <div class="col-md-6">
+                                <label class="form-label">Nombre del Banco</label>
+                                <input type="text"
+                                    class="form-control"
+                                    formControlName="bankName"
+                                    placeholder="Ej: Bancolombia">
+                            </div>
+
+                            <!-- Soporte de la consignación -->
+                            <div class="col-md-6">
+                                <label class="form-label">
+                                    Soporte de la consignación
+                                    <small class="text-muted">(opcional)</small>
+                                </label>
+                                @if (!supportFile) {
+                                    <input type="file"
+                                        class="form-control"
+                                        accept=".pdf,.png,.jpg,.jpeg,.webp"
+                                        (change)="onFileSelected($event)"
+                                        [ngClass]="{'is-invalid': supportFileError}">
+                                    <small class="text-muted">Formatos: PDF, PNG, JPG, WEBP · Máximo {{ maxFileSizeMb }} MB</small>
+                                } @else {
+                                    <div class="d-flex align-items-center justify-content-between border rounded p-2 bg-light">
+                                        <div class="d-flex align-items-center gap-2 text-truncate">
+                                            <i class="bi bi-paperclip text-primary"></i>
+                                            <span class="text-truncate fw-semibold">{{ supportFile.name }}</span>
+                                            <small class="text-muted">({{ formatFileSize(supportFile.size) }})</small>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-link text-danger p-0" (click)="removeSupportFile()" [disabled]="isSaving">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </div>
+                                }
+                                @if (supportFileError) {
+                                    <div class="text-danger small mt-1">
+                                        <i class="bi bi-exclamation-triangle me-1"></i>{{ supportFileError }}
+                                    </div>
+                                }
+                            </div>
+
+                            <!-- Tipo de cuenta -->
+                            <div class="col-md-3">
+                                <label class="form-label">Tipo de Cuenta</label>
+                                <select class="form-select" formControlName="accountType">
+                                    <option value="AHORROS">Ahorros</option>
+                                    <option value="CORRIENTE">Corriente</option>
+                                </select>
+                            </div>
+
+                            <!-- Fecha -->
+                            <div class="col-md-3">
+                                <label class="form-label">Fecha</label>
+                                <input type="date"
+                                    class="form-control"
+                                    formControlName="transferDate">
+                            </div>
+
+                            <!-- Notas -->
+                            <div class="col-12">
+                                <label class="form-label">Notas</label>
+                                <textarea
+                                    class="form-control"
+                                    formControlName="notes"
+                                    rows="2"
+                                    placeholder="Observaciones adicionales (opcional)"></textarea>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" (click)="close()" [disabled]="isSaving">
+                        Cancelar
+                    </button>
+                    <button type="button" class="btn btn-primary" (click)="onSubmit()" [disabled]="!canSubmit">
+                        @if (isSaving) {
+                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                            Registrando...
+                        } @else {
+                            <i class="bi bi-bank me-1"></i>
+                            Registrar Consignación
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}

@@ -42,7 +42,8 @@ export enum TransactionCategory {
     DEPOSITO_ANTICIPO = 'DEPOSITO_ANTICIPO',
     GASTO = 'GASTO',
     PAGO_PROVEEDOR = 'PAGO_PROVEEDOR',
-    AJUSTE = 'AJUSTE'
+    AJUSTE = 'AJUSTE',
+    TRASLADO_BANCO = 'TRASLADO_BANCO'
 }
 
 /**

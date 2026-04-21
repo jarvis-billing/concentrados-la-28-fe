@@ -4,7 +4,7 @@ import { Product, ProductCodeResponse } from './producto';
 import { BehaviorSubject, catchError, map, Observable, tap, throwError } from 'rxjs';
 import { urlConfig } from '../../config/config';
 import { PaginationDto } from '../util/PaginationDto';
-import { ProductPrice } from './productoPrice';
+import { BulkPresentationPriceUpdateRequest, BulkPresentationPriceUpdateResponse } from './models/bulk-price-update.model';
 import { Vat } from './vat';
 import { toast } from 'ngx-sonner';
 import { ErrorResponse } from '../util/errorResponse';
@@ -127,9 +127,13 @@ export class ProductoService {
     );
   }
 
-  updatePriceByIds(productPrice: ProductPrice): Observable<Product> {
-    return this.http.post<Product>(`${this.url}/updatePrice`, productPrice).pipe(
-      tap(() => { this.fetchAll(); this.notifyExternalChange(); }) // refrescar + notificar
+  /**
+   * Actualiza masivamente precios de venta y/o costos a nivel de presentación.
+   * El backend debe aplicar los cambios de forma atómica por producto.
+   */
+  bulkUpdatePresentationPrices(payload: BulkPresentationPriceUpdateRequest): Observable<BulkPresentationPriceUpdateResponse> {
+    return this.http.post<BulkPresentationPriceUpdateResponse>(`${this.url}/presentations/bulk-price-update`, payload).pipe(
+      tap(() => { this.fetchAll(); this.notifyExternalChange(); })
     );
   }
 

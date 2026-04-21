@@ -69,8 +69,16 @@
                 </li>
 
 
-                <li class="nav-item mx-2">
-                    <a class="nav-link" routerLink="/main/producto" routerLinkActive="active" (click)="closeMenu()">Producto</a>
+                <li class="nav-item mx-2 dropdown">
+                    <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" routerLinkActive="active" role="button" aria-haspopup="true" aria-expanded="false">Producto</a>
+                    <div class="dropdown-menu" style="background-color: white; border-color: black;">
+                      <a class="dropdown-item" routerLink="/main/producto" (click)="closeMenu()">
+                        <i class="bi bi-box-seam me-1"></i> Gestionar productos
+                      </a>
+                      <a class="dropdown-item" routerLink="/main/producto/precios" (click)="closeMenu()">
+                        <i class="bi bi-tags-fill me-1"></i> Actualizar precios y costos
+                      </a>
+                    </div>
                 </li>
 
                 <li class="nav-item mx-2">
@@ -87,6 +95,10 @@
                       </a>
                       <a class="dropdown-item" routerLink="/main/arqueo-caja/reportes" (click)="closeMenu()">
                         <i class="bi bi-file-earmark-bar-graph me-1"></i> Reportes de Arqueo
+                      </a>
+                      <div class="dropdown-divider"></div>
+                      <a class="dropdown-item" routerLink="/main/arqueo-caja/traslados" (click)="closeMenu()">
+                        <i class="bi bi-bank me-1"></i> Traslados a Banco
                       </a>
                     </div>
                 </li>

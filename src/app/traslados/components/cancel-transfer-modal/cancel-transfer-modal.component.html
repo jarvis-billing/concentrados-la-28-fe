@@ -1,0 +1,70 @@
+@if (isOpen && transfer) {
+    <div class="modal-backdrop fade show"></div>
+    <div class="modal fade show d-block" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-x-octagon me-2"></i>Anular Traslado
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" (click)="close()"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>¿Está seguro de anular este traslado?</strong>
+                        <p class="mb-0 mt-2">El monto será devuelto al saldo de caja.</p>
+                    </div>
+
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-6">
+                                    <small class="text-muted d-block">Monto</small>
+                                    <strong class="text-primary">{{ formatCurrency(transfer.amount) }}</strong>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted d-block">Referencia</small>
+                                    <strong>{{ transfer.reference }}</strong>
+                                </div>
+                                <div class="col-6 mt-2">
+                                    <small class="text-muted d-block">Banco</small>
+                                    <span>{{ transfer.destinationBankName || '-' }}</span>
+                                </div>
+                                <div class="col-6 mt-2">
+                                    <small class="text-muted d-block">Fecha</small>
+                                    <span>{{ transfer.transferDate }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-0">
+                        <label class="form-label">Motivo de anulación (opcional)</label>
+                        <textarea
+                            class="form-control"
+                            [(ngModel)]="reason"
+                            rows="2"
+                            placeholder="Ingrese el motivo de la anulación..."></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" (click)="close()" [disabled]="isCancelling">
+                        Cancelar
+                    </button>
+                    <button type="button" class="btn btn-danger" (click)="onConfirm()" [disabled]="isCancelling">
+                        @if (isCancelling) {
+                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                            Anulando...
+                        } @else {
+                            <i class="bi bi-x-octagon me-1"></i>
+                            Confirmar Anulación
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}

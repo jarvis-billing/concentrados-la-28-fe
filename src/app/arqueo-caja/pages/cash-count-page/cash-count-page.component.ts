@@ -451,7 +451,8 @@ export class CashCountPageComponent implements OnInit {
             'DEPOSITO_ANTICIPO': 'Depósito/Anticipo',
             'GASTO': 'Gasto',
             'PAGO_PROVEEDOR': 'Pago a Proveedor',
-            'AJUSTE': 'Ajuste'
+            'AJUSTE': 'Ajuste',
+            'TRASLADO_BANCO': 'Consignación a Banco'
         };
         return labels[category] || category;
     }
@@ -472,7 +473,8 @@ export class CashCountPageComponent implements OnInit {
             'DEPOSITO_ANTICIPO': 'bg-primary',
             'GASTO': 'bg-danger',
             'PAGO_PROVEEDOR': 'bg-warning text-dark',
-            'AJUSTE': 'bg-secondary'
+            'AJUSTE': 'bg-secondary',
+            'TRASLADO_BANCO': 'bg-dark'
         };
         return classes[category] || 'bg-secondary';
     }
@@ -508,5 +510,9 @@ export class CashCountPageComponent implements OnInit {
         return this.transactions
             .filter(t => t.category === 'AJUSTE')
             .reduce((sum, t) => sum + t.amount, 0);
+    }
+
+    get totalTrasladosBanco(): number {
+        return this.getTotalByCategory('TRASLADO_BANCO');
     }
 }

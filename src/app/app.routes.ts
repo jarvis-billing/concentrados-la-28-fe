@@ -5,6 +5,7 @@ import { MenuComponent } from './menu/menu.component';
 import { InicioComponent } from './inicio/inicio.component';
 import { MainComponent } from './main/main.component';
 import { ProductoComponent } from './producto/producto.component';
+import { PriceManagerPageComponent } from './producto/pages/price-manager-page/price-manager-page.component';
 import { CategoriaComponent } from './categoria/categoria.component';
 import { EmpresaComponent } from './empresa/empresa.component';
 import { FacturacionComponent } from './facturacion/facturacion.component';
@@ -37,6 +38,7 @@ import { BatchManagementPageComponent } from './lotes/pages/batch-management-pag
 import { CashCountPageComponent } from './arqueo-caja/pages/cash-count-page/cash-count-page.component';
 import { CashCountReportsComponent } from './arqueo-caja/pages/cash-count-reports/cash-count-reports.component';
 import { CashLoansPageComponent } from './arqueo-caja/pages/cash-loans-page/cash-loans-page.component';
+import { TransfersListComponent } from './traslados/pages/transfers-list/transfers-list.component';
 import { ClienteComponent } from './cliente/cliente.component';
 
 export const routes: Routes = [
@@ -55,6 +57,9 @@ export const routes: Routes = [
         },
         {
             path:'producto', component: ProductoComponent
+        },
+        {
+            path:'producto/precios', component: PriceManagerPageComponent
         },
         {
             path:'crearproducto/:barcode', component: CrearProductoComponent
@@ -160,6 +165,9 @@ export const routes: Routes = [
         },
         {
             path: 'arqueo-caja/prestamos', component: CashLoansPageComponent
+        },
+        {
+            path: 'arqueo-caja/traslados', component: TransfersListComponent
         }
     ]}
 ];
