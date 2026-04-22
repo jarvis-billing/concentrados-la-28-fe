@@ -10,6 +10,8 @@ import { toast } from 'ngx-sonner';
 import { LabelConfig } from '../../models/label-config';
 import { LabelConfigService } from '../../services/label-config.service';
 import { LabelConfigModalComponent } from '../../components/label-config-modal/label-config-modal.component';
+import { PurchaseInvoiceSearchModalComponent } from '../../components/purchase-invoice-search-modal/purchase-invoice-search-modal.component';
+import { PurchaseInvoice } from '../../../compras/models/purchase-invoice';
 
 // Mapa de abreviaturas para unidades de medida
 const UNIT_ABBREVIATIONS: Record<string, string> = {
@@ -28,12 +30,13 @@ interface LabelData {
   salePrice: number | string;
   companyName: string;
   selected: boolean;
+  quantity: number; // Cantidad de copias a imprimir (en modo factura = cantidad comprada)
 }
 
 @Component({
   selector: 'app-barcode-labels-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, LabelConfigModalComponent],
+  imports: [CommonModule, FormsModule, RouterLink, LabelConfigModalComponent, PurchaseInvoiceSearchModalComponent],
   templateUrl: './barcode-labels-page.component.html',
   styleUrls: ['./barcode-labels-page.component.css']
 })
@@ -42,6 +45,7 @@ export class BarcodeLabelsPageComponent implements OnInit {
   private labelConfigService = inject(LabelConfigService);
 
   @ViewChild('labelConfigModal') labelConfigModal!: LabelConfigModalComponent;
+  @ViewChild('purchaseInvoiceModal') purchaseInvoiceModal!: PurchaseInvoiceSearchModalComponent;
 
   // Configuración dinámica de etiquetas
   labelConfig: LabelConfig = {} as LabelConfig;
@@ -57,6 +61,10 @@ export class BarcodeLabelsPageComponent implements OnInit {
   isGeneratingPdf = false;
   copiesPerLabel = 1;
 
+  // Factura de compra seleccionada
+  selectedInvoice: PurchaseInvoice | null = null;
+  invoiceMode = false; // true cuando se filtran productos por factura
+
   ngOnInit(): void {
     this.labelConfig = this.labelConfigService.getConfig();
     this.loadProducts();
@@ -64,6 +72,71 @@ export class BarcodeLabelsPageComponent implements OnInit {
 
   openConfigModal(): void {
     this.labelConfigModal.openModal();
+  }
+
+  openPurchaseInvoiceModal(): void {
+    this.purchaseInvoiceModal.openModal();
+  }
+
+  onInvoiceSelected(invoice: PurchaseInvoice): void {
+    this.selectedInvoice = invoice;
+    this.invoiceMode = true;
+    this.buildLabelsFromInvoice(invoice);
+  }
+
+  clearInvoiceFilter(): void {
+    this.selectedInvoice = null;
+    this.invoiceMode = false;
+    this.products = [...this.allProducts];
+    this.buildLabels();
+  }
+
+  private buildLabelsFromInvoice(invoice: PurchaseInvoice): void {
+    this.labels = [];
+    const items = invoice.items || [];
+    items.forEach(item => {
+      if (item.presentationBarcode) {
+        // Buscar el producto y presentación en allProducts para obtener salePrice
+        let salePrice: number | string = 0;
+        let presentationLabel = item.description || '';
+        for (const prod of this.allProducts) {
+          const pres = (prod.presentations || []).find(p => p.barcode === item.presentationBarcode);
+          if (pres) {
+            const unitAbbr = UNIT_ABBREVIATIONS[pres.unitMeasure] || pres.unitMeasure;
+            salePrice = pres.isBulk ? pres.salePrice + ' ' + unitAbbr : pres.salePrice;
+            presentationLabel = pres.label || item.description || '';
+            break;
+          }
+        }
+        this.labels.push({
+          barcode: item.presentationBarcode,
+          productDescription: presentationLabel,
+          presentationLabel: presentationLabel,
+          salePrice: salePrice || 0,
+          companyName: this.labelConfig.companyName || 'CONCENTRADOS LA 28',
+          selected: false,
+          quantity: Math.ceil(item.quantity) || 1
+        });
+      }
+    });
+    // Aplicar filtros existentes (búsqueda y categoría) sobre las etiquetas de la factura
+    this.applyInvoiceFilters();
+  }
+
+  private applyInvoiceFilters(): void {
+    if (!this.invoiceMode) return;
+    let filtered = [...this.labels];
+    if (this.searchTerm.trim()) {
+      const term = this.searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(l =>
+        (l.productDescription || '').toLowerCase().includes(term) ||
+        (l.barcode || '').toLowerCase().includes(term) ||
+        (l.presentationLabel || '').toLowerCase().includes(term)
+      );
+    }
+    // No re-build, just filter existing labels list
+    this.labels = filtered;
+    this.updateSelectedLabels();
   }
 
   onConfigSaved(config: LabelConfig): void {
@@ -110,7 +183,8 @@ export class BarcodeLabelsPageComponent implements OnInit {
             presentationLabel: pres.label || '',
             salePrice: salePrice || 0,
             companyName: this.labelConfig.companyName || 'CONCENTRADOS LA 28',
-            selected: false
+            selected: false,
+            quantity: 1
           });
         }
       });
@@ -119,11 +193,19 @@ export class BarcodeLabelsPageComponent implements OnInit {
 
   onCategoryChange(category: string): void {
     this.selectedCategory = category;
-    this.applyFilters();
+    if (this.invoiceMode) {
+      this.buildLabelsFromInvoice(this.selectedInvoice!);
+    } else {
+      this.applyFilters();
+    }
   }
 
   onSearchChange(): void {
-    this.applyFilters();
+    if (this.invoiceMode) {
+      this.buildLabelsFromInvoice(this.selectedInvoice!);
+    } else {
+      this.applyFilters();
+    }
   }
 
   private applyFilters(): void {
@@ -168,6 +250,10 @@ export class BarcodeLabelsPageComponent implements OnInit {
     this.selectedLabels = this.labels.filter(l => l.selected);
   }
 
+  getTotalLabelCopies(): number {
+    return this.selectedLabels.reduce((sum, l) => sum + ((l.quantity || 1) * this.copiesPerLabel), 0);
+  }
+
   formatPrice(price: number | string): string {
     if (typeof price === 'string') {
       // Si ya es string (ej: "5000 KG"), formatear solo la parte numérica
@@ -205,10 +291,11 @@ export class BarcodeLabelsPageComponent implements OnInit {
     const colGap = config.columnGap || 0;
     const rowGap = config.rowGap || 0;
 
-    // Expandir etiquetas según copias
+    // Expandir etiquetas según copias (usa cantidad individual * copias globales)
     const expandedLabels: LabelData[] = [];
     this.selectedLabels.forEach(label => {
-      for (let i = 0; i < this.copiesPerLabel; i++) {
+      const copies = (label.quantity || 1) * this.copiesPerLabel;
+      for (let i = 0; i < copies; i++) {
         expandedLabels.push(label);
       }
     });

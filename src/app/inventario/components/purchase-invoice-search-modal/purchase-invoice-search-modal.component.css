@@ -1,0 +1,24 @@
+.supplier-dropdown {
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1060;
+}
+
+.invoice-card {
+    transition: all 0.2s ease;
+    cursor: default;
+}
+
+.invoice-card:hover {
+    border-color: #0d6efd;
+    box-shadow: 0 2px 8px rgba(13, 110, 253, 0.1);
+}
+
+.invoice-list {
+    max-height: 450px;
+    overflow-y: auto;
+}
+
+.modal-body {
+    max-height: 75vh;
+}
