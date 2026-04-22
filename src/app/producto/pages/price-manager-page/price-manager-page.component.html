@@ -67,6 +67,67 @@
                     </button>
                 </div>
             </div>
+
+            <!-- Filtro por rango de precio -->
+            <hr class="my-3">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label">
+                        <i class="bi bi-funnel me-1"></i>Filtrar por
+                    </label>
+                    <select class="form-select" [(ngModel)]="priceFilterField" (ngModelChange)="applyFilters()">
+                        <option value="salePrice">Precio de Venta</option>
+                        <option value="costPrice">Costo Unitario</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Precio mínimo</label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input type="number"
+                            class="form-control"
+                            min="0"
+                            placeholder="Sin mínimo"
+                            [(ngModel)]="minPrice"
+                            (ngModelChange)="applyFilters()">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Precio máximo</label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input type="number"
+                            class="form-control"
+                            min="0"
+                            placeholder="Sin máximo"
+                            [(ngModel)]="maxPrice"
+                            (ngModelChange)="applyFilters()">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">
+                        <i class="bi bi-box-seam me-1"></i>Stock
+                    </label>
+                    <select class="form-select" [(ngModel)]="stockFilter" (ngModelChange)="applyFilters()">
+                        <option value="all">Todos</option>
+                        <option value="withStock">Solo con stock</option>
+                        <option value="withoutStock">Solo sin stock</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-outline-warning w-100" (click)="filterMissingPrice()"
+                            title="Mostrar solo presentaciones sin precio en el campo seleccionado">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        Sin precio
+                    </button>
+                </div>
+            </div>
+            <div class="mt-2">
+                <small class="text-muted">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Deja vacío el rango para omitir un límite. Min=0 y Max=0 muestra presentaciones sin precio. Priorizar productos con stock > 0 al asignar precios.
+                </small>
+            </div>
         </div>
     </div>
 
@@ -172,8 +233,8 @@
                     </div>
                 </div>
 
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0 align-middle">
+                <div class="table-responsive price-manager-scroll">
+                    <table class="table table-hover mb-0 align-middle price-manager-table">
                         <thead class="table-light">
                             <tr>
                                 <th style="width: 40px;">
@@ -181,10 +242,32 @@
                                         [(ngModel)]="selectAllOnPage"
                                         (change)="toggleSelectAllOnPage()">
                                 </th>
-                                <th>Producto</th>
-                                <th>Presentación</th>
+                                <th style="cursor: pointer; user-select: none;" (click)="toggleSort('description')">
+                                    Producto
+                                    @if (sortField === 'description') {
+                                        <i class="bi" [ngClass]="sortDir === 'asc' ? 'bi-sort-alpha-down' : 'bi-sort-alpha-up'"></i>
+                                    } @else {
+                                        <i class="bi bi-arrow-down-up text-muted opacity-50"></i>
+                                    }
+                                </th>
+                                <th style="cursor: pointer; user-select: none;" (click)="toggleSort('presentation')">
+                                    Presentación
+                                    @if (sortField === 'presentation') {
+                                        <i class="bi" [ngClass]="sortDir === 'asc' ? 'bi-sort-alpha-down' : 'bi-sort-alpha-up'"></i>
+                                    } @else {
+                                        <i class="bi bi-arrow-down-up text-muted opacity-50"></i>
+                                    }
+                                </th>
                                 <th>Marca</th>
                                 <th>Categoría</th>
+                                <th class="text-center" style="width: 110px; cursor: pointer; user-select: none;" (click)="toggleSort('stock')">
+                                    Stock
+                                    @if (sortField === 'stock') {
+                                        <i class="bi" [ngClass]="sortDir === 'asc' ? 'bi-sort-numeric-down' : 'bi-sort-numeric-up'"></i>
+                                    } @else {
+                                        <i class="bi bi-arrow-down-up text-muted opacity-50"></i>
+                                    }
+                                </th>
                                 <th class="text-end" style="width: 140px;">Costo actual</th>
                                 <th class="text-end" style="width: 160px;">Nuevo costo</th>
                                 <th class="text-end" style="width: 140px;">Precio actual</th>
@@ -214,6 +297,15 @@
                                     </td>
                                     <td><small>{{ row.brand }}</small></td>
                                     <td><small>{{ row.category }}</small></td>
+                                    <td class="text-center">
+                                        @if (row.stockQuantity > 0) {
+                                            <span class="badge bg-success-subtle text-success-emphasis">
+                                                {{ row.stockQuantity }} {{ row.stockUnit | lowercase }}
+                                            </span>
+                                        } @else {
+                                            <span class="badge bg-danger-subtle text-danger-emphasis">Sin stock</span>
+                                        }
+                                    </td>
                                     <td class="text-end text-muted">{{ formatCurrency(row.costPrice) }}</td>
                                     <td>
                                         <input type="text"

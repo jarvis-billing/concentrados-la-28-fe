@@ -20,16 +20,22 @@ interface PresentationRow {
     newSalePrice: number;
     newCostPrice: number;
     selected: boolean;
+    stockQuantity: number;
+    stockUnit: string;
 }
 
 type BulkField = 'salePrice' | 'costPrice' | 'both';
 type BulkMode = 'fixed' | 'percent';
+type SortField = 'description' | 'presentation' | 'stock';
+type SortDir = 'asc' | 'desc';
+type StockFilter = 'all' | 'withStock' | 'withoutStock';
 
 @Component({
     selector: 'app-price-manager-page',
     standalone: true,
     imports: [CommonModule, FormsModule],
-    templateUrl: './price-manager-page.component.html'
+    templateUrl: './price-manager-page.component.html',
+    styleUrl: './price-manager-page.component.css'
 })
 export class PriceManagerPageComponent implements OnInit {
 
@@ -47,6 +53,18 @@ export class PriceManagerPageComponent implements OnInit {
     selectedBrand: string = '';
     categories: string[] = [];
     brands: string[] = [];
+
+    // Price range filter
+    priceFilterField: 'salePrice' | 'costPrice' = 'salePrice';
+    minPrice: number | null = null;
+    maxPrice: number | null = null;
+
+    // Stock filter
+    stockFilter: StockFilter = 'all';
+
+    // Sorting
+    sortField: SortField = 'description';
+    sortDir: SortDir = 'asc';
 
     // Pagination (client-side)
     pageSize: number = 20;
@@ -104,7 +122,9 @@ export class PriceManagerPageComponent implements OnInit {
                     costPrice: pres.costPrice || 0,
                     newSalePrice: pres.salePrice || 0,
                     newCostPrice: pres.costPrice || 0,
-                    selected: false
+                    selected: false,
+                    stockQuantity: p.stock?.quantity || 0,
+                    stockUnit: p.stock?.unitMeasure || ''
                 });
             }
         }
@@ -113,6 +133,8 @@ export class PriceManagerPageComponent implements OnInit {
 
     applyFilters(): void {
         const q = this.searchText.trim().toLowerCase();
+        const hasMin = this.minPrice != null && !isNaN(this.minPrice as number);
+        const hasMax = this.maxPrice != null && !isNaN(this.maxPrice as number);
         this.filteredRows = this.allRows.filter(r => {
             if (this.selectedCategory && r.category !== this.selectedCategory) return false;
             if (this.selectedBrand && r.brand !== this.selectedBrand) return false;
@@ -120,16 +142,72 @@ export class PriceManagerPageComponent implements OnInit {
                 const haystack = `${r.productDescription} ${r.productCode} ${r.barcode} ${r.presentationLabel} ${r.brand} ${r.category}`.toLowerCase();
                 if (!haystack.includes(q)) return false;
             }
+            // Filtro por rango de precio (sobre el campo seleccionado)
+            if (hasMin || hasMax) {
+                const value = this.priceFilterField === 'salePrice' ? r.salePrice : r.costPrice;
+                if (hasMin && value < (this.minPrice as number)) return false;
+                if (hasMax && value > (this.maxPrice as number)) return false;
+            }
+            // Filtro por stock
+            if (this.stockFilter === 'withStock' && r.stockQuantity <= 0) return false;
+            if (this.stockFilter === 'withoutStock' && r.stockQuantity > 0) return false;
             return true;
         });
+        this.applySort();
         this.currentPage = 1;
         this.syncSelectAllCheckbox();
+    }
+
+    private applySort(): void {
+        const dir = this.sortDir === 'asc' ? 1 : -1;
+        const field = this.sortField;
+        this.filteredRows.sort((a, b) => {
+            let av: string | number;
+            let bv: string | number;
+            if (field === 'description') {
+                av = a.productDescription.toLowerCase();
+                bv = b.productDescription.toLowerCase();
+            } else if (field === 'presentation') {
+                av = (a.presentationLabel || '').toLowerCase();
+                bv = (b.presentationLabel || '').toLowerCase();
+            } else {
+                av = a.stockQuantity;
+                bv = b.stockQuantity;
+            }
+            if (av < bv) return -1 * dir;
+            if (av > bv) return 1 * dir;
+            return 0;
+        });
+    }
+
+    toggleSort(field: SortField): void {
+        if (this.sortField === field) {
+            this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+            this.sortField = field;
+            this.sortDir = 'asc';
+        }
+        this.applySort();
+        this.currentPage = 1;
     }
 
     clearFilters(): void {
         this.searchText = '';
         this.selectedCategory = '';
         this.selectedBrand = '';
+        this.priceFilterField = 'salePrice';
+        this.minPrice = null;
+        this.maxPrice = null;
+        this.stockFilter = 'all';
+        this.sortField = 'description';
+        this.sortDir = 'asc';
+        this.applyFilters();
+    }
+
+    /** Atajo: muestra solo presentaciones sin precio en el campo seleccionado (valor = 0) */
+    filterMissingPrice(): void {
+        this.minPrice = 0;
+        this.maxPrice = 0;
         this.applyFilters();
     }
 
@@ -212,23 +290,33 @@ export class PriceManagerPageComponent implements OnInit {
 
         for (const row of selected) {
             if (this.bulkField === 'salePrice' || this.bulkField === 'both') {
-                row.newSalePrice = this.calculateNewValue(row.salePrice);
+                row.newSalePrice = this.calculateNewValue(row, 'salePrice');
             }
             if (this.bulkField === 'costPrice' || this.bulkField === 'both') {
-                row.newCostPrice = this.calculateNewValue(row.costPrice);
+                row.newCostPrice = this.calculateNewValue(row, 'costPrice');
             }
         }
+
+        // Forzar refresh de referencias para que Angular re-evalúe el binding [value] de los inputs
+        this.filteredRows = [...this.filteredRows];
 
         toast.success(`${selected.length} presentacione(s) actualizada(s) en memoria. Presiona "Guardar" para persistir.`);
     }
 
-    private calculateNewValue(current: number): number {
+    /**
+     * Calcula el nuevo valor según el modo.
+     * - fixed: valor fijo ingresado por el usuario.
+     * - percent: se calcula sobre el COSTO unitario de la fila (base = row.costPrice) independientemente
+     *   del campo que se esté actualizando. Esto permite definir precios de venta como % sobre costo.
+     */
+    private calculateNewValue(row: PresentationRow, field: 'salePrice' | 'costPrice'): number {
         if (this.bulkMode === 'fixed') {
             return Math.round(this.bulkValue);
         }
-        // percent
+        // percent: siempre sobre el costo
+        const base = row.costPrice || 0;
         const factor = 1 + (this.bulkValue / 100);
-        return Math.max(0, Math.round(current * factor));
+        return Math.max(0, Math.round(base * factor));
     }
 
     // ---------------- Inline reset ----------------
