@@ -95,6 +95,13 @@ export class CashRegisterService {
     }
 
     /**
+     * Reabre un arqueo de caja cerrado
+     */
+    reopenSession(id: string, reason?: string): Observable<CashCountSession> {
+        return this.http.post<CashCountSession>(`${this.url}/${id}/reopen`, { reason });
+    }
+
+    /**
      * Exporta el arqueo a PDF
      */
     exportToPdf(id: string): Observable<Blob> {

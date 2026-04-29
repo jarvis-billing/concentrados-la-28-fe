@@ -17,7 +17,7 @@ export class SupplierPaymentsService {
     return this.http.post<void>(this.baseUrl, form);
   }
 
-  list(params?: { supplierId?: string; from?: string; to?: string }): Observable<SupplierPayment[]> {
+  list(params?: { supplierId?: string; bankAccountId?: string; from?: string; to?: string }): Observable<SupplierPayment[]> {
     return this.http.get<SupplierPayment[]>(this.baseUrl, { params: (params as any) || {} });
   }
 

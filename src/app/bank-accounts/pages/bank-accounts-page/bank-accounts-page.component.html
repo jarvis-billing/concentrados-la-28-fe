@@ -1,0 +1,193 @@
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h4 class="mb-0">
+                <i class="bi bi-bank2 me-2"></i>
+                Cuentas Bancarias
+            </h4>
+            <div class="d-flex gap-2 align-items-center">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="showInactive"
+                           [checked]="showInactive" (change)="toggleShowInactive()">
+                    <label class="form-check-label" for="showInactive">Mostrar inactivas</label>
+                </div>
+                <button class="btn btn-primary" (click)="openNewAccountModal()">
+                    <i class="bi bi-plus-circle me-1"></i>
+                    Nueva Cuenta
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de cuentas -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body p-0">
+                    @if (isLoading) {
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Cargando...</span>
+                            </div>
+                        </div>
+                    } @else if (accounts.length === 0) {
+                        <div class="text-center py-5 text-muted">
+                            <i class="bi bi-bank2 fs-1"></i>
+                            <p class="mt-2">No hay cuentas bancarias registradas</p>
+                            <button class="btn btn-primary" (click)="openNewAccountModal()">
+                                <i class="bi bi-plus-circle me-1"></i> Crear primera cuenta
+                            </button>
+                        </div>
+                    } @else {
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Nombre / Alias</th>
+                                        <th>Banco</th>
+                                        <th>Número de Cuenta</th>
+                                        <th>Tipo</th>
+                                        <th class="text-center">Estado</th>
+                                        <th>Notas</th>
+                                        <th>Creada</th>
+                                        <th class="text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @for (account of accounts; track account.id) {
+                                        <tr [ngClass]="{'table-secondary text-muted': !account.active}">
+                                            <td class="fw-semibold">
+                                                <i class="bi bi-bank me-1"></i>
+                                                {{ account.name }}
+                                            </td>
+                                            <td>{{ account.bankName }}</td>
+                                            <td>
+                                                <code>{{ maskAccountNumber(account.accountNumber) }}</code>
+                                            </td>
+                                            <td>
+                                                <span class="badge" [ngClass]="account.accountType === 'AHORROS' ? 'bg-info' : 'bg-primary'">
+                                                    {{ getAccountTypeLabel(account.accountType) }}
+                                                </span>
+                                            </td>
+                                            <td class="text-center">
+                                                @if (account.active) {
+                                                    <span class="badge bg-success">Activa</span>
+                                                } @else {
+                                                    <span class="badge bg-secondary">Inactiva</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <small class="text-muted">{{ account.notes || '-' }}</small>
+                                            </td>
+                                            <td>
+                                                <small>{{ formatDate(account.createdAt) }}</small>
+                                            </td>
+                                            <td class="text-center">
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-outline-primary" (click)="openEditModal(account)" title="Editar">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </button>
+                                                    @if (account.active) {
+                                                        <button class="btn btn-outline-danger" (click)="confirmDeactivate(account)" title="Desactivar">
+                                                            <i class="bi bi-x-circle"></i>
+                                                        </button>
+                                                    }
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Crear/Editar Cuenta -->
+@if (showModal) {
+    <div class="modal-backdrop fade show"></div>
+    <div class="modal fade show d-block" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-bank2 me-2"></i>
+                        {{ editingAccount ? 'Editar Cuenta' : 'Nueva Cuenta Bancaria' }}
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" (click)="closeModal()"></button>
+                </div>
+                <div class="modal-body">
+                    <form [formGroup]="form" (ngSubmit)="onSave()">
+                        <div class="row g-3">
+                            <!-- Nombre / Alias -->
+                            <div class="col-12">
+                                <label class="form-label fw-semibold">Nombre / Alias <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" formControlName="name"
+                                       placeholder="Ej: Bancolombia Ahorros Principal"
+                                       [ngClass]="{'is-invalid': form.controls['name'].touched && form.controls['name'].invalid}">
+                                @if (form.controls['name'].touched && form.controls['name'].invalid) {
+                                    <div class="invalid-feedback">El nombre es obligatorio</div>
+                                }
+                            </div>
+
+                            <!-- Banco -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Banco <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" formControlName="bankName"
+                                       placeholder="Ej: Bancolombia"
+                                       [ngClass]="{'is-invalid': form.controls['bankName'].touched && form.controls['bankName'].invalid}">
+                                @if (form.controls['bankName'].touched && form.controls['bankName'].invalid) {
+                                    <div class="invalid-feedback">El banco es obligatorio</div>
+                                }
+                            </div>
+
+                            <!-- Número de cuenta -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">N° de Cuenta <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" formControlName="accountNumber"
+                                       placeholder="Ej: 12345678901"
+                                       [ngClass]="{'is-invalid': form.controls['accountNumber'].touched && form.controls['accountNumber'].invalid}">
+                                @if (form.controls['accountNumber'].touched && form.controls['accountNumber'].invalid) {
+                                    <div class="invalid-feedback">El número de cuenta es obligatorio</div>
+                                }
+                            </div>
+
+                            <!-- Tipo -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Tipo de Cuenta <span class="text-danger">*</span></label>
+                                <select class="form-select" formControlName="accountType">
+                                    <option value="AHORROS">Ahorros</option>
+                                    <option value="CORRIENTE">Corriente</option>
+                                </select>
+                            </div>
+
+                            <!-- Notas -->
+                            <div class="col-12">
+                                <label class="form-label">Notas</label>
+                                <textarea class="form-control" formControlName="notes" rows="2"
+                                          placeholder="Observaciones adicionales (opcional)"></textarea>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" (click)="closeModal()" [disabled]="isSaving">
+                        Cancelar
+                    </button>
+                    <button type="button" class="btn btn-primary" (click)="onSave()" [disabled]="isSaving">
+                        @if (isSaving) {
+                            <span class="spinner-border spinner-border-sm me-1"></span> Guardando...
+                        } @else {
+                            <i class="bi bi-save me-1"></i>
+                            {{ editingAccount ? 'Actualizar' : 'Crear Cuenta' }}
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}

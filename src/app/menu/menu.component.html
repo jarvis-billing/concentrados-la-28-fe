@@ -97,8 +97,18 @@
                         <i class="bi bi-file-earmark-bar-graph me-1"></i> Reportes de Arqueo
                       </a>
                       <div class="dropdown-divider"></div>
+                      <a class="dropdown-item" routerLink="/main/arqueo-bancario" (click)="closeMenu()">
+                        <i class="bi bi-bank me-1"></i> Arqueo Bancario
+                      </a>
+                      <a class="dropdown-item" routerLink="/main/arqueo-bancario/reportes" (click)="closeMenu()">
+                        <i class="bi bi-file-earmark-bar-graph me-1"></i> Reportes Bancarios
+                      </a>
+                      <div class="dropdown-divider"></div>
                       <a class="dropdown-item" routerLink="/main/arqueo-caja/traslados" (click)="closeMenu()">
-                        <i class="bi bi-bank me-1"></i> Traslados a Banco
+                        <i class="bi bi-arrow-left-right me-1"></i> Traslados a Banco
+                      </a>
+                      <a class="dropdown-item" routerLink="/main/cuentas-bancarias" (click)="closeMenu()">
+                        <i class="bi bi-bank2 me-1"></i> Cuentas Bancarias
                       </a>
                     </div>
                 </li>

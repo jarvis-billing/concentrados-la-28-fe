@@ -33,6 +33,8 @@ interface LabelData {
   quantity: number; // Cantidad de copias a imprimir (en modo factura = cantidad comprada)
 }
 
+const LABEL_CART_KEY = 'labelCart';
+
 @Component({
   selector: 'app-barcode-labels-page',
   standalone: true,
@@ -56,10 +58,13 @@ export class BarcodeLabelsPageComponent implements OnInit {
   selectedCategory = '';
   searchTerm = '';
   labels: LabelData[] = [];
-  selectedLabels: LabelData[] = [];
   isLoading = true;
   isGeneratingPdf = false;
   copiesPerLabel = 1;
+
+  // Carrito persistente de etiquetas seleccionadas (clave = barcode)
+  labelCart: Map<string, LabelData> = new Map();
+  showCart = false;
 
   // Factura de compra seleccionada
   selectedInvoice: PurchaseInvoice | null = null;
@@ -67,6 +72,7 @@ export class BarcodeLabelsPageComponent implements OnInit {
 
   ngOnInit(): void {
     this.labelConfig = this.labelConfigService.getConfig();
+    this.loadCartFromStorage();
     this.loadProducts();
   }
 
@@ -119,6 +125,7 @@ export class BarcodeLabelsPageComponent implements OnInit {
         });
       }
     });
+    this.syncLabelsWithCart();
     // Aplicar filtros existentes (búsqueda y categoría) sobre las etiquetas de la factura
     this.applyInvoiceFilters();
   }
@@ -136,7 +143,7 @@ export class BarcodeLabelsPageComponent implements OnInit {
     }
     // No re-build, just filter existing labels list
     this.labels = filtered;
-    this.updateSelectedLabels();
+    this.syncLabelsWithCart();
   }
 
   onConfigSaved(config: LabelConfig): void {
@@ -189,6 +196,7 @@ export class BarcodeLabelsPageComponent implements OnInit {
         }
       });
     });
+    this.syncLabelsWithCart();
   }
 
   onCategoryChange(category: string): void {
@@ -233,25 +241,111 @@ export class BarcodeLabelsPageComponent implements OnInit {
 
   toggleLabelSelection(label: LabelData): void {
     label.selected = !label.selected;
-    this.updateSelectedLabels();
+    if (label.selected) {
+      this.labelCart.set(label.barcode, { ...label });
+    } else {
+      this.labelCart.delete(label.barcode);
+    }
+    this.saveCartToStorage();
   }
 
   selectAll(): void {
-    this.labels.forEach(l => l.selected = true);
-    this.updateSelectedLabels();
+    this.labels.forEach(l => {
+      l.selected = true;
+      this.labelCart.set(l.barcode, { ...l });
+    });
+    this.saveCartToStorage();
   }
 
   deselectAll(): void {
-    this.labels.forEach(l => l.selected = false);
-    this.updateSelectedLabels();
+    this.labels.forEach(l => {
+      l.selected = false;
+      this.labelCart.delete(l.barcode);
+    });
+    this.saveCartToStorage();
   }
 
-  private updateSelectedLabels(): void {
-    this.selectedLabels = this.labels.filter(l => l.selected);
+  get selectedLabels(): LabelData[] {
+    return Array.from(this.labelCart.values());
   }
 
   getTotalLabelCopies(): number {
     return this.selectedLabels.reduce((sum, l) => sum + ((l.quantity || 1) * this.copiesPerLabel), 0);
+  }
+
+  // --- Cart persistence ---
+
+  private loadCartFromStorage(): void {
+    try {
+      const stored = localStorage.getItem(LABEL_CART_KEY);
+      if (stored) {
+        const arr: LabelData[] = JSON.parse(stored);
+        this.labelCart = new Map(arr.map(l => [l.barcode, l]));
+      }
+    } catch (e) {
+      console.warn('Error loading label cart from localStorage:', e);
+    }
+  }
+
+  private saveCartToStorage(): void {
+    try {
+      const arr = Array.from(this.labelCart.values());
+      localStorage.setItem(LABEL_CART_KEY, JSON.stringify(arr));
+    } catch (e) {
+      console.warn('Error saving label cart to localStorage:', e);
+    }
+  }
+
+  private syncLabelsWithCart(): void {
+    this.labels.forEach(l => {
+      const inCart = this.labelCart.get(l.barcode);
+      if (inCart) {
+        l.selected = true;
+        l.quantity = inCart.quantity;
+      } else {
+        l.selected = false;
+      }
+    });
+  }
+
+  removeFromCart(barcode: string): void {
+    this.labelCart.delete(barcode);
+    // Sincronizar el estado visual si la etiqueta está visible
+    const visible = this.labels.find(l => l.barcode === barcode);
+    if (visible) visible.selected = false;
+    this.saveCartToStorage();
+  }
+
+  clearCart(): void {
+    this.labelCart.clear();
+    this.labels.forEach(l => l.selected = false);
+    this.saveCartToStorage();
+    toast.info('Carrito de etiquetas limpiado');
+  }
+
+  toggleCart(): void {
+    this.showCart = !this.showCart;
+  }
+
+  updateCartQuantity(barcode: string, quantity: number): void {
+    const item = this.labelCart.get(barcode);
+    if (item) {
+      item.quantity = Math.max(1, quantity);
+      this.labelCart.set(barcode, item);
+      // Sincronizar con label visible
+      const visible = this.labels.find(l => l.barcode === barcode);
+      if (visible) visible.quantity = item.quantity;
+      this.saveCartToStorage();
+    }
+  }
+
+  onLabelQuantityChange(label: LabelData): void {
+    if (label.selected && this.labelCart.has(label.barcode)) {
+      const item = this.labelCart.get(label.barcode)!;
+      item.quantity = label.quantity;
+      this.labelCart.set(label.barcode, item);
+      this.saveCartToStorage();
+    }
   }
 
   formatPrice(price: number | string): string {

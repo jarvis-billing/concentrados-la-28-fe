@@ -43,27 +43,93 @@
                                 }
                             </div>
 
-                            <!-- Número de cuenta -->
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Número de Cuenta <span class="text-danger">*</span></label>
-                                <input type="text"
-                                    class="form-control"
-                                    formControlName="accountNumber"
-                                    placeholder="Ej: 12345678901"
-                                    [ngClass]="{'is-invalid': form.controls.accountNumber.touched && form.controls.accountNumber.invalid}">
-                                @if (form.controls.accountNumber.touched && form.controls.accountNumber.invalid) {
-                                    <div class="invalid-feedback">El número de cuenta es obligatorio</div>
+                            <!-- Selector de modo cuenta -->
+                            <div class="col-12">
+                                <label class="form-label fw-semibold">Cuenta destino <span class="text-danger">*</span></label>
+                                <div class="btn-group w-100 mb-2" role="group">
+                                    <button type="button" class="btn"
+                                            [ngClass]="accountMode === 'existing' ? 'btn-primary' : 'btn-outline-secondary'"
+                                            (click)="setAccountMode('existing')"
+                                            [disabled]="bankAccounts.length === 0 && !isLoadingAccounts">
+                                        <i class="bi bi-list-ul me-1"></i> Seleccionar cuenta existente
+                                    </button>
+                                    <button type="button" class="btn"
+                                            [ngClass]="accountMode === 'new' ? 'btn-primary' : 'btn-outline-secondary'"
+                                            (click)="setAccountMode('new')">
+                                        <i class="bi bi-plus-circle me-1"></i> Cuenta nueva
+                                    </button>
+                                </div>
+
+                                @if (isLoadingAccounts) {
+                                    <div class="text-center py-2">
+                                        <span class="spinner-border spinner-border-sm text-primary me-1"></span>
+                                        <small class="text-muted">Cargando cuentas...</small>
+                                    </div>
                                 }
                             </div>
 
-                            <!-- Nombre del banco -->
-                            <div class="col-md-6">
-                                <label class="form-label">Nombre del Banco</label>
-                                <input type="text"
-                                    class="form-control"
-                                    formControlName="bankName"
-                                    placeholder="Ej: Bancolombia">
-                            </div>
+                            <!-- Modo: Cuenta existente -->
+                            @if (accountMode === 'existing' && !isLoadingAccounts) {
+                                <div class="col-12">
+                                    <select class="form-select"
+                                            formControlName="bankAccountId"
+                                            [ngClass]="{'is-invalid': form.controls.bankAccountId.touched && form.controls.bankAccountId.invalid}">
+                                        <option value="">-- Seleccione una cuenta --</option>
+                                        @for (account of bankAccounts; track account.id) {
+                                            <option [value]="account.id">
+                                                {{ account.name }} — {{ account.bankName }} (****{{ account.accountNumber.slice(-4) }}) · {{ account.accountType }}
+                                            </option>
+                                        }
+                                    </select>
+                                    @if (form.controls.bankAccountId.touched && form.controls.bankAccountId.invalid) {
+                                        <div class="invalid-feedback">Seleccione una cuenta</div>
+                                    }
+                                    @if (selectedAccount) {
+                                        <div class="mt-2 p-2 border rounded bg-light small">
+                                            <strong>{{ selectedAccount.name }}</strong><br>
+                                            {{ selectedAccount.bankName }} · {{ selectedAccount.accountType }} · {{ selectedAccount.accountNumber }}
+                                        </div>
+                                    }
+                                </div>
+                            }
+
+                            <!-- Modo: Cuenta nueva -->
+                            @if (accountMode === 'new' && !isLoadingAccounts) {
+                                <div class="col-12">
+                                    <label class="form-label">Alias de la cuenta <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" formControlName="accountName"
+                                           placeholder="Ej: Davivienda Nómina"
+                                           [ngClass]="{'is-invalid': form.controls.accountName.touched && form.controls.accountName.invalid}">
+                                    @if (form.controls.accountName.touched && form.controls.accountName.invalid) {
+                                        <div class="invalid-feedback">El alias es obligatorio</div>
+                                    }
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Nombre del Banco <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" formControlName="bankName"
+                                           placeholder="Ej: Bancolombia"
+                                           [ngClass]="{'is-invalid': form.controls.bankName.touched && form.controls.bankName.invalid}">
+                                    @if (form.controls.bankName.touched && form.controls.bankName.invalid) {
+                                        <div class="invalid-feedback">El banco es obligatorio</div>
+                                    }
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Número de Cuenta <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" formControlName="accountNumber"
+                                           placeholder="Ej: ****5678"
+                                           [ngClass]="{'is-invalid': form.controls.accountNumber.touched && form.controls.accountNumber.invalid}">
+                                    @if (form.controls.accountNumber.touched && form.controls.accountNumber.invalid) {
+                                        <div class="invalid-feedback">El número de cuenta es obligatorio</div>
+                                    }
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Tipo de Cuenta</label>
+                                    <select class="form-select" formControlName="accountType">
+                                        <option value="AHORROS">Ahorros</option>
+                                        <option value="CORRIENTE">Corriente</option>
+                                    </select>
+                                </div>
+                            }
 
                             <!-- Soporte de la consignación -->
                             <div class="col-md-6">
@@ -97,17 +163,8 @@
                                 }
                             </div>
 
-                            <!-- Tipo de cuenta -->
-                            <div class="col-md-3">
-                                <label class="form-label">Tipo de Cuenta</label>
-                                <select class="form-select" formControlName="accountType">
-                                    <option value="AHORROS">Ahorros</option>
-                                    <option value="CORRIENTE">Corriente</option>
-                                </select>
-                            </div>
-
                             <!-- Fecha -->
-                            <div class="col-md-3">
+                            <div class="col-md-6">
                                 <label class="form-label">Fecha</label>
                                 <input type="date"
                                     class="form-control"

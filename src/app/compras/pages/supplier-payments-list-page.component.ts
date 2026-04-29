@@ -6,6 +6,8 @@ import { Supplier } from '../models/supplier';
 import { SupplierService } from '../services/supplier.service';
 import { SupplierPaymentsService } from '../services/supplier-payments.service';
 import { SupplierPayment } from '../models/supplier-payment';
+import { BankAccountService } from '../../bank-accounts/services/bank-account.service';
+import { BankAccountDto } from '../../bank-accounts/models/bank-account.model';
 
 @Component({
   selector: 'app-supplier-payments-list-page',
@@ -17,13 +19,16 @@ export class SupplierPaymentsListPageComponent {
   private fb = inject(FormBuilder);
   private supplierService = inject(SupplierService);
   private paymentsService = inject(SupplierPaymentsService);
+  private bankAccountService = inject(BankAccountService);
 
   suppliers: Supplier[] = [];
+  bankAccounts: BankAccountDto[] = [];
   payments: SupplierPayment[] = [];
   today: string = '';
 
   filter: FormGroup = this.fb.group({
     supplierId: [''],
+    bankAccountId: [''],
     from: [''],
     to: ['']
   });
@@ -32,6 +37,7 @@ export class SupplierPaymentsListPageComponent {
     this.today = new Date().toISOString().split('T')[0];
     this.filter.patchValue({ from: this.today, to: this.today });
     this.loadSuppliers();
+    this.loadBankAccounts();
     this.search();
   }
 
@@ -39,10 +45,15 @@ export class SupplierPaymentsListPageComponent {
     this.supplierService.list().subscribe(res => this.suppliers = res);
   }
 
+  loadBankAccounts() {
+    this.bankAccountService.listActive().subscribe(res => this.bankAccounts = res);
+  }
+
   search() {
     const f = this.filter.value;
     this.paymentsService.list({
       supplierId: f.supplierId || undefined,
+      bankAccountId: f.bankAccountId || undefined,
       from: f.from || undefined,
       to: f.to || undefined
     }).subscribe(res => {
@@ -55,8 +66,14 @@ export class SupplierPaymentsListPageComponent {
   }
 
   clearFilters() {
-    this.filter.reset({ supplierId: '', from: this.today, to: this.today });
+    this.filter.reset({ supplierId: '', bankAccountId: '', from: this.today, to: this.today });
     this.search();
+  }
+
+  getBankAccountName(id?: string): string {
+    if (!id) return '-';
+    const account = this.bankAccounts.find(a => a.id === id);
+    return account ? `${account.name} — ${account.bankName}` : id;
   }
 
   openSupport(p: SupplierPayment) {

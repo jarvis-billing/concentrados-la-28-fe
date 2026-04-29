@@ -7,6 +7,8 @@ export interface SupplierPayment {
   paymentDate: string; // yyyy-MM-dd
   amount: number;
   method: PaymentMethod;
+  bankAccountId?: string;
+  bankAccountName?: string;
   reference?: string;
   notes?: string;
   supportUrl?: string; // URL pública o endpoint de descarga

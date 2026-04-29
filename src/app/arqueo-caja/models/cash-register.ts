@@ -83,6 +83,7 @@ export interface CashCountSession {
     status: CashCountStatus;
     notes?: string;
     auditTrail: AuditTrailEntry[];
+    snapshots: SessionSnapshot[];
 }
 
 export enum CashCountStatus {
@@ -91,7 +92,7 @@ export enum CashCountStatus {
     ANULADO = 'ANULADO'
 }
 
-export type AuditAction = 'APERTURA' | 'ACTUALIZACION' | 'CIERRE' | 'ANULACION';
+export type AuditAction = 'APERTURA' | 'ACTUALIZACION' | 'CIERRE' | 'ANULACION' | 'REAPERTURA';
 
 export interface AuditTrailEntry {
     userId: string;
@@ -99,6 +100,16 @@ export interface AuditTrailEntry {
     action: AuditAction;
     timestamp: string;
     details?: string | null;
+}
+
+export interface SessionSnapshot {
+    snapshotAt: string;
+    userId: string;
+    userName: string;
+    totalCounted: number;
+    expectedTotal: number;
+    difference: number;
+    reason: string | null;
 }
 
 /**

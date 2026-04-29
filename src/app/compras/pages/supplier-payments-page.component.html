@@ -37,6 +37,17 @@
               <option value="CHEQUE">CHEQUE</option>
             </select>
           </div>
+          <div class="col-12 col-md-4" *ngIf="isBankMethod">
+            <label class="form-label">Cuenta Bancaria <span class="text-danger">*</span></label>
+            <select class="form-select" formControlName="bankAccountId"
+              [class.is-invalid]="form.get('bankAccountId')?.invalid && form.get('bankAccountId')?.touched">
+              <option value="" disabled>Seleccione cuenta...</option>
+              <option *ngFor="let a of bankAccounts" [value]="a.id">{{a.name}} — {{a.bankName}} ({{a.accountNumber}})</option>
+            </select>
+            <div class="invalid-feedback" *ngIf="form.get('bankAccountId')?.invalid && form.get('bankAccountId')?.touched">
+              Seleccione una cuenta bancaria
+            </div>
+          </div>
           <div class="col-12 col-md-4">
             <label class="form-label">Referencia</label>
             <input class="form-control" formControlName="reference" placeholder="No. transferencia / comentario">

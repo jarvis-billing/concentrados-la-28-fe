@@ -1,0 +1,27 @@
+/* Arqueo Bancario - estilos específicos */
+
+.card.border-2 {
+    border-width: 2px !important;
+}
+
+.wizard-step-btn {
+    min-width: 180px;
+}
+
+.sticky-top {
+    z-index: 1020;
+}
+
+table tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.alert-heading {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.form-control-lg {
+    font-size: 1.25rem;
+    font-weight: 500;
+}

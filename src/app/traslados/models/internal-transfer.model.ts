@@ -4,7 +4,9 @@ export type BankAccountType = 'AHORROS' | 'CORRIENTE';
 
 export interface CashToBankTransferRequest {
     amount: number;
-    accountNumber: string;
+    bankAccountId?: string;
+    accountName?: string;
+    accountNumber?: string;
     bankName?: string;
     accountType?: BankAccountType;
     reference: string;

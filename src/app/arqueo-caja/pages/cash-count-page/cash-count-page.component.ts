@@ -12,15 +12,17 @@ import {
     COLOMBIAN_DENOMINATIONS,
     CreateCashCountRequest,
     CashCountSession,
-    AuditTrailEntry
+    AuditTrailEntry,
+    SessionSnapshot
 } from '../../models/cash-register';
+import { ReopenSessionModalComponent } from '../../../shared/components/reopen-session-modal/reopen-session-modal.component';
 import { toast } from 'ngx-sonner';
 import { formatInTimeZone } from 'date-fns-tz';
 
 @Component({
     selector: 'app-cash-count-page',
     standalone: true,
-    imports: [CommonModule, FormsModule, CurrencyPipe],
+    imports: [CommonModule, FormsModule, CurrencyPipe, ReopenSessionModalComponent],
     templateUrl: './cash-count-page.component.html',
     styleUrl: './cash-count-page.component.css'
 })
@@ -514,5 +516,97 @@ export class CashCountPageComponent implements OnInit {
 
     get totalTrasladosBanco(): number {
         return this.getTotalByCategory('TRASLADO_BANCO');
+    }
+
+    // ---------------- Reapertura ----------------
+
+    showReopenModal: boolean = false;
+    isReopening: boolean = false;
+
+    get canReopen(): boolean {
+        return this.existingSession?.status === 'CERRADO';
+    }
+
+    openReopenModal(): void {
+        this.showReopenModal = true;
+    }
+
+    onReopenModalClosed(): void {
+        this.showReopenModal = false;
+    }
+
+    onReopenConfirmed(reason: string): void {
+        if (!this.existingSession?.id) return;
+
+        this.isReopening = true;
+        this.cashService.reopenSession(this.existingSession.id, reason).subscribe({
+            next: (session) => {
+                this.existingSession = session;
+                this.loadExistingSession(session);
+                toast.success('Sesión reabierta correctamente');
+                this.isReopening = false;
+                this.showReopenModal = false;
+            },
+            error: (err) => {
+                const msg = err.error?.message || 'Error al reabrir la sesión';
+                if (err.status === 400) {
+                    toast.error('Esta sesión no puede ser reabierta en su estado actual');
+                } else if (err.status === 404) {
+                    toast.error('Sesión no encontrada');
+                } else {
+                    toast.error(msg);
+                }
+                this.isReopening = false;
+            }
+        });
+    }
+
+    // ---------------- Snapshots ----------------
+
+    showSnapshots: boolean = false;
+
+    get snapshots(): SessionSnapshot[] {
+        return (this.existingSession?.snapshots || []).slice().sort(
+            (a, b) => new Date(b.snapshotAt).getTime() - new Date(a.snapshotAt).getTime()
+        );
+    }
+
+    toggleSnapshots(): void {
+        this.showSnapshots = !this.showSnapshots;
+    }
+
+    formatSnapshotDate(isoDate: string): string {
+        const date = new Date(isoDate);
+        return new Intl.DateTimeFormat('es-CO', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        }).format(date);
+    }
+
+    // ---------------- Audit Trail label helpers ----------------
+
+    getAuditActionLabel(action: string): string {
+        const labels: Record<string, string> = {
+            'APERTURA': 'Apertura',
+            'ACTUALIZACION': 'Actualización',
+            'CIERRE': 'Cierre',
+            'REAPERTURA': 'Reapertura',
+            'ANULACION': 'Anulación'
+        };
+        return labels[action] || action;
+    }
+
+    getAuditActionBadgeClass(action: string): string {
+        const classes: Record<string, string> = {
+            'APERTURA': 'bg-success',
+            'ACTUALIZACION': 'bg-primary',
+            'CIERRE': 'bg-secondary',
+            'REAPERTURA': 'bg-warning text-dark',
+            'ANULACION': 'bg-danger'
+        };
+        return classes[action] || 'bg-secondary';
     }
 }

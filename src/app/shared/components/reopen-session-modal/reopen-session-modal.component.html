@@ -1,0 +1,51 @@
+@if (isOpen) {
+    <div class="modal-backdrop fade show"></div>
+    <div class="modal fade show d-block" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title">
+                        <i class="bi bi-exclamation-triangle me-2"></i>Reabrir {{ sessionLabel }}
+                    </h5>
+                    <button type="button" class="btn-close" (click)="close()" [disabled]="isProcessing"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="alert alert-warning mb-3">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Esta {{ sessionLabel }} ya fue cerrada. Al reabrir,
+                        se guardará una foto del estado actual antes de continuar.
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">
+                            Motivo de reapertura <span class="text-danger">*</span>
+                        </label>
+                        <textarea class="form-control"
+                                  [(ngModel)]="reason"
+                                  rows="3"
+                                  placeholder="Ej: Se registró un ingreso post cierre..."
+                                  [ngClass]="{'is-invalid': reason.length === 0 && reason !== ''}"
+                                  [disabled]="isProcessing"></textarea>
+                        @if (reason.length === 0) {
+                            <div class="form-text text-muted">El motivo es obligatorio</div>
+                        }
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" (click)="close()" [disabled]="isProcessing">
+                        Cancelar
+                    </button>
+                    <button type="button" class="btn btn-warning" (click)="onConfirm()" [disabled]="!canConfirm">
+                        @if (isProcessing) {
+                            <span class="spinner-border spinner-border-sm me-1"></span> Reabriendo...
+                        } @else {
+                            <i class="bi bi-arrow-repeat me-1"></i> Confirmar reapertura
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}

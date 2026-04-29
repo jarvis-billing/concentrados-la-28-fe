@@ -1,0 +1,627 @@
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h4 class="mb-0">
+                <i class="bi bi-bank me-2"></i>
+                Arqueo Bancario
+            </h4>
+            <div class="d-flex gap-2 align-items-center">
+                <select class="form-select" [(ngModel)]="selectedBankAccountId" (change)="onBankAccountChange()">
+                    @for (account of bankAccounts; track account.id) {
+                        <option [value]="account.id">
+                            {{ account.name }} — {{ account.bankName }} ({{ account.accountType }})
+                        </option>
+                    }
+                </select>
+                <div class="input-group" style="width: auto;">
+                    <span class="input-group-text"><i class="bi bi-calendar3"></i></span>
+                    <input type="date" class="form-control" [(ngModel)]="sessionDate" (change)="onDateChange()">
+                </div>
+                <button class="btn btn-outline-primary" (click)="goToReports()">
+                    <i class="bi bi-file-earmark-bar-graph me-1"></i>
+                    Ver Reportes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Badge estado actual -->
+    @if (existingSession) {
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="alert d-flex justify-content-between align-items-center"
+                     [ngClass]="{
+                        'alert-success': existingSession.status === 'CERRADO',
+                        'alert-warning': existingSession.status === 'EN_PROGRESO',
+                        'alert-danger': existingSession.status === 'ANULADO'
+                     }">
+                    <div>
+                        <strong>
+                            <i class="bi bi-info-circle me-1"></i>
+                            Conciliación {{ getStatusLabel(existingSession.status) }}
+                        </strong>
+                        <span class="ms-2 text-muted">
+                            Creada por {{ openedByName }} el {{ openedAt ? (openedAt | date:'short') : '-' }}
+                        </span>
+                        @if (existingSession.status === 'CERRADO') {
+                            <span class="ms-2 text-muted">
+                                · Cerrada por {{ closedByName }}
+                            </span>
+                        }
+                    </div>
+                    <div class="d-flex gap-2">
+                        @if (existingSession.status === 'EN_PROGRESO') {
+                            <button class="btn btn-sm btn-outline-danger" (click)="cancelSession()">
+                                <i class="bi bi-x-circle me-1"></i> Anular
+                            </button>
+                            <button class="btn btn-sm btn-outline-success" (click)="closeExistingSession()">
+                                <i class="bi bi-lock me-1"></i> Cerrar
+                            </button>
+                        }
+                        @if (canReopen) {
+                            <button class="btn btn-sm btn-outline-warning" (click)="openReopenModal()">
+                                <i class="bi bi-arrow-repeat me-1"></i> Reabrir sesión
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Loading -->
+    @if (isLoading) {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="mt-2 text-muted">Cargando movimientos bancarios...</p>
+        </div>
+    } @else {
+
+        <!-- Wizard Steps -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-center">
+                    <div class="btn-group" role="group">
+                        <button class="btn" [ngClass]="wizardStep === 1 ? 'btn-primary' : 'btn-outline-secondary'" (click)="goToStep(1)">
+                            <i class="bi bi-1-circle me-1"></i> Resumen del sistema
+                        </button>
+                        <button class="btn" [ngClass]="wizardStep === 2 ? 'btn-primary' : 'btn-outline-secondary'" (click)="goToStep(2)" [disabled]="transactions.length === 0">
+                            <i class="bi bi-2-circle me-1"></i> Ingresar saldos
+                        </button>
+                        <button class="btn" [ngClass]="wizardStep === 3 ? 'btn-primary' : 'btn-outline-secondary'" (click)="goToStep(3)" [disabled]="transactions.length === 0">
+                            <i class="bi bi-3-circle me-1"></i> Confirmar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PASO 1: Resumen del sistema -->
+        @if (wizardStep === 1) {
+            <!-- Tarjetas de totales -->
+            <div class="row mb-4 g-3">
+                <div class="col-md-3">
+                    <div class="card shadow-sm border-primary h-100">
+                        <div class="card-body text-center">
+                            <h6 class="text-muted mb-2"><i class="bi bi-arrow-down-circle me-1"></i>Ingresos</h6>
+                            <h3 class="text-success mb-0">{{ formatCurrency(totalIncome) }}</h3>
+                            <small class="text-muted">Movimientos de entrada</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card shadow-sm border-danger h-100">
+                        <div class="card-body text-center">
+                            <h6 class="text-muted mb-2"><i class="bi bi-arrow-up-circle me-1"></i>Egresos</h6>
+                            <h3 class="text-danger mb-0">{{ formatCurrency(totalExpense) }}</h3>
+                            <small class="text-muted">Movimientos de salida</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card shadow-sm border-info h-100">
+                        <div class="card-body text-center">
+                            <h6 class="text-muted mb-2"><i class="bi bi-bank me-1"></i>Traslados Caja → Banco</h6>
+                            <h3 class="text-info mb-0">{{ formatCurrency(totalTransfers) }}</h3>
+                            <small class="text-muted">Ingreso por consignación</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card shadow-sm border-warning h-100">
+                        <div class="card-body text-center">
+                            <h6 class="text-muted mb-2"><i class="bi bi-calculator me-1"></i>Neto esperado</h6>
+                            <h3 class="text-warning mb-0">{{ formatCurrency(expectedBankAmount) }}</h3>
+                            <small class="text-muted">Ingresos - Egresos</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Destacado: expectedBankTotal -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card border-2 border-dark">
+                        <div class="card-body d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="mb-1">
+                                    <i class="bi bi-eye me-2"></i>
+                                    Según el sistema, deberías tener en el banco:
+                                </h5>
+                                <p class="text-muted mb-0">
+                                    Base inicial {{ formatCurrency(openingBalanceFromSummary) }} + Neto del día {{ formatCurrency(expectedBankAmount) }}
+                                </p>
+                            </div>
+                            <h2 class="mb-0 text-dark">{{ formatCurrency(expectedBankTotal) }}</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabla de transacciones -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card shadow-sm">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-list-ul me-1"></i> Movimientos del día</span>
+                            <div class="d-flex gap-2 align-items-center">
+                                <select class="form-select form-select-sm" style="width: auto;" [(ngModel)]="filterPaymentMethod">
+                                    <option value="">Todos los métodos</option>
+                                    @for (method of uniquePaymentMethods; track method) {
+                                        <option [value]="method">{{ method }}</option>
+                                    }
+                                </select>
+                                <span class="badge bg-secondary">{{ filteredTransactions.length }} mov.</span>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            @if (transactions.length === 0) {
+                                <div class="text-center py-4 text-muted">
+                                    <i class="bi bi-inbox fs-1"></i>
+                                    <p class="mt-2">No hay movimientos no-efectivo para esta fecha</p>
+                                </div>
+                            } @else {
+                                <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                                    <table class="table table-sm table-hover mb-0">
+                                        <thead class="table-light sticky-top">
+                                            <tr>
+                                                <th>Tipo</th>
+                                                <th>Categoría</th>
+                                                <th>Descripción</th>
+                                                <th>Método</th>
+                                                <th>Ref.</th>
+                                                <th class="text-end">Monto</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @for (tx of filteredTransactions; track tx.id) {
+                                                <tr>
+                                                    <td>
+                                                        <span class="badge" [ngClass]="tx.type === 'INGRESO' ? 'bg-success' : 'bg-danger'">
+                                                            {{ tx.type }}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge" [ngClass]="getCategoryBadgeClass(tx.category)">
+                                                            {{ getCategoryLabel(tx.category) }}
+                                                        </span>
+                                                    </td>
+                                                    <td>{{ tx.description }}</td>
+                                                    <td><small class="text-muted">{{ tx.paymentMethod }}</small></td>
+                                                    <td><small class="text-muted">{{ tx.reference || '-' }}</small></td>
+                                                    <td class="text-end" [ngClass]="tx.type === 'INGRESO' ? 'text-success' : 'text-danger'">
+                                                        {{ formatCurrency(tx.amount) }}
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resumen por método de pago -->
+            @if (paymentMethodSummaries.length > 0) {
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card shadow-sm">
+                            <div class="card-header">
+                                <i class="bi bi-pie-chart me-1"></i> Desglose por método de pago
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-hover mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Método</th>
+                                                <th class="text-end">Ingresos</th>
+                                                <th class="text-end">Egresos</th>
+                                                <th class="text-end">Neto</th>
+                                                <th class="text-center">Transacciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @for (summary of paymentMethodSummaries; track summary.paymentMethod) {
+                                                <tr>
+                                                    <td>{{ summary.paymentMethod }}</td>
+                                                    <td class="text-end text-success">{{ formatCurrency(summary.totalIncome) }}</td>
+                                                    <td class="text-end text-danger">{{ formatCurrency(summary.totalExpense) }}</td>
+                                                    <td class="text-end fw-semibold">{{ formatCurrency(summary.netAmount) }}</td>
+                                                    <td class="text-center">{{ summary.transactionCount }}</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- Traslados destacados -->
+            @if (getTransferTransactions().length > 0) {
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="alert alert-info">
+                            <h6 class="alert-heading">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Traslados de Caja → Banco
+                            </h6>
+                            <p class="mb-0">
+                                Los siguientes movimientos representan dinero que salió de la caja física e ingresó al banco.
+                                Son <strong>egresos de caja</strong> pero <strong>ingresos bancarios</strong>:
+                            </p>
+                            <ul class="mb-0 mt-2">
+                                @for (tx of getTransferTransactions(); track tx.id) {
+                                    <li>
+                                        {{ tx.description }} — <strong>{{ formatCurrency(tx.amount) }}</strong>
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <div class="d-flex justify-content-end">
+                <button class="btn btn-primary" (click)="nextStep()" [disabled]="transactions.length === 0">
+                    Continuar <i class="bi bi-arrow-right ms-1"></i>
+                </button>
+            </div>
+        }
+
+        <!-- PASO 2: Ingresar saldos -->
+        @if (wizardStep === 2) {
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <div class="card shadow">
+                        <div class="card-header bg-primary text-white">
+                            <i class="bi bi-pencil-square me-1"></i> Ingresar saldos bancarios
+                        </div>
+                        <div class="card-body">
+                            <!-- Saldo inicial -->
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">Saldo inicial (Base)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="text"
+                                           class="form-control form-control-lg text-end"
+                                           inputmode="numeric"
+                                           [value]="formatCurrencyInput(openingBalance)"
+                                           (input)="onOpeningBalanceInput($event)"
+                                           [disabled]="existingSession?.status === 'CERRADO'">
+                                </div>
+                                <div class="form-text d-flex justify-content-between">
+                                    <span>Saldo con el que inició el día en el banco</span>
+                                    <button class="btn btn-link btn-sm p-0" (click)="useSuggestedBalance()" [disabled]="existingSession?.status === 'CERRADO'">
+                                        <i class="bi bi-magic me-1"></i>Usar sugerido ({{ formatCurrency(suggestedOpeningBalance) }})
+                                    </button>
+                                </div>
+                            </div>
+
+                            <hr>
+
+                            <!-- Saldo final reportado -->
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">Saldo final reportado por el banco</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="text"
+                                           class="form-control form-control-lg text-end"
+                                           inputmode="numeric"
+                                           [value]="totalBankCountedInput"
+                                           (input)="onBankCountedInput($event)"
+                                           placeholder="Ingrese el saldo que ve en su app bancaria"
+                                           [disabled]="existingSession?.status === 'CERRADO'">
+                                </div>
+                                <div class="form-text">
+                                    Este es el saldo que usted lee en su app bancaria o extracto al final del día.
+                                </div>
+                            </div>
+
+                            <hr>
+
+                            <!-- Notas -->
+                            <div class="mb-4">
+                                <label class="form-label">Notas / Observaciones</label>
+                                <textarea class="form-control" rows="3" [(ngModel)]="notes"
+                                          placeholder="Ej: Pendiente acreditación datáfono $450.000"
+                                          [disabled]="existingSession?.status === 'CERRADO'"></textarea>
+                            </div>
+
+                            <!-- Cálculo en tiempo real -->
+                            <div class="card" [ngClass]="difference === 0 ? 'border-success' : 'border-warning'">
+                                <div class="card-body">
+                                    <div class="row text-center">
+                                        <div class="col-4 border-end">
+                                            <small class="text-muted d-block">Esperado sistema</small>
+                                            <h5 class="mb-0">{{ formatCurrency(expectedBankTotal) }}</h5>
+                                        </div>
+                                        <div class="col-4 border-end">
+                                            <small class="text-muted d-block">Reportado usuario</small>
+                                            <h5 class="mb-0" [ngClass]="totalBankCounted ? 'text-primary' : 'text-muted'">
+                                                {{ totalBankCounted ? formatCurrency(totalBankCounted) : '—' }}
+                                            </h5>
+                                        </div>
+                                        <div class="col-4">
+                                            <small class="text-muted d-block">Diferencia</small>
+                                            <h5 class="mb-0" [ngClass]="differenceClass">
+                                                {{ totalBankCounted !== 0 || totalBankCountedInput ? formatCurrency(Math.abs(difference)) : '—' }}
+                                                <small>{{ totalBankCounted !== 0 || totalBankCountedInput ? differenceLabel : '' }}</small>
+                                            </h5>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between mt-4">
+                <button class="btn btn-outline-secondary" (click)="prevStep()">
+                    <i class="bi bi-arrow-left me-1"></i> Volver al resumen
+                </button>
+                <button class="btn btn-primary" (click)="nextStep()">
+                    Continuar <i class="bi bi-arrow-right ms-1"></i>
+                </button>
+            </div>
+        }
+
+        <!-- PASO 3: Confirmar y guardar -->
+        @if (wizardStep === 3) {
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <div class="card shadow" [ngClass]="difference === 0 ? 'border-success' : 'border-warning'">
+                        <div class="card-header d-flex justify-content-between align-items-center"
+                             [ngClass]="difference === 0 ? 'bg-success text-white' : 'bg-warning'">
+                            <span>
+                                <i class="bi bi-check-circle me-1"></i>
+                                Confirmación de conciliación
+                            </span>
+                            @if (difference === 0) {
+                                <span class="badge bg-light text-success">Cuadrado</span>
+                            } @else {
+                                <span class="badge bg-danger">
+                                    {{ differenceLabel }} {{ formatCurrency(Math.abs(difference)) }}
+                                </span>
+                            }
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-6">
+                                    <table class="table table-sm">
+                                        <tbody>
+                                            <tr>
+                                                <td class="text-muted">Fecha:</td>
+                                                <td class="text-end fw-semibold">{{ sessionDate }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="text-muted">Saldo inicial:</td>
+                                                <td class="text-end">{{ formatCurrency(openingBalance) }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="text-muted">Ingresos:</td>
+                                                <td class="text-end text-success">+ {{ formatCurrency(totalIncome) }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="text-muted">Egresos:</td>
+                                                <td class="text-end text-danger">- {{ formatCurrency(totalExpense) }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="text-muted">Traslados:</td>
+                                                <td class="text-end text-info">+ {{ formatCurrency(totalTransfers) }}</td>
+                                            </tr>
+                                            <tr class="table-light">
+                                                <td class="fw-bold">Esperado sistema:</td>
+                                                <td class="text-end fw-bold">{{ formatCurrency(expectedBankTotal) }}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="col-md-6">
+                                    <table class="table table-sm">
+                                        <tbody>
+                                            <tr>
+                                                <td class="text-muted">Saldo reportado:</td>
+                                                <td class="text-end fw-semibold">{{ formatCurrency(totalBankCounted) }}</td>
+                                            </tr>
+                                            <tr [ngClass]="difference === 0 ? 'table-success' : 'table-warning'">
+                                                <td class="fw-bold">Diferencia:</td>
+                                                <td class="text-end fw-bold" [ngClass]="differenceClass">
+                                                    {{ formatCurrency(difference) }}
+                                                </td>
+                                            </tr>
+                                            @if (notes) {
+                                                <tr>
+                                                    <td class="text-muted">Notas:</td>
+                                                    <td class="text-end"><em>{{ notes }}</em></td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            @if (difference !== 0 && !notes.trim()) {
+                                <div class="alert alert-warning">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>
+                                    Hay una diferencia de {{ formatCurrency(Math.abs(difference)) }}.
+                                    <strong>Se recomienda agregar una nota explicativa</strong> antes de guardar.
+                                </div>
+                            }
+
+                            @if (existingSession?.status === 'CERRADO') {
+                                <div class="alert alert-success">
+                                    <i class="bi bi-lock me-1"></i>
+                                    Esta conciliación ya está cerrada y no puede modificarse.
+                                </div>
+                            } @else {
+                                <div class="d-flex gap-2 justify-content-end">
+                                    <button class="btn btn-outline-secondary" (click)="prevStep()">
+                                        <i class="bi bi-arrow-left me-1"></i> Volver
+                                    </button>
+                                    <button class="btn btn-outline-primary" (click)="saveDraft()" [disabled]="isSaving">
+                                        @if (isSaving && !existingSession?.id) {
+                                            <span class="spinner-border spinner-border-sm me-1"></span> Guardando...
+                                        } @else {
+                                            <i class="bi bi-save me-1"></i> Guardar borrador
+                                        }
+                                    </button>
+                                    <button class="btn btn-success" (click)="saveAndClose()" [disabled]="isSaving">
+                                        @if (isSaving && existingSession?.id) {
+                                            <span class="spinner-border spinner-border-sm me-1"></span> Cerrando...
+                                        } @else {
+                                            <i class="bi bi-check-lg me-1"></i> Guardar y cerrar
+                                        }
+                                    </button>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Historial de cierres previos (Snapshots) -->
+        @if (snapshots.length > 0) {
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card shadow-sm">
+                        <div class="card-header d-flex justify-content-between align-items-center"
+                             style="cursor: pointer;" (click)="toggleSnapshots()">
+                            <h6 class="mb-0">
+                                <i class="bi me-2" [ngClass]="showSnapshots ? 'bi-chevron-down' : 'bi-chevron-right'"></i>
+                                <i class="bi bi-camera me-1"></i>
+                                Historial de cierres previos ({{ snapshots.length }})
+                            </h6>
+                        </div>
+                        @if (showSnapshots) {
+                            <div class="card-body">
+                                @for (snapshot of snapshots; track snapshot.snapshotAt; let i = $index) {
+                                    <div class="card mb-3 border-start border-warning border-3">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <h6 class="mb-0">
+                                                    <i class="bi bi-camera me-1"></i>
+                                                    Foto #{{ snapshots.length - i }} — {{ formatSnapshotDate(snapshot.snapshotAt) }}
+                                                </h6>
+                                            </div>
+                                            <p class="mb-1">
+                                                <strong>Reabierto por:</strong> {{ snapshot.userName }}
+                                            </p>
+                                            @if (snapshot.reason) {
+                                                <p class="mb-2">
+                                                    <strong>Motivo:</strong> {{ snapshot.reason }}
+                                                </p>
+                                            }
+                                            <div class="row g-2">
+                                                <div class="col-md-4">
+                                                    <div class="border rounded p-2 text-center">
+                                                        <small class="text-muted d-block">Contado</small>
+                                                        <strong>{{ formatCurrency(snapshot.totalCounted) }}</strong>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="border rounded p-2 text-center">
+                                                        <small class="text-muted d-block">Esperado</small>
+                                                        <strong>{{ formatCurrency(snapshot.expectedTotal) }}</strong>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="border rounded p-2 text-center">
+                                                        <small class="text-muted d-block">Diferencia</small>
+                                                        <strong [ngClass]="snapshot.difference >= 0 ? 'text-success' : 'text-danger'">
+                                                            {{ formatCurrency(snapshot.difference) }}
+                                                        </strong>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Historial de Auditoría -->
+        @if (existingSession?.auditTrail?.length) {
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Historial de Auditoría</h6>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Acción</th>
+                                            <th>Usuario</th>
+                                            <th>Fecha/Hora</th>
+                                            <th>Detalles</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @for (entry of existingSession.auditTrail; track entry.timestamp) {
+                                            <tr>
+                                                <td>
+                                                    <span class="badge" [ngClass]="getAuditActionBadgeClass(entry.action)">
+                                                        {{ getAuditActionLabel(entry.action) }}
+                                                    </span>
+                                                </td>
+                                                <td>{{ entry.userName }}</td>
+                                                <td>{{ entry.timestamp | date:'dd/MM/yyyy HH:mm' }}</td>
+                                                <td><small class="text-muted">{{ entry.details || '-' }}</small></td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+    }
+</div>
+
+<!-- Modal de reapertura -->
+<app-reopen-session-modal
+    [isOpen]="showReopenModal"
+    [isProcessing]="isReopening"
+    sessionLabel="conciliación"
+    (closed)="onReopenModalClosed()"
+    (confirmed)="onReopenConfirmed($event)" />

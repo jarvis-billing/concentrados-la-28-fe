@@ -10,18 +10,25 @@
     <div class="card-header">Filtros</div>
     <div class="card-body">
       <form [formGroup]="filter" class="row g-2">
-        <div class="col-12 col-md-4">
+        <div class="col-12 col-md-3">
           <label class="form-label">Proveedor</label>
           <select class="form-select" formControlName="supplierId">
             <option value="">Todos</option>
             <option *ngFor="let s of suppliers" [value]="s.id">{{s.name}}</option>
           </select>
         </div>
-        <div class="col-6 col-md-4">
+        <div class="col-12 col-md-3">
+          <label class="form-label">Cuenta Bancaria</label>
+          <select class="form-select" formControlName="bankAccountId">
+            <option value="">Todas</option>
+            <option *ngFor="let a of bankAccounts" [value]="a.id">{{a.name}} — {{a.bankName}}</option>
+          </select>
+        </div>
+        <div class="col-6 col-md-3">
           <label class="form-label">Desde</label>
           <input class="form-control" type="date" formControlName="from">
         </div>
-        <div class="col-6 col-md-4">
+        <div class="col-6 col-md-3">
           <label class="form-label">Hasta</label>
           <input class="form-control" type="date" formControlName="to">
         </div>
@@ -44,6 +51,7 @@
               <th>Proveedor</th>
               <th class="text-center">Monto</th>
               <th>Método</th>
+              <th>Cuenta Bancaria</th>
               <th>Referencia</th>
               <th>Notas</th>
               <th class="text-end">Soporte</th>
@@ -55,6 +63,7 @@
               <td>{{ p.supplierName }}</td>
               <td class="text-end">{{ p.amount | currency:'$ ':'symbol':'.0-0' }}</td>
               <td>{{ p.method }}</td>
+              <td>{{ p.bankAccountName || getBankAccountName(p.bankAccountId) || '-' }}</td>
               <td>{{ p.reference }}</td>
               <td>{{ p.notes }}</td>
               <td class="text-end">
@@ -71,7 +80,7 @@
             <tr class="fw-semibold">
               <td colspan="2" class="text-end">Total pagos:</td>
               <td class="text-center">{{ totalAmount | currency:'$ ':'symbol':'.0-0' }}</td>
-              <td colspan="3"></td>
+              <td colspan="4"></td>
               <td></td>
             </tr>
           </tfoot>

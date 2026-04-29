@@ -39,6 +39,9 @@ import { CashCountPageComponent } from './arqueo-caja/pages/cash-count-page/cash
 import { CashCountReportsComponent } from './arqueo-caja/pages/cash-count-reports/cash-count-reports.component';
 import { CashLoansPageComponent } from './arqueo-caja/pages/cash-loans-page/cash-loans-page.component';
 import { TransfersListComponent } from './traslados/pages/transfers-list/transfers-list.component';
+import { BankReconciliationPageComponent } from './bank-reconciliation/pages/bank-reconciliation-page/bank-reconciliation-page.component';
+import { BankReconciliationReportsComponent } from './bank-reconciliation/pages/bank-reconciliation-reports/bank-reconciliation-reports.component';
+import { BankAccountsPageComponent } from './bank-accounts/pages/bank-accounts-page/bank-accounts-page.component';
 import { ClienteComponent } from './cliente/cliente.component';
 
 export const routes: Routes = [
@@ -168,6 +171,15 @@ export const routes: Routes = [
         },
         {
             path: 'arqueo-caja/traslados', component: TransfersListComponent
+        },
+        {
+            path: 'arqueo-bancario', component: BankReconciliationPageComponent
+        },
+        {
+            path: 'arqueo-bancario/reportes', component: BankReconciliationReportsComponent
+        },
+        {
+            path: 'cuentas-bancarias', component: BankAccountsPageComponent
         }
     ]}
 ];

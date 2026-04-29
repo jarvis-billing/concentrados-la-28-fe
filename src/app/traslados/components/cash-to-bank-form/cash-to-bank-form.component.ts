@@ -1,8 +1,10 @@
-import { Component, EventEmitter, inject, Input, Output } from '@angular/core';
+import { Component, EventEmitter, inject, Input, Output, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { InternalTransferService } from '../../services/internal-transfer.service';
 import { BankAccountType, InternalTransfer } from '../../models/internal-transfer.model';
+import { BankAccountService } from '../../../bank-accounts/services/bank-account.service';
+import { BankAccountDto } from '../../../bank-accounts/models/bank-account.model';
 import { toast } from 'ngx-sonner';
 import { HttpErrorResponse } from '@angular/common/http';
 import { formatInTimeZone } from 'date-fns-tz';
@@ -13,7 +15,7 @@ import { formatInTimeZone } from 'date-fns-tz';
     imports: [CommonModule, ReactiveFormsModule],
     templateUrl: './cash-to-bank-form.component.html'
 })
-export class CashToBankFormComponent {
+export class CashToBankFormComponent implements OnChanges {
 
     @Input() isOpen: boolean = false;
     @Output() closed = new EventEmitter<void>();
@@ -21,6 +23,7 @@ export class CashToBankFormComponent {
 
     private fb = inject(FormBuilder);
     private transferService = inject(InternalTransferService);
+    private bankAccountService = inject(BankAccountService);
 
     isSaving: boolean = false;
     supportFile: File | null = null;
@@ -28,9 +31,16 @@ export class CashToBankFormComponent {
     readonly maxFileSizeMb: number = 5;
     readonly allowedFileTypes: string[] = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
 
+    // Cuentas existentes
+    bankAccounts: BankAccountDto[] = [];
+    isLoadingAccounts: boolean = false;
+    accountMode: 'existing' | 'new' = 'existing';
+
     form = this.fb.nonNullable.group({
         amount: [0, [Validators.required, Validators.min(1)]],
-        accountNumber: ['', Validators.required],
+        bankAccountId: [''],
+        accountName: [''],
+        accountNumber: [''],
         bankName: [''],
         accountType: ['AHORROS' as BankAccountType],
         reference: ['', Validators.required],
@@ -42,8 +52,65 @@ export class CashToBankFormComponent {
         return formatInTimeZone(new Date(), 'America/Bogota', 'yyyy-MM-dd');
     }
 
+    ngOnChanges(changes: SimpleChanges): void {
+        if (changes['isOpen']?.currentValue === true) {
+            this.loadBankAccounts();
+        }
+    }
+
+    loadBankAccounts(): void {
+        this.isLoadingAccounts = true;
+        this.bankAccountService.listActive().subscribe({
+            next: (accounts) => {
+                this.bankAccounts = accounts;
+                this.isLoadingAccounts = false;
+                // Si hay cuentas, modo existente por defecto; si no, modo nuevo
+                this.accountMode = accounts.length > 0 ? 'existing' : 'new';
+                this.updateValidators();
+            },
+            error: () => {
+                this.isLoadingAccounts = false;
+                this.accountMode = 'new';
+                this.updateValidators();
+            }
+        });
+    }
+
+    setAccountMode(mode: 'existing' | 'new'): void {
+        this.accountMode = mode;
+        this.form.controls.bankAccountId.setValue('');
+        this.form.controls.accountName.setValue('');
+        this.form.controls.accountNumber.setValue('');
+        this.form.controls.bankName.setValue('');
+        this.form.controls.accountType.setValue('AHORROS');
+        this.updateValidators();
+    }
+
+    private updateValidators(): void {
+        if (this.accountMode === 'existing') {
+            this.form.controls.bankAccountId.setValidators([Validators.required]);
+            this.form.controls.accountNumber.clearValidators();
+            this.form.controls.bankName.clearValidators();
+            this.form.controls.accountName.clearValidators();
+        } else {
+            this.form.controls.bankAccountId.clearValidators();
+            this.form.controls.accountNumber.setValidators([Validators.required]);
+            this.form.controls.bankName.setValidators([Validators.required]);
+            this.form.controls.accountName.setValidators([Validators.required]);
+        }
+        this.form.controls.bankAccountId.updateValueAndValidity();
+        this.form.controls.accountNumber.updateValueAndValidity();
+        this.form.controls.bankName.updateValueAndValidity();
+        this.form.controls.accountName.updateValueAndValidity();
+    }
+
     get canSubmit(): boolean {
         return this.form.valid && !this.isSaving;
+    }
+
+    get selectedAccount(): BankAccountDto | undefined {
+        const id = this.form.controls.bankAccountId.value;
+        return id ? this.bankAccounts.find(a => a.id === id) : undefined;
     }
 
     onAmountInput(event: Event): void {
@@ -63,16 +130,24 @@ export class CashToBankFormComponent {
         this.isSaving = true;
         const raw = this.form.getRawValue();
 
-        this.transferService.transferCashToBank({
+        const request: any = {
             amount: raw.amount,
-            accountNumber: raw.accountNumber,
-            bankName: raw.bankName || undefined,
-            accountType: raw.accountType || undefined,
             reference: raw.reference,
             transferDate: raw.transferDate || undefined,
             notes: raw.notes || undefined,
             supportFile: this.supportFile || undefined
-        }).subscribe({
+        };
+
+        if (this.accountMode === 'existing') {
+            request.bankAccountId = raw.bankAccountId;
+        } else {
+            request.accountName = raw.accountName || undefined;
+            request.accountNumber = raw.accountNumber || undefined;
+            request.bankName = raw.bankName || undefined;
+            request.accountType = raw.accountType || undefined;
+        }
+
+        this.transferService.transferCashToBank(request).subscribe({
             next: (transfer) => {
                 toast.success('Consignación registrada exitosamente');
                 this.transferCreated.emit(transfer);
@@ -98,6 +173,8 @@ export class CashToBankFormComponent {
     private resetForm(): void {
         this.form.reset({
             amount: 0,
+            bankAccountId: '',
+            accountName: '',
             accountNumber: '',
             bankName: '',
             accountType: 'AHORROS',
