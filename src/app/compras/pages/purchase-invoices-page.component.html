@@ -158,6 +158,35 @@
       </div>
     }
 
+    <!-- Banner resumen de tendencias de costos -->
+    @if (hasAnyCostTrend) {
+      <div class="card mb-3 border-0">
+        <div class="card-body d-flex flex-wrap gap-2 align-items-center p-2">
+          <span class="text-muted small me-1">Resumen de costos:</span>
+          @if (trendUpCount > 0) {
+            <span class="badge bg-danger-subtle text-danger border border-danger">
+              <i class="bi bi-arrow-up me-1"></i>{{ trendUpCount }} subieron de precio
+            </span>
+          }
+          @if (trendDownCount > 0) {
+            <span class="badge bg-success-subtle text-success border border-success">
+              <i class="bi bi-arrow-down me-1"></i>{{ trendDownCount }} bajaron de precio
+            </span>
+          }
+          @if (trendSameCount > 0) {
+            <span class="badge bg-secondary-subtle text-secondary border border-secondary">
+              <i class="bi bi-dash-circle-fill me-1"></i>{{ trendSameCount }} sin cambio
+            </span>
+          }
+          @if (trendFirstCount > 0) {
+            <span class="badge bg-warning-subtle text-warning border border-warning">
+              <i class="bi bi-star-fill me-1"></i>{{ trendFirstCount }} primera compra
+            </span>
+          }
+        </div>
+      </div>
+    }
+
     <div class="card">
       <div class="card-header d-flex justify-content-between align-items-center">
         <span>
@@ -229,8 +258,38 @@
                     <span class="text-muted">-</span>
                   }
                 </td>
-                <td class="text-end text-primary small fw-semibold">
-                  {{ getUnitTotal(it) | number:'1.0-0' }}
+                <td class="text-end small fw-semibold">
+                  <div class="d-flex flex-column align-items-end">
+                    <div class="d-flex align-items-center gap-1">
+                      <span class="text-primary">{{ getUnitTotal(it) | number:'1.0-0' }}</span>
+                      @switch (getCostTrend(it)) {
+                        @case ('up') {
+                          <i class="bi bi-arrow-up text-danger"
+                             [title]="'Subió ' + (getCostDeltaPercent(it) | number:'1.1-1') + '% vs última compra'"></i>
+                        }
+                        @case ('down') {
+                          <i class="bi bi-arrow-down text-success"
+                             [title]="'Bajó ' + (getCostDeltaPercent(it) | number:'1.1-1') + '% vs última compra'"></i>
+                        }
+                        @case ('same') {
+                          <i class="bi bi-dash-circle-fill text-secondary"
+                             title="Mismo costo que la última compra"></i>
+                        }
+                        @case ('first') {
+                          <i class="bi bi-star-fill text-warning"
+                             title="Primera compra registrada"></i>
+                        }
+                      }
+                    </div>
+                    @if (getLastCostForRow(it); as lc) {
+                      @if (lc.lastUnitTotalCost) {
+                        <small class="text-muted" style="font-size: 0.7rem;"
+                          [title]="'Última: ' + (lc.lastInvoiceNumber || '') + ' (' + (lc.lastSupplierName || '') + ')'">
+                          ant: {{ lc.lastUnitTotalCost | number:'1.0-0' }}
+                        </small>
+                      }
+                    }
+                  </div>
                 </td>
                 <td class="text-end fw-semibold">
                   {{ it.get('totalCost')?.value | number:'1.0-0' }}
@@ -356,6 +415,97 @@
                   (click)="confirmBatchPrice()"
                   [disabled]="batchSalePrice <= 0">
             <i class="bi bi-check-circle me-1"></i> Crear Lote
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Modal de confirmación de tendencias de costo antes de guardar -->
+@if (showConfirmSaveModal) {
+  <div class="modal-backdrop fade show"></div>
+  <div class="modal fade show d-block" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+      <div class="modal-content">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title">
+            <i class="bi bi-graph-up-arrow me-2"></i>Confirmar compra - Costos y precios de venta
+          </h5>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted small mb-2">
+            Revisa la variación de costos y, si deseas, ajusta el precio de venta de cada presentación antes de guardar.
+          </p>
+          <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>Producto</th>
+                  <th class="text-end" style="min-width:90px">Costo/u total</th>
+                  <th class="text-end" style="min-width:80px">Anterior</th>
+                  <th class="text-center" style="min-width:110px">Tendencia</th>
+                  <th class="text-end" style="min-width:110px">Precio venta actual</th>
+                  <th class="text-end" style="min-width:130px">Nuevo precio venta</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of confirmSaveItems; track item.presentationId) {
+                  <tr>
+                    <td class="fw-semibold small">{{ item.description }}</td>
+                    <td class="text-end fw-semibold">{{ item.unitTotalCost | number:'1.0-0' }}</td>
+                    <td class="text-end text-muted">{{ (item.lastCost || 0) | number:'1.0-0' }}</td>
+                    <td class="text-center">
+                      @switch (item.trend) {
+                        @case ('up') {
+                          <span class="badge bg-danger">
+                            <i class="bi bi-arrow-up me-1"></i>Subió {{ item.deltaPercent | number:'1.1-1' }}%
+                          </span>
+                        }
+                        @case ('down') {
+                          <span class="badge bg-success">
+                            <i class="bi bi-arrow-down me-1"></i>Bajó {{ item.deltaPercent | number:'1.1-1' }}%
+                          </span>
+                        }
+                        @case ('same') {
+                          <span class="badge bg-secondary">
+                            <i class="bi bi-dash-circle me-1"></i>Igual
+                          </span>
+                        }
+                        @default {
+                          <span class="badge bg-warning text-dark">
+                            <i class="bi bi-star-fill me-1"></i>Primera vez
+                          </span>
+                        }
+                      }
+                    </td>
+                    <td class="text-end text-muted small">
+                      {{ getCurrentSalePrice(item.presentationId) | number:'1.0-0' }}
+                    </td>
+                    <td class="text-end">
+                      <div class="input-group input-group-sm justify-content-end">
+                        <span class="input-group-text">$</span>
+                        <input type="number" class="form-control text-end" style="max-width:100px"
+                          [value]="getCurrentSalePrice(item.presentationId)"
+                          min="0" step="1"
+                          (change)="setPendingSalePrice(item.presentationId, $any($event.target).valueAsNumber)">
+                      </div>
+                      @if (hasPendingSalePriceChange(item.presentationId)) {
+                        <small class="text-info"><i class="bi bi-pencil-fill me-1"></i>Se modificará</small>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" (click)="cancelConfirmSave()">
+            <i class="bi bi-pencil me-1"></i>Volver a revisar
+          </button>
+          <button type="button" class="btn btn-primary" (click)="confirmSave()">
+            <i class="bi bi-check-circle me-1"></i>Confirmar y guardar
           </button>
         </div>
       </div>

@@ -229,6 +229,10 @@ export class PurchaseInvoicesListPageComponent implements OnInit {
     this.router.navigate(['/main/compras/facturas']);
   }
 
+  goToCostHistory() {
+    this.router.navigate(['/main/compras/facturas/historial-costos']);
+  }
+
   editInvoice(invoiceId: string | undefined) {
     if (!invoiceId) return;
     this.router.navigate(['/main/compras/facturas/editar', invoiceId]);

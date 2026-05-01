@@ -19,6 +19,8 @@ import { ConfiguracionComponent } from './configuracion/configuracion.component'
 import { ProductsSalesListComponent } from './factura/components/products-sales-list/products-sales-list.component';
 import { PurchaseInvoicesPageComponent } from './compras/pages/purchase-invoices-page.component';
 import { PurchaseInvoicesListPageComponent } from './compras/pages/purchase-invoices-list-page.component';
+import { PurchaseCostHistoryPageComponent } from './compras/pages/purchase-cost-history-page.component';
+import { PurchaseCostReportPageComponent } from './compras/pages/purchase-cost-report-page.component';
 import { SuppliersPageComponent } from './compras/pages/suppliers-page.component';
 import { SupplierPaymentsPageComponent } from './compras/pages/supplier-payments-page.component';
 import { SupplierPaymentsListPageComponent } from './compras/pages/supplier-payments-list-page.component';
@@ -102,6 +104,12 @@ export const routes: Routes = [
         },
         {
             path: 'compras/facturas/list', component: PurchaseInvoicesListPageComponent
+        },
+        {
+            path: 'compras/facturas/historial-costos', component: PurchaseCostHistoryPageComponent
+        },
+        {
+            path: 'compras/reporte-costos-venta', component: PurchaseCostReportPageComponent
         },
         {
             path: 'compras/pagos-proveedor', component: SupplierPaymentsPageComponent

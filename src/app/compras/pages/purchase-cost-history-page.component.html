@@ -1,0 +1,129 @@
+<div class="container py-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="m-0">
+      <i class="bi bi-graph-up-arrow me-2"></i>Historial de Costos de Compra
+    </h4>
+    <button class="btn btn-outline-secondary btn-sm" (click)="clearFilters()">Limpiar filtros</button>
+  </div>
+
+  <!-- Filtros -->
+  <div class="card mb-4">
+    <div class="card-header">Filtros</div>
+    <div class="card-body">
+      <div class="row g-3 align-items-end" [formGroup]="filterForm">
+        <div class="col-12 col-md-6">
+          <label class="form-label">Producto / Presentación</label>
+          <select class="form-select" formControlName="presentationId">
+            <option value="" disabled>Seleccione...</option>
+            <option *ngFor="let opt of presentationOptions" [value]="opt.barcode">
+              {{ opt.productDescription }} — {{ opt.label }} ({{ opt.barcode }})
+            </option>
+          </select>
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label">Desde</label>
+          <input class="form-control" type="date" formControlName="fromDate">
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label">Hasta</label>
+          <input class="form-control" type="date" formControlName="toDate">
+        </div>
+        <div class="col-12">
+          <button class="btn btn-primary" (click)="searchHistory()">
+            <i class="bi bi-search me-1"></i>Consultar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Resultados -->
+  <div class="card" *ngIf="selectedLabel && !isLoading">
+    <div class="card-header">
+      <strong>{{ selectedLabel }}</strong>
+      <span class="badge bg-primary ms-2">{{ historyEntries.length }} compra(s)</span>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive" *ngIf="historyEntries.length > 0; else noData">
+        <table class="table table-sm table-hover align-middle m-0">
+          <thead class="table-light">
+            <tr>
+              <th>Fecha</th>
+              <th>Factura</th>
+              <th>Proveedor</th>
+              <th class="text-end">Cantidad</th>
+              <th class="text-end">Costo/u base</th>
+              <th class="text-end">IVA/u</th>
+              <th class="text-end">Flete/u</th>
+              <th class="text-end">Costo/u total</th>
+              <th style="width:120px">Tendencia</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let e of historyEntries; let i = index">
+              <td>{{ e.invoiceDate | date:'yyyy-MM-dd' }}</td>
+              <td>{{ e.invoiceNumber }}</td>
+              <td>{{ e.supplierName || '-' }}</td>
+              <td class="text-end">{{ e.quantity | number:'1.2-2' }}</td>
+              <td class="text-end">{{ formatCurrency(e.unitCost) }}</td>
+              <td class="text-end">{{ formatCurrency((e.vatAmount || 0) / (e.quantity || 1)) }}</td>
+              <td class="text-end">{{ formatCurrency((e.freightAmount || 0) / (e.quantity || 1)) }}</td>
+              <td class="text-end fw-semibold">
+                <span [ngClass]="{
+                  'text-danger': getTrend(e, i) === 'up',
+                  'text-success': getTrend(e, i) === 'down',
+                  'text-dark': getTrend(e, i) === 'same' || getTrend(e, i) === 'none'
+                }">
+                  {{ formatCurrency(getUnitTotalCost(e)) }}
+                </span>
+              </td>
+              <td>
+                <div class="d-flex align-items-center gap-1">
+                  @switch (getTrend(e, i)) {
+                    @case ('up') {
+                      <i class="bi bi-arrow-up-circle-fill text-danger" title="Subió respecto a la compra anterior"></i>
+                      <span class="small text-danger">Subió</span>
+                    }
+                    @case ('down') {
+                      <i class="bi bi-arrow-down-circle-fill text-success" title="Bajó respecto a la compra anterior"></i>
+                      <span class="small text-success">Bajó</span>
+                    }
+                    @case ('same') {
+                      <i class="bi bi-dash-circle-fill text-secondary" title="Igual que la compra anterior"></i>
+                      <span class="small text-secondary">Igual</span>
+                    }
+                    @default {
+                      <span class="small text-muted">—</span>
+                    }
+                  }
+                </div>
+                <div class="progress mt-1" style="height: 4px;">
+                  <div class="progress-bar"
+                    [ngClass]="{
+                      'bg-danger': getTrend(e, i) === 'up',
+                      'bg-success': getTrend(e, i) === 'down',
+                      'bg-secondary': getTrend(e, i) === 'same' || getTrend(e, i) === 'none'
+                    }"
+                    [style.width.%]="getRelativeWidth(e)">
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <ng-template #noData>
+        <div class="text-center py-5">
+          <i class="bi bi-inbox display-1 text-muted"></i>
+          <p class="mt-3 text-muted">No hay registros de compra para esta presentación</p>
+        </div>
+      </ng-template>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="isLoading" class="text-center py-5">
+    <div class="spinner-border text-primary" role="status"></div>
+    <p class="mt-2 text-muted">Cargando historial...</p>
+  </div>
+</div>

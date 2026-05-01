@@ -1,0 +1,45 @@
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .container {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+  .card {
+    border: none !important;
+    box-shadow: none !important;
+  }
+  .card-header {
+    background: none !important;
+    border-bottom: 1px solid #000 !important;
+  }
+  .table {
+    font-size: 0.85rem;
+  }
+  .table thead {
+    background-color: #f0f0f0 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .table th, .table td {
+    padding: 0.4rem 0.5rem;
+  }
+  body {
+    background: white;
+  }
+}
+
+/* Hide print-only by default on screen */
+.print-only {
+  display: none;
+}
+
+/* Ensure inputs don't break layout */
+.report-table input[type="number"] {
+  min-width: 80px;
+}

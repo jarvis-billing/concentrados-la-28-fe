@@ -15,6 +15,9 @@ import { BatchService } from '../../lotes/services/batch.service';
 import { BATCH_REQUIRED_CATEGORY, CreateBatchRequest } from '../../lotes/models/batch';
 import { BatchExpirationAlertComponent } from '../../lotes/components/batch-expiration-alert/batch-expiration-alert.component';
 import { Subscription, debounceTime } from 'rxjs';
+import { PurchaseLastCostInfo } from '../models/purchase-cost-history';
+import { ProductoService } from '../../producto/producto.service';
+import { BulkPresentationPriceUpdateRequest, PresentationPriceUpdate } from '../../producto/models/bulk-price-update.model';
 
 @Component({
   selector: 'app-purchase-invoices-page',
@@ -26,6 +29,7 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
   private fb = inject(FormBuilder);
   private purchasesService = inject(PurchasesService);
   private supplierService = inject(SupplierService);
+  private productService = inject(ProductoService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private batchService = inject(BatchService);
@@ -52,8 +56,25 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
   hasRestoredDraft = false;
   lastAutoSaveTime: Date | null = null;
 
+  // Costo de última compra por presentación (cache para mostrar tendencia)
+  // Map<presentationId, PurchaseLastCostInfo | null>
+  // null = ya consultado, sin historial previo (primera compra)
+  // undefined (no en mapa) = aún no consultado
+  lastCostByPresentation: Map<string, PurchaseLastCostInfo | null> = new Map();
+
+  // Precio de venta actual por presentación (para permitir ajuste rápido al confirmar)
+  currentSalePriceByPresentation: Map<string, number> = new Map();
+  // Precio de venta pendiente de actualizar (editado por el usuario en modal de confirmación)
+  pendingSalePriceUpdates: Map<string, number> = new Map();
+
+  // Confirmación de guardado con resumen de costos
+  showConfirmSaveModal = false;
+  confirmSaveItems: { description: string; presentationId: string; unitTotalCost: number; trend: string; deltaPercent: number | null; lastCost: number | null }[] = [];
+  private pendingSavePayload: any = null;
+  private pendingSaveValidItems: any[] = [];
+
   // Lotes de animales vivos
-  pendingBatchItems: { productId: string; description: string; quantity: number; category: string }[] = [];
+  pendingBatchItems: { productId: string; description: string; quantity: number; category: string }[] = []
   showBatchPriceModal = false;
   currentBatchItem: { productId: string; description: string; quantity: number } | null = null;
   batchSalePrice: number = 0;
@@ -130,6 +151,23 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
     return this.itemsTotal + this.itemsVatTotal + this.freightCost;
   }
 
+  /** Conteos de tendencia para el banner resumen */
+  get trendUpCount(): number {
+    return this.itemsArray.controls.filter(g => this.getCostTrend(g as FormGroup) === 'up').length;
+  }
+  get trendDownCount(): number {
+    return this.itemsArray.controls.filter(g => this.getCostTrend(g as FormGroup) === 'down').length;
+  }
+  get trendSameCount(): number {
+    return this.itemsArray.controls.filter(g => this.getCostTrend(g as FormGroup) === 'same').length;
+  }
+  get trendFirstCount(): number {
+    return this.itemsArray.controls.filter(g => this.getCostTrend(g as FormGroup) === 'first').length;
+  }
+  get hasAnyCostTrend(): boolean {
+    return this.itemsArray.controls.some(g => this.getCostTrend(g as FormGroup) !== 'none');
+  }
+
   addItem() {
     const defaultVat = this.selectedSupplier?.defaultVatRate ?? 0;
     const g = this.fb.group({
@@ -190,6 +228,90 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
     });
 
     this.selectedItemIndexForProductSearch = null;
+    // Guardar precio de venta actual de la presentación para ajuste rápido
+    const selectedPres = mappedProduct.presentations?.find(p => p.barcode === mappedProduct.barcode);
+    if (selectedPres) {
+      this.currentSalePriceByPresentation.set(mappedProduct.barcode, selectedPres.salePrice || 0);
+    }
+    // Consultar el último costo registrado para esta presentación y mostrar tendencia
+    this.fetchLastCostForPresentation(mappedProduct.barcode, mappedProduct.description);
+  }
+
+  /**
+   * Consulta al backend el último costo total por unidad de la presentación y notifica
+   * al usuario con la información histórica para que pueda comparar.
+   */
+  private fetchLastCostForPresentation(presentationId: string, description?: string): void {
+    if (!presentationId) return;
+    // Evitar consultas duplicadas si ya está cacheado
+    if (this.lastCostByPresentation.has(presentationId)) {
+      const cached = this.lastCostByPresentation.get(presentationId);
+      this.notifyLastCost(cached || null, description);
+      return;
+    }
+    this.purchasesService.getLastCost(presentationId).subscribe({
+      next: (info) => {
+        this.lastCostByPresentation.set(presentationId, info || null);
+        this.notifyLastCost(info || null, description);
+      },
+      error: () => {
+        // No bloquear el flujo si falla; marcar como consultado vacío
+        this.lastCostByPresentation.set(presentationId, null);
+      }
+    });
+  }
+
+  private notifyLastCost(info: PurchaseLastCostInfo | null, description?: string): void {
+    const productName = description || info?.productDescription || 'producto';
+    if (!info || info.lastUnitTotalCost == null) {
+      toast.info(`Primera compra registrada de ${productName}`, { duration: 4500 });
+      return;
+    }
+    const formatted = this.formatCurrency(info.lastUnitTotalCost);
+    const dateStr = info.lastInvoiceDate ? info.lastInvoiceDate.split('T')[0] : '';
+    const supplier = info.lastSupplierName ? ` (${info.lastSupplierName})` : '';
+    toast.info(`Última compra de ${productName}: ${formatted}/u el ${dateStr}${supplier}`, { duration: 6000 });
+  }
+
+  private formatCurrency(value: number): string {
+    return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
+  }
+
+  /**
+   * Devuelve la info del último costo para una fila (lookup por presentationId).
+   */
+  getLastCostForRow(g: FormGroup): PurchaseLastCostInfo | null {
+    const id = g.get('presentationId')?.value;
+    if (!id) return null;
+    return this.lastCostByPresentation.get(id) || null;
+  }
+
+  /**
+   * Tendencia del costo unitario total respecto a la última compra.
+   * 'up' = subió, 'down' = bajó, 'same' = igual, 'first' = primera vez, 'none' = aún no consultado.
+   */
+  getCostTrend(g: FormGroup): 'up' | 'down' | 'same' | 'first' | 'none' {
+    const id = g.get('presentationId')?.value;
+    if (!id) return 'none';
+    if (!this.lastCostByPresentation.has(id)) return 'none';
+    const info = this.lastCostByPresentation.get(id);
+    if (!info || info.lastUnitTotalCost == null) return 'first';
+    const current = this.getUnitTotal(g);
+    if (current <= 0) return 'none';
+    const diff = current - info.lastUnitTotalCost;
+    if (Math.abs(diff) < 0.01) return 'same';
+    return diff > 0 ? 'up' : 'down';
+  }
+
+  /**
+   * Diferencia porcentual respecto a la última compra (positivo = subió, negativo = bajó).
+   */
+  getCostDeltaPercent(g: FormGroup): number | null {
+    const info = this.getLastCostForRow(g);
+    if (!info || !info.lastUnitTotalCost) return null;
+    const current = this.getUnitTotal(g);
+    if (current <= 0) return null;
+    return ((current - info.lastUnitTotalCost) / info.lastUnitTotalCost) * 100;
   }
 
   recalcItem(g: FormGroup) {
@@ -325,12 +447,35 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
     }
 
     // getRawValue() ya incluye los campos disabled (vatAmount, totalCost, freightAmount)
-    const mappedItems = validItems.map((it: any) => {
+    const mappedItems = this.mapItemsForSave(validItems);
+
+    // Preparar resumen de tendencias para el modal de confirmación
+    const trendSummary = this.buildTrendSummary(mappedItems);
+
+    if (trendSummary.length > 0) {
+      // Hay productos con historial: mostrar modal de confirmación
+      this.confirmSaveItems = trendSummary;
+      this.pendingSavePayload = { raw, selectedSupplier, mappedItems, validItems };
+      this.showConfirmSaveModal = true;
+      return;
+    }
+
+    // Sin tendencias (todo sin historial): guardar directamente
+    this.executeSave(raw, selectedSupplier, mappedItems, validItems);
+  }
+
+  private mapItemsForSave(validItems: any[]): any[] {
+    return validItems.map((it: any) => {
       const qty = Number(it.quantity);
       const unit = this.normalizeToNumber(it.unitCost);
       const vatRate = Number(it.vatRate || 0);
       const totalCost = qty * unit;
       const vatAmount = totalCost * (vatRate / 100);
+      const freightAmount = Number(it.freightAmount || 0);
+      // Costo total por unidad (para trazabilidad histórica)
+      const vatPerUnit = qty > 0 ? vatAmount / qty : unit * (vatRate / 100);
+      const freightPerUnit = qty > 0 ? freightAmount / qty : 0;
+      const unitTotalCost = unit + vatPerUnit + freightPerUnit;
       return {
         productId: it.productId,
         presentationId: it.presentationId,
@@ -342,10 +487,105 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
         vatRate: vatRate,
         vatAmount: vatAmount,
         applyFreight: it.applyFreight || false,
-        freightAmount: Number(it.freightAmount || 0)
+        freightAmount: freightAmount,
+        unitTotalCost: unitTotalCost
       };
     });
+  }
 
+  /**
+   * Construye resumen de tendencias para el modal de confirmación.
+   * Incluye solo ítems que tienen historial consultado (excluye 'none').
+   */
+  private buildTrendSummary(mappedItems: any[]): { description: string; presentationId: string; unitTotalCost: number; trend: string; deltaPercent: number | null; lastCost: number | null }[] {
+    return mappedItems.map(it => {
+      const info = this.lastCostByPresentation.get(it.presentationId);
+      if (!info) return null; // sin consultar, no incluir
+      const current = it.unitTotalCost;
+      let trend = 'first';
+      let deltaPercent: number | null = null;
+      let lastCost: number | null = null;
+      if (info.lastUnitTotalCost != null) {
+        lastCost = info.lastUnitTotalCost;
+        const diff = current - info.lastUnitTotalCost;
+        if (Math.abs(diff) < 0.01) trend = 'same';
+        else trend = diff > 0 ? 'up' : 'down';
+        deltaPercent = ((current - info.lastUnitTotalCost) / info.lastUnitTotalCost) * 100;
+      }
+      return {
+        description: it.description,
+        presentationId: it.presentationId,
+        unitTotalCost: current,
+        trend,
+        deltaPercent,
+        lastCost
+      };
+    }).filter((x): x is NonNullable<typeof x> => x !== null);
+  }
+
+  confirmSave(): void {
+    if (!this.pendingSavePayload) return;
+    const { raw, selectedSupplier, mappedItems, validItems } = this.pendingSavePayload;
+    this.showConfirmSaveModal = false;
+
+    // Aplicar actualizaciones de precio de venta pendientes (si las hay)
+    const updates: PresentationPriceUpdate[] = [];
+    this.pendingSalePriceUpdates.forEach((newPrice, barcode) => {
+      const item = mappedItems.find((it: any) => it.presentationBarcode === barcode || it.presentationId === barcode);
+      if (item && newPrice > 0) {
+        updates.push({ productId: item.productId, barcode, salePrice: newPrice });
+      }
+    });
+
+    if (updates.length > 0) {
+      const payload: BulkPresentationPriceUpdateRequest = { updates };
+      this.productService.bulkUpdatePresentationPrices(payload).subscribe({
+        next: (res) => {
+          if (res.failed > 0) {
+            console.warn('Algunos precios no se actualizaron:', res.errors);
+          }
+          toast.success(`${res.updated} precio(s) de venta actualizado(s)`);
+          this.pendingSavePayload = null;
+          this.executeSave(raw, selectedSupplier, mappedItems, validItems);
+        },
+        error: () => {
+          toast.error('Error al actualizar precios de venta. La compra no se guardó.');
+          this.showConfirmSaveModal = true; // reabrir para que el usuario decida
+        }
+      });
+      this.pendingSalePriceUpdates.clear();
+      return;
+    }
+
+    this.pendingSavePayload = null;
+    this.pendingSalePriceUpdates.clear();
+    this.executeSave(raw, selectedSupplier, mappedItems, validItems);
+  }
+
+  cancelConfirmSave(): void {
+    this.showConfirmSaveModal = false;
+    this.pendingSavePayload = null;
+    this.confirmSaveItems = [];
+  }
+
+  getCurrentSalePrice(presentationId: string): number {
+    return this.currentSalePriceByPresentation.get(presentationId) || 0;
+  }
+
+  setPendingSalePrice(presentationId: string, value: number): void {
+    const current = this.getCurrentSalePrice(presentationId);
+    if (value > 0 && Math.abs(value - current) > 0.01) {
+      this.pendingSalePriceUpdates.set(presentationId, value);
+    } else {
+      this.pendingSalePriceUpdates.delete(presentationId);
+    }
+  }
+
+  hasPendingSalePriceChange(presentationId: string): boolean {
+    return this.pendingSalePriceUpdates.has(presentationId);
+  }
+
+  private executeSave(raw: any, selectedSupplier: any, mappedItems: any[], validItems: any[]): void {
     if (this.isEditMode && this.editingInvoiceId) {
       // Modo edición: agregar nuevos items a factura existente
       this.addItemsToExistingInvoice(mappedItems, validItems);

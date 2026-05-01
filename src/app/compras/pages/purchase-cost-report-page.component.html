@@ -1,0 +1,224 @@
+<div class="container py-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="m-0">
+      <i class="bi bi-file-earmark-bar-graph me-2"></i>Reporte de Costos y Precios de Venta
+    </h4>
+    <div class="d-flex gap-2 align-items-center">
+      <div class="dropdown">
+        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+          <i class="bi bi-layout-three-columns me-1"></i>Columnas
+        </button>
+        <div class="dropdown-menu dropdown-menu-end p-3" style="min-width:260px">
+          <div class="mb-2 small fw-semibold text-muted">Predefinidos</div>
+          <div class="d-flex gap-1 mb-3">
+            <button class="btn btn-sm btn-outline-primary" (click)="applyPreset('full')">Todas</button>
+            <button class="btn btn-sm btn-outline-success" (click)="applyPreset('costAndNewPrice')">Costo+Nuevo</button>
+            <button class="btn btn-sm btn-outline-secondary" (click)="applyPreset('minimal')">Mínimo</button>
+          </div>
+          <div class="mb-2 small fw-semibold text-muted">Personalizado</div>
+          <div class="form-check"><input class="form-check-input" type="checkbox" id="col-cat" [checked]="isColumnVisible('category')" (change)="toggleColumn('category',$any($event.target).checked)"><label class="form-check-label" for="col-cat">Categoría</label></div>
+          <div class="form-check"><input class="form-check-input" type="checkbox" id="col-brand" [checked]="isColumnVisible('brand')" (change)="toggleColumn('brand',$any($event.target).checked)"><label class="form-check-label" for="col-brand">Marca</label></div>
+          <div class="form-check"><input class="form-check-input" type="checkbox" id="col-prod" [checked]="isColumnVisible('product')" (change)="toggleColumn('product',$any($event.target).checked)"><label class="form-check-label" for="col-prod">Producto</label></div>
+          <div class="form-check"><input class="form-check-input" type="checkbox" id="col-pres" [checked]="isColumnVisible('presentation')" (change)="toggleColumn('presentation',$any($event.target).checked)"><label class="form-check-label" for="col-pres">Presentación</label></div>
+          <div class="form-check"><input class="form-check-input" type="checkbox" id="col-sp" [checked]="isColumnVisible('salePrice')" (change)="toggleColumn('salePrice',$any($event.target).checked)"><label class="form-check-label" for="col-sp">Precio venta</label></div>
+          <div class="form-check"><input class="form-check-input" type="checkbox" id="col-cost" [checked]="isColumnVisible('cost')" (change)="toggleColumn('cost',$any($event.target).checked)"><label class="form-check-label" for="col-cost">Costo/u</label></div>
+          <div class="form-check"><input class="form-check-input" type="checkbox" id="col-ec" [checked]="isColumnVisible('entityCost')" (change)="toggleColumn('entityCost',$any($event.target).checked)"><label class="form-check-label" for="col-ec">Costo entidad</label></div>
+          <div class="form-check"><input class="form-check-input" type="checkbox" id="col-nsp" [checked]="isColumnVisible('newSalePrice')" (change)="toggleColumn('newSalePrice',$any($event.target).checked)"><label class="form-check-label" for="col-nsp">Nuevo precio venta</label></div>
+        </div>
+      </div>
+      <button class="btn btn-outline-secondary" (click)="generatePdf()" [disabled]="isGeneratingPdf">
+        <span *ngIf="isGeneratingPdf" class="spinner-border spinner-border-sm me-1" role="status"></span>
+        <i *ngIf="!isGeneratingPdf" class="bi bi-file-earmark-pdf me-1"></i>Descargar PDF
+      </button>
+      <button class="btn btn-primary" (click)="savePrices()" [disabled]="!hasPendingChanges">
+        <i class="bi bi-save me-1"></i>Guardar precios ({{ pendingChangeCount }})
+      </button>
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-3 align-items-end">
+        <div class="col-12 col-md-4">
+          <label class="form-label">Buscar producto</label>
+          <input type="text" class="form-control" [(ngModel)]="searchText" (input)="applyFilters()" placeholder="Nombre, presentación o código...">
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label">Categoría</label>
+          <select class="form-select" [(ngModel)]="selectedCategory" (change)="applyFilters()">
+            <option value="">Todas</option>
+            <option *ngFor="let c of categories" [value]="c">{{ c }}</option>
+          </select>
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label">Marca</label>
+          <select class="form-select" [(ngModel)]="selectedBrand" (change)="applyFilters()">
+            <option value="">Todas</option>
+            <option *ngFor="let b of brands" [value]="b">{{ b }}</option>
+          </select>
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label">Flete/u ($)</label>
+          <input type="number" class="form-control" [(ngModel)]="reportFreightPerUnit" min="0" step="100">
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label">IVA (%)</label>
+          <input type="number" class="form-control" [(ngModel)]="reportVatPercent" min="0" max="100" step="0.1">
+        </div>
+        <div class="col-12 col-md-2">
+          <button class="btn btn-outline-secondary w-100" (click)="clearFilters()">Limpiar</button>
+        </div>
+      </div>
+      <div class="row g-3 mt-2">
+        <div class="col-12 col-md-6">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="fullPackToggle" [(ngModel)]="showOnlyFullPacks" (change)="applyFilters()">
+            <label class="form-check-label" for="fullPackToggle">
+              <i class="bi bi-box-seam me-1"></i>Solo bultos completos
+            </label>
+          </div>
+        </div>
+        <div class="col-12 col-md-6">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="blankPdfCol" [(ngModel)]="addBlankPdfColumn">
+            <label class="form-check-label" for="blankPdfCol">
+              <i class="bi bi-file-earmark-text me-1"></i>Agregar columna vacía en PDF para escribir
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabla -->
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span>
+        Mostrando <strong>{{ startIndex + 1 }}–{{ endIndex }}</strong> de <strong>{{ filteredRows.length }}</strong> productos
+      </span>
+      <span class="badge bg-secondary">{{ rows.length }} total en sistema</span>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive" *ngIf="!isLoading; else loadingTpl">
+        <table class="table table-sm table-hover align-middle m-0 report-table">
+          <thead class="table-light">
+            <tr>
+              <th *ngIf="isColumnVisible('category')" (click)="toggleSort('category')" style="cursor:pointer">
+                Categoría <i class="bi" [ngClass]="sortIcon('category')"></i>
+              </th>
+              <th *ngIf="isColumnVisible('brand')" (click)="toggleSort('brand')" style="cursor:pointer">
+                Marca <i class="bi" [ngClass]="sortIcon('brand')"></i>
+              </th>
+              <th *ngIf="isColumnVisible('product')" (click)="toggleSort('product')" style="cursor:pointer">
+                Producto <i class="bi" [ngClass]="sortIcon('product')"></i>
+              </th>
+              <th *ngIf="isColumnVisible('presentation')" (click)="toggleSort('presentation')" style="cursor:pointer">
+                Presentación <i class="bi" [ngClass]="sortIcon('presentation')"></i>
+              </th>
+              <th *ngIf="isColumnVisible('salePrice')" (click)="toggleSort('salePrice')" class="text-end" style="cursor:pointer">
+                Precio venta <i class="bi" [ngClass]="sortIcon('salePrice')"></i>
+              </th>
+              <th *ngIf="isColumnVisible('cost')" (click)="toggleSort('cost')" class="text-end" style="cursor:pointer">
+                Costo/u <i class="bi" [ngClass]="sortIcon('cost')"></i>
+              </th>
+              <th *ngIf="isColumnVisible('entityCost')" (click)="toggleSort('entityCost')" class="text-end text-muted small" style="cursor:pointer">
+                Costo entidad <i class="bi" [ngClass]="sortIcon('entityCost')"></i>
+              </th>
+              <th *ngIf="isColumnVisible('newSalePrice')" (click)="toggleSort('newSalePrice')" class="text-end" style="cursor:pointer">
+                Nuevo precio venta <i class="bi" [ngClass]="sortIcon('newSalePrice')"></i>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of pagedRows">
+              <td *ngIf="isColumnVisible('category')" class="small">{{ row.category }}</td>
+              <td *ngIf="isColumnVisible('brand')" class="small">{{ row.brand }}</td>
+              <td *ngIf="isColumnVisible('product')" class="fw-semibold small">{{ row.productDescription }}</td>
+              <td *ngIf="isColumnVisible('presentation')" class="small text-muted">{{ row.presentationLabel }}</td>
+              <td *ngIf="isColumnVisible('salePrice')" class="text-end fw-semibold">{{ formatCurrency(row.salePrice) }}</td>
+              <td *ngIf="isColumnVisible('cost')" class="text-end">
+                <span *ngIf="getReportCost(row) != null; else noCost">
+                  {{ formatCurrency(getReportCost(row)) }}
+                  <span *ngIf="(reportFreightPerUnit > 0 || reportVatPercent > 0) && getDisplayCost(row) != null && getReportCost(row) !== getDisplayCost(row)"
+                        class="badge bg-warning text-dark small" title="Base: {{ formatCurrency(getDisplayCost(row)) }}">
+                    <i class="bi bi-calculator me-1"></i>Ajustado
+                  </span>
+                  <span *ngIf="row.lastInvoiceDate" class="text-muted small">({{ row.lastInvoiceDate }})</span>
+                  <span class="badge" [ngClass]="isLastCost(row) ? 'bg-success' : 'bg-secondary'">
+                    {{ isLastCost(row) ? 'Compra' : 'Entidad' }}
+                  </span>
+                </span>
+                <ng-template #noCost>
+                  <span class="text-muted small">Sin datos</span>
+                </ng-template>
+              </td>
+              <td *ngIf="isColumnVisible('entityCost')" class="text-end text-muted small">
+                {{ row.presentationCostPrice > 0 ? formatCurrency(row.presentationCostPrice) : '-' }}
+              </td>
+              <td *ngIf="isColumnVisible('newSalePrice')" class="text-end">
+                <div class="input-group input-group-sm justify-content-end" style="max-width:140px">
+                  <span class="input-group-text">$</span>
+                  <input type="number" class="form-control text-end"
+                    [value]="row.salePrice"
+                    min="0" step="1"
+                    (change)="onNewPriceChange(row, $any($event.target).valueAsNumber)">
+                </div>
+                <span *ngIf="row.newSalePrice != null && row.newSalePrice !== row.salePrice"
+                      class="badge bg-info text-dark mt-1">
+                  <i class="bi bi-pencil-fill me-1"></i>{{ formatCurrency(row.newSalePrice) }}
+                </span>
+              </td>
+            </tr>
+            <tr *ngIf="filteredRows.length === 0">
+              <td [attr.colspan]="visibleColumnsCount" class="text-center text-muted py-4">
+                <i class="bi bi-inbox display-6"></i>
+                <p class="mt-2">No hay productos que coincidan con los filtros</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <ng-template #loadingTpl>
+        <div class="text-center py-5">
+          <div class="spinner-border text-primary" role="status"></div>
+          <p class="mt-2 text-muted">Consultando costos de compra...</p>
+        </div>
+      </ng-template>
+    </div>
+
+    <!-- Paginación -->
+    <div class="card-footer" *ngIf="filteredRows.length > pageSize">
+      <nav>
+        <ul class="pagination pagination-sm justify-content-center m-0">
+          <li class="page-item" [class.disabled]="currentPage === 1">
+            <a class="page-link" (click)="goToFirst()">« Primera</a>
+          </li>
+          <li class="page-item" [class.disabled]="currentPage === 1">
+            <a class="page-link" (click)="goToPrev()">‹ Ant</a>
+          </li>
+          <li class="page-item" *ngFor="let p of getPageNumbers()" [class.active]="p === currentPage">
+            <a class="page-link" (click)="goToPage(p)">{{ p }}</a>
+          </li>
+          <li class="page-item" [class.disabled]="currentPage === totalPages">
+            <a class="page-link" (click)="goToNext()">Sig ›</a>
+          </li>
+          <li class="page-item" [class.disabled]="currentPage === totalPages">
+            <a class="page-link" (click)="goToLast()">Última »</a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  </div>
+
+  <div class="alert alert-light small mt-3">
+    <i class="bi bi-info-circle me-1"></i>
+    <strong>Costo/u:</strong> muestra el costo total por unidad de la <span class="badge bg-success">última compra</span> si existe; de lo contrario usa el <span class="badge bg-secondary">costo registrado en la entidad producto</span>.
+    <span *ngIf="reportFreightPerUnit > 0 || reportVatPercent > 0">
+      <strong class="ms-2">| Ajustado:</strong>
+      <span *ngIf="reportFreightPerUnit > 0">flete/u ${{ reportFreightPerUnit | number }}</span>
+      <span *ngIf="reportFreightPerUnit > 0 && reportVatPercent > 0"> + </span>
+      <span *ngIf="reportVatPercent > 0">IVA {{ reportVatPercent }}%</span>
+    </span>
+  </div>
+</div>
