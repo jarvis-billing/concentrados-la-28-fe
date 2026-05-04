@@ -31,6 +31,8 @@ export interface CashTransaction {
     description: string;
     amount: number;
     paymentMethod: string;
+    bankAccountId?: string;
+    bankAccountName?: string;
     reference?: string;
     transactionDate: string;
     relatedDocumentId?: string;  // ID de factura, pago, gasto, etc.

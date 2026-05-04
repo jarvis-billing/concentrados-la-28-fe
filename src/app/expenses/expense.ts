@@ -6,6 +6,8 @@ export interface Expense {
   category: string; // e.g., Transporte, Servicios, Suministros
   description: string;
   reference?: string; // numero de referencia o nota
+  bankAccountId?: string;
+  bankAccountName?: string;
   source?: string; // pantalla origen
   createdBy?: string; // username/id
 }

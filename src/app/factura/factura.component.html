@@ -145,8 +145,11 @@
                   <span class="text-muted small">
                     <i class="bi" [ngClass]="getPaymentIcon(p.method)"></i>
                     {{ p.method | titlecase }}
+                    @if (p.method === 'TRANSFERENCIA' && p.bankAccountName) {
+                      <span class="text-secondary"> · {{ p.bankAccountName }}</span>
+                    }
                     @if (p.reference) {
-                      <span class="text-secondary"> - {{ p.reference }}</span>
+                      <span class="text-secondary"> · Ref. {{ p.reference }}</span>
                     }
                   </span>
                   <span class="fw-bold text-success">{{ p.amount | currency:'$ ':'symbol':'.0-0' }}</span>
@@ -595,6 +598,18 @@
                         </button>
                       </div>
                     </div>
+                    @if (payment.method === 'TRANSFERENCIA') {
+                      <div class="row g-3 mt-1">
+                        <div class="col-12">
+                          <app-bank-account-select
+                            [paymentMethod]="payment.method"
+                            [bankAccountId]="payment.bankAccountId || null"
+                            [required]="true"
+                            (bankAccountIdChange)="onOtherPaymentBankAccountChange(i, $event)"
+                          ></app-bank-account-select>
+                        </div>
+                      </div>
+                    }
                   </div>
                 </div>
               }

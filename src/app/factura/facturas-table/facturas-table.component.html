@@ -208,8 +208,11 @@
                         <span class="badge" [ngClass]="getPaymentBadgeClass(payment.method)">
                           <i class="bi me-1" [ngClass]="getPaymentIcon(payment.method)"></i>
                           {{ formatPaymentMethod(payment.method) }}: {{ payment.amount | currency:'$ ':'symbol':'.0-0' }}
+                          @if (payment.method === 'TRANSFERENCIA' && payment.bankAccountName) {
+                            <small class="ms-1">{{ payment.bankAccountName }}</small>
+                          }
                           @if (payment.reference) {
-                            <small class="ms-1">({{ payment.reference }})</small>
+                            <small class="ms-1">(Ref. {{ payment.reference }})</small>
                           }
                         </span>
                       }
@@ -259,6 +262,9 @@
                                   <div>
                                     <div class="fw-bold">{{ formatPaymentMethod(payment.method) }}</div>
                                     <div class="text-success fw-bold">{{ payment.amount | currency:'$ ':'symbol':'.0-0' }}</div>
+                                    @if (payment.method === 'TRANSFERENCIA' && payment.bankAccountName) {
+                                      <small class="text-muted">{{ payment.bankAccountName }}</small>
+                                    }
                                     @if (payment.reference) {
                                       <small class="text-muted">Ref: {{ payment.reference }}</small>
                                     }

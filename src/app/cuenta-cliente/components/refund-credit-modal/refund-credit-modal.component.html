@@ -59,6 +59,13 @@
                             </select>
                         </div>
 
+                        <app-bank-account-select
+                            [paymentMethod]="refundForm.value.paymentMethod"
+                            [bankAccountId]="refundForm.value.bankAccountId"
+                            [required]="true"
+                            (bankAccountIdChange)="refundForm.patchValue({ bankAccountId: $event })"
+                        ></app-bank-account-select>
+
                         <div class="mb-3">
                             <label class="form-label">Referencia</label>
                             <input 

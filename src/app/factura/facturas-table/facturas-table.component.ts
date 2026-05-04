@@ -724,6 +724,7 @@ export class FacturasTableComponent implements OnInit {
             const payLine = billing.payments
               .map(p => {
                 let txt = `${this.formatPaymentMethod(p.method)}: ${this.fmtCurrency(p.amount)}`;
+                if (p.method === 'TRANSFERENCIA' && p.bankAccountName) txt += ` (${p.bankAccountName})`;
                 if (p.reference) txt += ` (Ref: ${p.reference})`;
                 return txt;
               }).join('  |  ');

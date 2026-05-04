@@ -6,11 +6,12 @@ import { ClientCreditService } from '../../services/client-credit.service';
 import { RefundCreditRequest, PaymentMethodCredit } from '../../models/client-credit';
 import { toast } from 'ngx-sonner';
 import { CurrencyFormatDirective } from '../../../directive/currency-format.directive';
+import { BankAccountSelectComponent } from '../../../shared/components/bank-account-select/bank-account-select.component';
 
 @Component({
     selector: 'app-refund-credit-modal',
     standalone: true,
-    imports: [CommonModule, ReactiveFormsModule, CurrencyFormatDirective],
+    imports: [CommonModule, ReactiveFormsModule, CurrencyFormatDirective, BankAccountSelectComponent],
     templateUrl: './refund-credit-modal.component.html',
     styleUrl: './refund-credit-modal.component.css'
 })
@@ -29,6 +30,7 @@ export class RefundCreditModalComponent implements OnChanges {
     refundForm: FormGroup = this.fb.group({
         amount: ['', [Validators.required, Validators.min(1)]],
         paymentMethod: [PaymentMethodCredit.EFECTIVO, Validators.required],
+        bankAccountId: [''],
         reference: [''],
         notes: ['']
     });
@@ -74,10 +76,16 @@ export class RefundCreditModalComponent implements OnChanges {
 
         this.isSubmitting = true;
 
+        const isTransfer = this.refundForm.value.paymentMethod === PaymentMethodCredit.TRANSFERENCIA;
+        if (isTransfer && !this.refundForm.value.bankAccountId) {
+            toast.warning('Seleccione una cuenta bancaria para transferencias');
+            return;
+        }
         const request: RefundCreditRequest = {
             clientId: this.client.id,
             amount: amount,
             paymentMethod: this.refundForm.value.paymentMethod,
+            bankAccountId: isTransfer ? this.refundForm.value.bankAccountId || undefined : undefined,
             reference: this.refundForm.value.reference || undefined,
             notes: this.refundForm.value.notes || undefined
         };
@@ -94,7 +102,12 @@ export class RefundCreditModalComponent implements OnChanges {
             },
             error: (err) => {
                 this.isSubmitting = false;
-                toast.error('Error al procesar la devolución: ' + (err.error?.message || 'Intente nuevamente'));
+                const e = err?.error;
+                if (e?.errors && typeof e.errors === 'object') {
+                    const msgs = Object.values(e.errors as Record<string, string>).filter(Boolean) as string[];
+                    if (msgs.length) { msgs.forEach(m => toast.warning(m)); return; }
+                }
+                toast.error('Error al procesar la devolución: ' + (e?.message || 'Intente nuevamente'));
             }
         });
     }

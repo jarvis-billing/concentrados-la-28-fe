@@ -38,6 +38,12 @@
               </select>
             </div>
           </div>
+          <app-bank-account-select
+            [paymentMethod]="editForm.value.paymentMethod"
+            [bankAccountId]="editForm.value.bankAccountId"
+            [required]="true"
+            (bankAccountIdChange)="editForm.patchValue({ bankAccountId: $event })"
+          ></app-bank-account-select>
           <div>
             <label class="form-label">Categoría</label>
             <input type="text" class="form-control" formControlName="category" list="expCats">
@@ -100,6 +106,12 @@
               </select>
             </div>
           </div>
+          <app-bank-account-select
+            [paymentMethod]="form.value.paymentMethod"
+            [bankAccountId]="form.value.bankAccountId"
+            [required]="true"
+            (bankAccountIdChange)="form.patchValue({ bankAccountId: $event })"
+          ></app-bank-account-select>
           <div>
             <label class="form-label">Categoría</label>
             <input type="text" class="form-control" placeholder="Ej: Transporte, SERVICIOS" formControlName="category" list="expCats">
@@ -158,6 +170,7 @@
               <tr>
                 <th>Fecha</th>
                 <th>Medio de Pago</th>
+                <th>Cuenta Bancaria</th>
                 <th>Categoría</th>
                 <th>Descripción</th>
                 <th class="text-end">Monto</th>
@@ -168,6 +181,10 @@
               <tr *ngFor="let e of listed">
                 <td>{{ e.dateTimeRecord | date:'dd/MM/yyyy HH:mm':'America/Bogota' }}</td>
                 <td>{{ e.paymentMethod }}</td>
+                <td>
+                  <span *ngIf="e.paymentMethod === 'TRANSFERENCIA' && e.bankAccountName; else noBank">{{ e.bankAccountName }}</span>
+                  <ng-template #noBank><span class="text-muted">-</span></ng-template>
+                </td>
                 <td>{{ e.category }}</td>
                 <td>{{ e.description }}</td>
                 <td class="text-end">{{ e.amount | currency:'$ ':'symbol':'.0-0' }}</td>
@@ -181,12 +198,12 @@
                 </td>
               </tr>
               <tr *ngIf="!listed.length">
-                <td colspan="5" class="text-center text-muted">Sin resultados</td>
+                <td colspan="6" class="text-center text-muted">Sin resultados</td>
               </tr>
             </tbody>
             <tfoot>
               <tr>
-                <th colspan="4" class="text-end">Total</th>
+                <th colspan="5" class="text-end">Total</th>
                 <th class="text-end">{{ listedTotal | currency:'$ ':'symbol':'.0-0' }}</th>
               </tr>
             </tfoot>

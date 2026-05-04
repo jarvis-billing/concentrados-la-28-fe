@@ -27,6 +27,7 @@ import { BatchService } from '../lotes/services/batch.service';
 import { Batch, BATCH_REQUIRED_CATEGORY } from '../lotes/models/batch';
 import { BatchSelectorModalComponent } from '../lotes/components/batch-selector-modal/batch-selector-modal.component';
 import { BatchExpirationAlertComponent } from '../lotes/components/batch-expiration-alert/batch-expiration-alert.component';
+import { BankAccountSelectComponent } from '../shared/components/bank-account-select/bank-account-select.component';
 
 @Component({
   selector: 'app-factura',
@@ -43,6 +44,7 @@ import { BatchExpirationAlertComponent } from '../lotes/components/batch-expirat
     UseCreditModalComponent,
     BatchSelectorModalComponent,
     BatchExpirationAlertComponent,
+    BankAccountSelectComponent,
   ],
   templateUrl: './factura.component.html',
   styleUrl: './factura.component.css'
@@ -59,7 +61,7 @@ export class FacturaComponent implements OnInit, AfterViewInit {
 
   // Estado temporal para el modal de multipagos
   modalCashAmount: number = 0;
-  modalOtherPayments: { method: string; amount: number; reference: string }[] = [];
+  modalOtherPayments: { method: string; amount: number; reference: string; bankAccountId?: string }[] = [];
 
   ngAfterViewInit() {
     // Configuración para el modal "Cantidad a vender"
@@ -201,6 +203,7 @@ export class FacturaComponent implements OnInit, AfterViewInit {
     method: FormControl<string>;
     amount: FormControl<string>;
     reference: FormControl<string>;
+    bankAccountId: FormControl<string>;
   }>>([]);
 
   pdfSrc: any;
@@ -814,10 +817,12 @@ export class FacturaComponent implements OnInit, AfterViewInit {
         method: FormControl<string>;
         amount: FormControl<string>;
         reference: FormControl<string>;
+        bankAccountId: FormControl<string>;
       }>({
         method: new FormControl<string>('EFECTIVO', { nonNullable: true }),
         amount: new FormControl<string>('0', { nonNullable: true }),
-        reference: new FormControl<string>('', { nonNullable: true })
+        reference: new FormControl<string>('', { nonNullable: true }),
+        bankAccountId: new FormControl<string>('', { nonNullable: true })
       }));
     }
   }
@@ -835,10 +840,12 @@ export class FacturaComponent implements OnInit, AfterViewInit {
       method: FormControl<string>;
       amount: FormControl<string>;
       reference: FormControl<string>;
+      bankAccountId: FormControl<string>;
     }>({
       method: new FormControl<string>('TRANSFERENCIA', { nonNullable: true }),
       amount: new FormControl<string>('0', { nonNullable: true }),
-      reference: new FormControl<string>('', { nonNullable: true })
+      reference: new FormControl<string>('', { nonNullable: true }),
+      bankAccountId: new FormControl<string>('', { nonNullable: true })
     }));
   }
 
@@ -851,14 +858,15 @@ export class FacturaComponent implements OnInit, AfterViewInit {
 
   get paymentControls() { return this.paymentsForm.controls; }
 
-  private getPaymentsValues(): { method: string; amount: number; reference?: string }[] {
+  private getPaymentsValues(): { method: string; amount: number; reference?: string; bankAccountId?: string }[] {
     return this.paymentsForm.controls.map(ctrl => {
-      const g = ctrl as FormGroup<{ method: FormControl<string>; amount: FormControl<string>; reference: FormControl<string>; }>;
+      const g = ctrl as FormGroup<{ method: FormControl<string>; amount: FormControl<string>; reference: FormControl<string>; bankAccountId: FormControl<string>; }>;
       const rawAmount = g.controls['amount'].value as unknown;
       return {
         method: (g.controls['method'].value as string) || 'EFECTIVO',
         amount: this.normalizeToNumber(rawAmount),
-        reference: (g.controls['reference'].value as string) || ''
+        reference: (g.controls['reference'].value as string) || '',
+        bankAccountId: (g.controls['bankAccountId'].value as string) || undefined
       };
     });
   }
@@ -996,18 +1004,28 @@ export class FacturaComponent implements OnInit, AfterViewInit {
   confirmSaveBilling() {
     // Ejecutar guardado real
     this.closeConfirmSaveModal();
-    this.facturaService.save(this.factura).subscribe(factura => {
-      if (factura.id) {
-        // Verificar si hay pago con saldo a favor para descontarlo
-        const creditPayment = this.factura.payments?.find(p => p.method === 'SALDO_FAVOR');
-        if (creditPayment && creditPayment.amount > 0 && this.client?.id) {
-          this.useCreditForBilling(factura.id, creditPayment.amount);
+    this.facturaService.save(this.factura).subscribe({
+      next: (factura) => {
+        if (factura.id) {
+          // Verificar si hay pago con saldo a favor para descontarlo
+          const creditPayment = this.factura.payments?.find(p => p.method === 'SALDO_FAVOR');
+          if (creditPayment && creditPayment.amount > 0 && this.client?.id) {
+            this.useCreditForBilling(factura.id, creditPayment.amount);
+          }
+
+          toast.success('La Factura fue registrada correctamente.');
+          this.onInitBilling();
+          // Refrescar listado de productos para actualizar stock
+          this.productService.fetchAll();
         }
-        
-        toast.success('La Factura fue registrada correctamente.');
-        this.onInitBilling();
-        // Refrescar listado de productos para actualizar stock
-        this.productService.fetchAll();
+      },
+      error: (err) => {
+        const e = err?.error;
+        if (e?.errors && typeof e.errors === 'object') {
+          const msgs = Object.values(e.errors as Record<string, string>).filter(Boolean) as string[];
+          if (msgs.length) { msgs.forEach(m => toast.warning(m)); return; }
+        }
+        toast.error(e?.message || 'Error al guardar la factura. Intente nuevamente.');
       }
     });
   }
@@ -1139,7 +1157,7 @@ export class FacturaComponent implements OnInit, AfterViewInit {
     this.modalCashAmount = cashPayment?.amount || 0;
     this.modalOtherPayments = payments
       .filter(p => p.method !== 'EFECTIVO' && p.method !== 'SALDO_FAVOR')
-      .map(p => ({ method: p.method, amount: p.amount, reference: p.reference || '' }));
+      .map(p => ({ method: p.method, amount: p.amount, reference: p.reference || '', bankAccountId: (p as any).bankAccountId || '' }));
     // Cargar el saldo a favor aplicado previamente
     const creditPayment = payments.find(p => p.method === 'SALDO_FAVOR');
     this.modalCreditApplied = creditPayment?.amount || 0;
@@ -1151,10 +1169,16 @@ export class FacturaComponent implements OnInit, AfterViewInit {
     }
     // Agregar saldo a favor si se aplicó
     if (this.modalCreditApplied > 0) {
-      this.paymentsForm.push(new FormGroup({
+      this.paymentsForm.push(new FormGroup<{
+        method: FormControl<string>;
+        amount: FormControl<string>;
+        reference: FormControl<string>;
+        bankAccountId: FormControl<string>;
+      }>({
         method: new FormControl<string>('SALDO_FAVOR', { nonNullable: true }),
         amount: new FormControl<string>(String(this.modalCreditApplied), { nonNullable: true }),
-        reference: new FormControl<string>('', { nonNullable: true })
+        reference: new FormControl<string>('', { nonNullable: true }),
+        bankAccountId: new FormControl<string>('', { nonNullable: true })
       }));
       // Actualizar creditToApply para que se refleje en la UI principal
       this.creditToApply = this.modalCreditApplied;
@@ -1162,18 +1186,30 @@ export class FacturaComponent implements OnInit, AfterViewInit {
       this.creditToApply = 0;
     }
     if (this.modalCashAmount > 0) {
-      this.paymentsForm.push(new FormGroup({
+      this.paymentsForm.push(new FormGroup<{
+        method: FormControl<string>;
+        amount: FormControl<string>;
+        reference: FormControl<string>;
+        bankAccountId: FormControl<string>;
+      }>({
         method: new FormControl<string>('EFECTIVO', { nonNullable: true }),
         amount: new FormControl<string>(String(this.modalCashAmount), { nonNullable: true }),
-        reference: new FormControl<string>('', { nonNullable: true })
+        reference: new FormControl<string>('', { nonNullable: true }),
+        bankAccountId: new FormControl<string>('', { nonNullable: true })
       }));
     }
     for (const p of this.modalOtherPayments) {
       if (p.amount > 0) {
-        this.paymentsForm.push(new FormGroup({
+        this.paymentsForm.push(new FormGroup<{
+          method: FormControl<string>;
+          amount: FormControl<string>;
+          reference: FormControl<string>;
+          bankAccountId: FormControl<string>;
+        }>({
           method: new FormControl<string>(p.method, { nonNullable: true }),
           amount: new FormControl<string>(String(p.amount), { nonNullable: true }),
-          reference: new FormControl<string>(p.reference || '', { nonNullable: true })
+          reference: new FormControl<string>(p.reference || '', { nonNullable: true }),
+          bankAccountId: new FormControl<string>(p.bankAccountId || '', { nonNullable: true })
         }));
       }
     }
@@ -1184,6 +1220,13 @@ export class FacturaComponent implements OnInit, AfterViewInit {
   }
 
   confirmMultiPayment() {
+    // Validar que transferencias tengan cuenta bancaria
+    for (const p of this.modalOtherPayments) {
+      if (p.method === 'TRANSFERENCIA' && !p.bankAccountId) {
+        toast.warning('Seleccione una cuenta bancaria para cada transferencia');
+        return;
+      }
+    }
     this.syncModalToPaymentsForm();
     this.closeMultiPaymentModal();
     toast.success('Pagos registrados correctamente');
@@ -1255,31 +1298,47 @@ export class FacturaComponent implements OnInit, AfterViewInit {
     return this.clientCreditBalance > 0 && !this.isConsumidorFinal(this.client);
   }
 
-  getOtherPayments(): { method: string; amount: number; reference: string }[] {
+  getOtherPayments(): { method: string; amount: number; reference: string; bankAccountId?: string }[] {
     return this.modalOtherPayments;
   }
 
   addOtherPaymentRow() {
-    this.modalOtherPayments.push({ method: 'TRANSFERENCIA', amount: 0, reference: '' });
+    this.modalOtherPayments = [
+      ...this.modalOtherPayments,
+      { method: 'TRANSFERENCIA', amount: 0, reference: '', bankAccountId: '' }
+    ];
   }
 
   removeOtherPaymentRow(index: number) {
-    this.modalOtherPayments.splice(index, 1);
+    this.modalOtherPayments = this.modalOtherPayments.filter((_, i) => i !== index);
   }
 
   onOtherPaymentMethodChange(index: number, event: Event) {
     const value = (event.target as HTMLSelectElement).value;
-    this.modalOtherPayments[index].method = value;
+    this.modalOtherPayments = this.modalOtherPayments.map((p, i) =>
+      i === index ? { ...p, method: value } : p
+    );
   }
 
   onOtherPaymentAmountChange(index: number, event: Event) {
     const value = (event.target as HTMLInputElement).value;
-    this.modalOtherPayments[index].amount = this.normalizeToNumber(value);
+    const num = this.normalizeToNumber(value);
+    this.modalOtherPayments = this.modalOtherPayments.map((p, i) =>
+      i === index ? { ...p, amount: num } : p
+    );
   }
 
   onOtherPaymentReferenceChange(index: number, event: Event) {
     const value = (event.target as HTMLInputElement).value;
-    this.modalOtherPayments[index].reference = value;
+    this.modalOtherPayments = this.modalOtherPayments.map((p, i) =>
+      i === index ? { ...p, reference: value } : p
+    );
+  }
+
+  onOtherPaymentBankAccountChange(index: number, bankAccountId: string | null) {
+    this.modalOtherPayments = this.modalOtherPayments.map((p, i) =>
+      i === index ? { ...p, bankAccountId: bankAccountId || '' } : p
+    );
   }
 
   getPaymentsSummary(): { method: string; amount: number; reference?: string }[] {

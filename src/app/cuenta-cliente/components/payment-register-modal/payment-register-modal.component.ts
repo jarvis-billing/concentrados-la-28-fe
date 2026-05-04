@@ -12,11 +12,12 @@ import { formatInTimeZone } from 'date-fns-tz';
 import { CurrencyFormatDirective } from '../../../directive/currency-format.directive';
 import jsPDF from 'jspdf';
 import { forkJoin, of } from 'rxjs';
+import { BankAccountSelectComponent } from '../../../shared/components/bank-account-select/bank-account-select.component';
 
 @Component({
     selector: 'app-payment-register-modal',
     standalone: true,
-    imports: [CommonModule, ReactiveFormsModule, CurrencyFormatDirective],
+    imports: [CommonModule, ReactiveFormsModule, CurrencyFormatDirective, BankAccountSelectComponent],
     templateUrl: './payment-register-modal.component.html',
     styleUrl: './payment-register-modal.component.css'
 })
@@ -51,6 +52,7 @@ export class PaymentRegisterModalComponent {
     paymentForm: FormGroup = this.fb.group({
         amount: ['', [Validators.required, Validators.min(1)]],
         paymentMethod: [PaymentMethod.EFECTIVO, Validators.required],
+        bankAccountId: [''],
         reference: [''],
         notes: ['']
     });
@@ -135,13 +137,22 @@ export class PaymentRegisterModalComponent {
             } as UseCreditRequest)
             : of(null);
 
+        // Validate bank account for transfers
+        const payMethod = this.paymentForm.value.paymentMethod || PaymentMethod.EFECTIVO;
+        if (cashAmount > 0 && payMethod === PaymentMethod.TRANSFERENCIA && !this.paymentForm.value.bankAccountId) {
+            toast.warning('Seleccione una cuenta bancaria para transferencias');
+            this.isSubmitting = false;
+            return;
+        }
+
         // 2) Registrar pago normal si hay monto en efectivo/otro
         const paymentObs$ = cashAmount > 0
             ? this.accountService.registerPayment({
                 id: '',
                 clientAccountId: this.client.id,
                 amount: cashAmount,
-                paymentMethod: this.paymentForm.value.paymentMethod || PaymentMethod.EFECTIVO,
+                paymentMethod: payMethod,
+                bankAccountId: payMethod === PaymentMethod.TRANSFERENCIA ? this.paymentForm.value.bankAccountId || undefined : undefined,
                 reference: this.paymentForm.value.reference || undefined,
                 notes: combinedNotes || undefined,
                 paymentDate: formatInTimeZone(new Date(), 'America/Bogota', "yyyy-MM-dd'T'HH:mm:ssXXX"),
@@ -195,7 +206,12 @@ export class PaymentRegisterModalComponent {
             },
             error: (err) => {
                 this.isSubmitting = false;
-                toast.error('Error al registrar el pago: ' + (err.error?.message || 'Intente nuevamente'));
+                const e = err?.error;
+                if (e?.errors && typeof e.errors === 'object') {
+                    const msgs = Object.values(e.errors as Record<string, string>).filter(Boolean) as string[];
+                    if (msgs.length) { msgs.forEach(m => toast.warning(m)); return; }
+                }
+                toast.error('Error al registrar el pago: ' + (e?.message || 'Intente nuevamente'));
             }
         });
     }

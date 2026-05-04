@@ -33,6 +33,8 @@ export interface PaymentEntry {
     method: string;      // EFECTIVO, TRANSFERENCIA, TARJETA_CREDITO, etc.
     amount: number;      // Monto pagado en este método
     reference?: string;  // Referencia/nota opcional (No. transferencia, últimos 4, etc.)
+    bankAccountId?: string;
+    bankAccountName?: string;
 }
 export class BillingReportFilter {
     toDate: string = ''; // Formato 'yyyy-MM-dd'

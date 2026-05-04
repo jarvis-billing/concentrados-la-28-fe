@@ -27,6 +27,8 @@ export class AccountPayment {
     clientAccountId: string = '';
     amount: number = 0;
     paymentMethod: PaymentMethod = PaymentMethod.EFECTIVO;
+    bankAccountId?: string;
+    bankAccountName?: string;
     reference?: string;              // Referencia de transferencia, número de cheque, etc.
     notes?: string;                  // Notas adicionales
     paymentDate: string = '';

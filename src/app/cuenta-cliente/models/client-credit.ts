@@ -27,6 +27,8 @@ export class CreditTransaction {
     amount: number = 0;
     balanceAfter: number = 0;        // Saldo después de la transacción
     paymentMethod?: PaymentMethodCredit;
+    bankAccountId?: string;
+    bankAccountName?: string;
     reference?: string;              // Referencia de pago o número de factura
     billingId?: string;              // ID de factura si es un consumo
     notes?: string;
@@ -58,6 +60,8 @@ export class DepositCreditRequest {
     clientId: string = '';
     amount: number = 0;
     paymentMethod: PaymentMethodCredit = PaymentMethodCredit.EFECTIVO;
+    bankAccountId?: string;
+    bankAccountName?: string;
     reference?: string;
     notes?: string;
     transactionDate?: string;  // Fecha original (para migración de cuaderno)
@@ -91,6 +95,8 @@ export class RefundCreditRequest {
     clientId: string = '';
     amount: number = 0;
     paymentMethod: PaymentMethodCredit = PaymentMethodCredit.EFECTIVO;
+    bankAccountId?: string;
+    bankAccountName?: string;
     reference?: string;
     notes?: string;
 }

@@ -569,6 +569,7 @@
                                         <th>Tipo</th>
                                         <th>Categoría</th>
                                         <th>Descripción</th>
+                                        <th>Cuenta Bancaria</th>
                                         <th>Referencia</th>
                                         <th class="text-end">Monto</th>
                                     </tr>
@@ -588,6 +589,10 @@
                                                 </span>
                                             </td>
                                             <td>{{ tx.description }}</td>
+                                            <td>
+                                                <span *ngIf="tx.bankAccountName" class="badge bg-info text-dark">{{ tx.bankAccountName }}</span>
+                                                <span *ngIf="!tx.bankAccountName" class="text-muted">-</span>
+                                            </td>
                                             <td><code>{{ tx.reference || '-' }}</code></td>
                                             <td class="text-end fw-bold" [ngClass]="tx.type === 'INGRESO' ? 'text-success' : 'text-danger'">
                                                 {{ tx.type === 'INGRESO' ? '+' : '-' }}{{ formatCurrency(tx.amount) }}
@@ -597,7 +602,7 @@
                                 </tbody>
                                 <tfoot class="table-light">
                                     <tr class="fw-bold">
-                                        <td colspan="5">Total Neto en Transferencias</td>
+                                        <td colspan="6">Total Neto en Transferencias</td>
                                         <td class="text-end text-primary">
                                             {{ formatCurrency(expectedTransferAmount) }}
                                         </td>

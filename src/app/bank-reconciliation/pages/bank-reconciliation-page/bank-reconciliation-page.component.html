@@ -282,6 +282,9 @@
                                 @for (tx of getTransferTransactions(); track tx.id) {
                                     <li>
                                         {{ tx.description }} — <strong>{{ formatCurrency(tx.amount) }}</strong>
+                                        @if (tx.bankAccountName) {
+                                            <span class="badge bg-info text-dark ms-1">{{ tx.bankAccountName }}</span>
+                                        }
                                     </li>
                                 }
                             </ul>

@@ -8,11 +8,13 @@ import { CurrencyPipe } from '@angular/common';
 import { toast } from 'ngx-sonner';
 import { CurrencyFormatDirective } from '../directive/currency-format.directive';
 import { LoginUserService } from '../auth/login/loginUser.service';
+import { BankAccountSelectComponent } from '../shared/components/bank-account-select/bank-account-select.component';
+import { BankAccountService } from '../bank-accounts/services/bank-account.service';
 
 @Component({
   selector: 'app-expenses-fab',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, CurrencyPipe, CurrencyFormatDirective],
+  imports: [CommonModule, ReactiveFormsModule, CurrencyPipe, CurrencyFormatDirective, BankAccountSelectComponent],
   templateUrl: './expenses-fab.component.html',
   styleUrls: ['./expenses-fab.component.css']
 })
@@ -24,6 +26,7 @@ export class ExpensesFabComponent implements OnInit {
   @ViewChild('expensesListModal', { static: false }) expensesListModalRef!: ElementRef;
   @ViewChild('expensesDetailModal', { static: false }) expensesDetailModalRef!: ElementRef;
   @ViewChild('editAmountInput', { static: false }) editAmountInput!: ElementRef<HTMLInputElement>;
+  @ViewChild('bankAccountSelect', { static: false }) bankAccountSelect!: ElementRef;
 
   private fb = inject(FormBuilder);
   private service = inject(ExpensesService);
@@ -34,6 +37,7 @@ export class ExpensesFabComponent implements OnInit {
   form: FormGroup = this.fb.group({
     amount: ['', [Validators.required]],
     paymentMethod: ['EFECTIVO', [Validators.required]],
+    bankAccountId: [''],
     category: ['', [Validators.required, Validators.maxLength(50)]],
     description: ['', [Validators.required, Validators.maxLength(200)]],
     reference: ['']
@@ -85,6 +89,7 @@ export class ExpensesFabComponent implements OnInit {
   editForm: FormGroup = this.fb.group({
     amount: ['', [Validators.required]],
     paymentMethod: ['EFECTIVO', [Validators.required]],
+    bankAccountId: [''],
     category: ['', [Validators.required, Validators.maxLength(50)]],
     description: ['', [Validators.required, Validators.maxLength(200)]],
     reference: ['']
@@ -256,6 +261,7 @@ export class ExpensesFabComponent implements OnInit {
     this.editForm.reset({
       amount: expense.amount,
       paymentMethod: expense.paymentMethod,
+      bankAccountId: expense.bankAccountId || '',
       category: (expense.category || '').toString().trim().toUpperCase(),
       description: expense.description,
       reference: expense.reference || ''
@@ -308,9 +314,15 @@ export class ExpensesFabComponent implements OnInit {
         .replace(/[^0-9.\-]/g, '')
     ) || 0;
 
+    const isTransferEdit = this.editForm.value.paymentMethod === 'TRANSFERENCIA';
+    if (isTransferEdit && !this.editForm.value.bankAccountId) {
+      toast.warning('Seleccione una cuenta bancaria para transferencias');
+      return;
+    }
     const payload: Partial<Expense> = {
       amount: normalizedAmount,
       paymentMethod: this.editForm.value.paymentMethod,
+      bankAccountId: isTransferEdit ? this.editForm.value.bankAccountId || undefined : undefined,
       category: (this.editForm.value.category || '').toString().trim().toUpperCase(),
       description: this.editForm.value.description,
       reference: this.editForm.value.reference,
@@ -376,9 +388,15 @@ export class ExpensesFabComponent implements OnInit {
         .replace(/[^0-9.\-]/g, '')
     ) || 0;
 
+    const isTransfer = this.form.value.paymentMethod === 'TRANSFERENCIA';
+    if (isTransfer && !this.form.value.bankAccountId) {
+      toast.warning('Seleccione una cuenta bancaria para transferencias');
+      return;
+    }
     const expense: Expense = {
       amount: normalizedAmount,
       paymentMethod: this.form.value.paymentMethod,
+      bankAccountId: isTransfer ? this.form.value.bankAccountId || undefined : undefined,
       category: (this.form.value.category || '').toString().trim().toUpperCase(),
       description: this.form.value.description,
       reference: this.form.value.reference,
@@ -391,7 +409,7 @@ export class ExpensesFabComponent implements OnInit {
       next: (saved) => {
         toast.success('Gasto registrado correctamente');
         this.saved.emit(saved);
-        this.form.reset({ paymentMethod: 'EFECTIVO' });
+        this.form.reset({ paymentMethod: 'EFECTIVO', bankAccountId: '' });
         this.close();
       },
       error: (err) => {

@@ -90,6 +90,13 @@
                             </select>
                         </div>
 
+                        <app-bank-account-select
+                            [paymentMethod]="paymentForm.value.paymentMethod"
+                            [bankAccountId]="paymentForm.value.bankAccountId"
+                            [required]="true"
+                            (bankAccountIdChange)="paymentForm.patchValue({ bankAccountId: $event })"
+                        ></app-bank-account-select>
+
                         <div class="mb-3">
                             <label class="form-label">Referencia</label>
                             <input 
