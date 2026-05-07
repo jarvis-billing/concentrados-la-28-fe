@@ -1,9 +1,17 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { PurchaseInvoice } from '../models/purchase-invoice';
+import { PurchaseInvoice, LinkedPayment } from '../models/purchase-invoice';
 import { PurchaseLastCostInfo, CostHistoryEntry } from '../models/purchase-cost-history';
 import { urlConfig } from '../../../config/config';
+
+export interface PurchasePaymentDetailResponse {
+  purchaseId: string;
+  purchaseTotal: number;
+  totalPaid: number;
+  paymentStatus: string;
+  payments: Array<LinkedPayment & { bankAccountName?: string; originalAmount?: number }>;
+}
 
 @Injectable({ providedIn: 'root' })
 export class PurchasesService {
@@ -47,5 +55,13 @@ export class PurchasesService {
     if (params?.fromDate) httpParams = httpParams.set('fromDate', params.fromDate);
     if (params?.toDate) httpParams = httpParams.set('toDate', params.toDate);
     return this.http.get<CostHistoryEntry[]>(`${this.baseUrl}/cost-history`, { params: httpParams });
+  }
+
+  linkPayments(purchaseInvoiceId: string, paymentIds: string[]): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/${purchaseInvoiceId}/link-payments`, { paymentIds });
+  }
+
+  getLinkedPayments(purchaseInvoiceId: string): Observable<PurchasePaymentDetailResponse> {
+    return this.http.get<PurchasePaymentDetailResponse>(`${this.baseUrl}/${purchaseInvoiceId}/payments`);
   }
 }

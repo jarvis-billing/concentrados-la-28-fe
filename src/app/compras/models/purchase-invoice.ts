@@ -3,6 +3,16 @@ import { PurchaseItem } from './purchase-item';
 
 export type PurchasePaymentType = 'CONTADO' | 'CREDITO';
 
+export type PurchasePaymentStatus = 'PENDIENTE' | 'PARCIAL' | 'PAGADO' | 'SOBREPAGADO';
+
+export interface LinkedPayment {
+  paymentId: string;
+  appliedAmount: number;
+  paymentDate: string;
+  method: string;
+  reference?: string;
+}
+
 export interface PurchaseInvoice {
   id?: string;
   supplier: Supplier;
@@ -18,4 +28,7 @@ export interface PurchaseInvoice {
   notes?: string;
   supportDocument?: string; // URL o path del documento soporte
   createdAt?: string; // Fecha de ingreso/registro en el sistema
+  paymentStatus?: PurchasePaymentStatus;
+  totalPaid?: number;
+  linkedPayments?: LinkedPayment[];
 }

@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { urlConfig } from '../../../config/config';
-import { SupplierPayment } from '../models/supplier-payment';
+import { SupplierPayment, SupplierPaymentStatus } from '../models/supplier-payment';
 
 @Injectable({ providedIn: 'root' })
 export class SupplierPaymentsService {
@@ -17,8 +17,16 @@ export class SupplierPaymentsService {
     return this.http.post<void>(this.baseUrl, form);
   }
 
-  list(params?: { supplierId?: string; bankAccountId?: string; from?: string; to?: string }): Observable<SupplierPayment[]> {
+  list(params?: { supplierId?: string; bankAccountId?: string; from?: string; to?: string; status?: SupplierPaymentStatus; unlinkedOnly?: boolean }): Observable<SupplierPayment[]> {
     return this.http.get<SupplierPayment[]>(this.baseUrl, { params: (params as any) || {} });
+  }
+
+  listUnlinked(supplierId: string): Observable<SupplierPayment[]> {
+    return this.http.get<SupplierPayment[]>(`${this.baseUrl}/unlinked`, { params: { supplierId } });
+  }
+
+  unlink(paymentId: string): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/${paymentId}/unlink`, {});
   }
 
   downloadSupport(id: string): Observable<Blob> {

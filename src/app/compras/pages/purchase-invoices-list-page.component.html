@@ -104,6 +104,7 @@
               <th>Proveedor</th>
               <th>Tipo pago</th>
               <th class="text-end">Total</th>
+              <th class="text-center">Estado pago</th>
               <th class="text-center">Ítems</th>
               <th class="text-center">Acciones</th>
             </tr>
@@ -125,17 +126,30 @@
                   <span *ngIf="!invoice.paymentType" class="text-muted">-</span>
                 </td>
                 <td class="text-end fw-bold">{{ formatCurrency(invoice.total) }}</td>
+                <td class="text-center">
+                  <span [class]="getPaymentStatusBadgeClass(invoice.paymentStatus)">
+                    {{ getPaymentStatusLabel(invoice.paymentStatus) }}
+                  </span>
+                  <small *ngIf="invoice.totalPaid" class="d-block text-muted">{{ formatCurrency(invoice.totalPaid) }}</small>
+                </td>
                 <td class="text-center">{{ invoice.items?.length || 0 }}</td>
                 <td class="text-center">
-                  <button type="button" class="btn btn-sm btn-outline-primary" 
-                          (click)="editInvoice(invoice.id); $event.stopPropagation()"
-                          title="Agregar productos a esta factura">
-                    <i class="bi bi-plus-circle me-1"></i>Agregar
-                  </button>
+                  <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-outline-primary" 
+                            (click)="editInvoice(invoice.id); $event.stopPropagation()"
+                            title="Agregar productos">
+                      <i class="bi bi-plus-circle"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-success" 
+                            (click)="openLinkPaymentsModal(invoice); $event.stopPropagation()"
+                            title="Vincular pagos">
+                      <i class="bi bi-link-45deg"></i>
+                    </button>
+                  </div>
                 </td>
               </tr>
               <tr *ngIf="isExpanded(invoice.id)">
-                <td colspan="9" class="bg-light">
+                <td colspan="10" class="bg-light">
                   <div class="p-3">
                     <h6 class="mb-3">Detalle de ítems</h6>
                     <div class="table-responsive">
@@ -204,7 +218,7 @@
               </tr>
             </ng-container>
             <tr *ngIf="filteredInvoices.length === 0">
-              <td colspan="9" class="text-center text-muted py-4">
+              <td colspan="10" class="text-center text-muted py-4">
                 No se encontraron facturas con los filtros aplicados
               </td>
             </tr>
@@ -216,3 +230,4 @@
 </div>
 
 <app-products-search-modal (selectPresentation)="onProductSelected($event)"></app-products-search-modal>
+<app-link-payments-modal (linked)="onPaymentsLinked()"></app-link-payments-modal>

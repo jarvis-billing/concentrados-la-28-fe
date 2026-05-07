@@ -1,0 +1,134 @@
+<div class="modal fade" [class.show]="isOpen" [style.display]="isOpen ? 'block' : 'none'" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-link-45deg me-2"></i>Vincular pagos a compra
+        </h5>
+        <button type="button" class="btn-close" (click)="close()"></button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Info de la compra -->
+        <div class="alert alert-light border mb-3" *ngIf="invoice">
+          <div class="row">
+            <div class="col-6 col-md-3">
+              <small class="text-muted d-block">Factura</small>
+              <strong>{{ invoice.invoiceNumber || '-' }}</strong>
+            </div>
+            <div class="col-6 col-md-3">
+              <small class="text-muted d-block">Proveedor</small>
+              <strong>{{ invoice.supplier?.name || '-' }}</strong>
+            </div>
+            <div class="col-6 col-md-3">
+              <small class="text-muted d-block">Total compra</small>
+              <strong>{{ formatCurrency(totalInvoice) }}</strong>
+            </div>
+            <div class="col-6 col-md-3">
+              <small class="text-muted d-block">Ya pagado</small>
+              <strong class="text-success">{{ formatCurrency(alreadyPaid) }}</strong>
+            </div>
+          </div>
+          <div class="row mt-2" *ngIf="remainingToPay > 0">
+            <div class="col-12">
+              <small class="text-muted">Falta por pagar: </small>
+              <strong class="text-danger">{{ formatCurrency(remainingToPay) }}</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Loading -->
+        <div *ngIf="loading" class="text-center py-4">
+          <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+          <span class="ms-2">Cargando pagos disponibles...</span>
+        </div>
+
+        <!-- Sin pagos disponibles -->
+        <div *ngIf="!loading && availablePayments.length === 0" class="text-center py-4 text-muted">
+          <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+          No hay pagos anticipados disponibles para este proveedor.
+        </div>
+
+        <!-- Tabla de pagos disponibles -->
+        <div *ngIf="!loading && availablePayments.length > 0">
+          <p class="text-muted mb-2">
+            Seleccione los pagos que desea vincular a esta compra:
+          </p>
+          <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th style="width: 40px;"></th>
+                  <th>Fecha</th>
+                  <th>Método</th>
+                  <th>Referencia</th>
+                  <th class="text-end">Monto original</th>
+                  <th class="text-end">Disponible</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let payment of availablePayments" 
+                    [class.table-primary]="isSelected(payment.id!)"
+                    (click)="togglePayment(payment.id!)"
+                    style="cursor: pointer;">
+                  <td class="text-center">
+                    <input type="checkbox" class="form-check-input"
+                           [checked]="isSelected(payment.id!)"
+                           (click)="$event.stopPropagation()"
+                           (change)="togglePayment(payment.id!)">
+                  </td>
+                  <td>{{ payment.paymentDate }}</td>
+                  <td>
+                    <span class="badge bg-light text-dark border">{{ getMethodLabel(payment.method) }}</span>
+                    <small *ngIf="payment.bankAccountName" class="d-block text-muted">{{ payment.bankAccountName }}</small>
+                  </td>
+                  <td>{{ payment.reference || '-' }}</td>
+                  <td class="text-end">{{ formatCurrency(payment.amount) }}</td>
+                  <td class="text-end fw-semibold">{{ formatCurrency(payment.remainingAmount ?? payment.amount) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Resumen de selección -->
+        <div *ngIf="selectedPaymentIds.size > 0" class="card bg-light border-primary mt-3">
+          <div class="card-body py-2">
+            <div class="row align-items-center">
+              <div class="col-6 col-md-3">
+                <small class="text-muted d-block">Pagos seleccionados</small>
+                <strong>{{ selectedPaymentIds.size }}</strong>
+              </div>
+              <div class="col-6 col-md-3">
+                <small class="text-muted d-block">Monto a aplicar</small>
+                <strong class="text-primary">{{ formatCurrency(totalSelected) }}</strong>
+              </div>
+              <div class="col-6 col-md-3">
+                <small class="text-muted d-block">Total pagado resultante</small>
+                <strong>{{ formatCurrency(resultingPaid) }}</strong>
+              </div>
+              <div class="col-6 col-md-3">
+                <small class="text-muted d-block">Estado resultante</small>
+                <span [class]="getStatusBadgeClass()">{{ getStatusLabel() }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" (click)="close()" [disabled]="saving">
+          Cancelar
+        </button>
+        <button type="button" class="btn btn-primary" 
+                (click)="confirm()" 
+                [disabled]="selectedPaymentIds.size === 0 || saving">
+          <span *ngIf="saving" class="spinner-border spinner-border-sm me-1"></span>
+          <i *ngIf="!saving" class="bi bi-link-45deg me-1"></i>
+          Vincular {{ selectedPaymentIds.size }} pago{{ selectedPaymentIds.size !== 1 ? 's' : '' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal-backdrop fade" [class.show]="isOpen" *ngIf="isOpen"></div>

@@ -9,11 +9,12 @@ import { toast } from 'ngx-sonner';
 import { Router } from '@angular/router';
 import { ProductsSearchModalComponent } from '../../producto/components/products-search-modal/products-search-modal.component';
 import { Product } from '../../producto/producto';
+import { LinkPaymentsModalComponent } from '../components/link-payments-modal/link-payments-modal.component';
 
 @Component({
   selector: 'app-purchase-invoices-list-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule, ProductsSearchModalComponent],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, ProductsSearchModalComponent, LinkPaymentsModalComponent],
   templateUrl: './purchase-invoices-list-page.component.html'
 })
 export class PurchaseInvoicesListPageComponent implements OnInit {
@@ -33,6 +34,7 @@ export class PurchaseInvoicesListPageComponent implements OnInit {
   selectedProduct: Product | null = null;
 
   @ViewChild(ProductsSearchModalComponent, { static: false }) productsSearchModalComp!: ProductsSearchModalComponent;
+  @ViewChild(LinkPaymentsModalComponent, { static: false }) linkPaymentsModal!: LinkPaymentsModalComponent;
 
   filterForm: FormGroup = this.fb.group({
     startDate: [''],
@@ -276,5 +278,32 @@ export class PurchaseInvoicesListPageComponent implements OnInit {
 
   getTotalAmount(): number {
     return this.filteredInvoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
+  }
+
+  openLinkPaymentsModal(invoice: PurchaseInvoice) {
+    this.linkPaymentsModal?.open(invoice);
+  }
+
+  onPaymentsLinked() {
+    this.loadInvoices();
+  }
+
+  getPaymentStatusBadgeClass(status: string | undefined): string {
+    switch (status) {
+      case 'PAGADO': return 'badge bg-success';
+      case 'SOBREPAGADO': return 'badge bg-danger';
+      case 'PARCIAL': return 'badge bg-warning text-dark';
+      default: return 'badge bg-secondary';
+    }
+  }
+
+  getPaymentStatusLabel(status: string | undefined): string {
+    const labels: Record<string, string> = {
+      'PENDIENTE': 'Pendiente',
+      'PARCIAL': 'Parcial',
+      'PAGADO': 'Pagado',
+      'SOBREPAGADO': 'Sobrepagado'
+    };
+    return labels[status || ''] || 'Pendiente';
   }
 }
