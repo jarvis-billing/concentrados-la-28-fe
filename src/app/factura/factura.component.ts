@@ -1502,7 +1502,7 @@ export class FacturaComponent implements OnInit, AfterViewInit {
     if (found) {
       this.productSearchInput.setValue('');
       this.showProductDropdown = false;
-      this.onPresentationSelected(this.mapPresentation(found.product, found.presentation));
+      this.addOrAskAmount(this.mapPresentation(found.product, found.presentation));
       return;
     }
     this.onProductSearchInput();
@@ -1516,7 +1516,7 @@ export class FacturaComponent implements OnInit, AfterViewInit {
   selectProductSuggestion(s: ProductSuggestion) {
     this.productSearchInput.setValue('');
     this.showProductDropdown = false;
-    this.onPresentationSelected(this.mapPresentation(s.product, s.presentation));
+    this.addOrAskAmount(this.mapPresentation(s.product, s.presentation));
   }
 
   hideProductDropdownDelayed() {
@@ -1587,11 +1587,41 @@ export class FacturaComponent implements OnInit, AfterViewInit {
 
   searchProductByBarcode(barcode: string) {
     const found = this.findPresentationByBarcode(barcode);
-    if (found) {
-      this.onPresentationSelected(this.mapPresentation(found.product, found.presentation));
-    } else {
+    if (!found) {
       toast.warning(`Código de barras no encontrado: ${barcode}`);
+      return;
     }
+    this.addOrAskAmount(this.mapPresentation(found.product, found.presentation));
+  }
+
+  private addOrAskAmount(mapped: Product) {
+    const code = (mapped.barcode || '').toLowerCase();
+    const existingIndex = this.saleDetails.findIndex(
+      d => (d.product.barcode || '').toLowerCase() === code
+    );
+
+    // Ya en tabla y no es granel → sumar +1 directamente
+    if (existingIndex >= 0 && !this.saleDetails[existingIndex].isBulkSale) {
+      this.sumarCantidad(existingIndex);
+      const desc = this.saleDetails[existingIndex].product.description || '';
+      toast.success(`+1 · ${desc} → ${this.saleDetails[existingIndex].amount} uds.`);
+      return;
+    }
+
+    // Nuevo producto, no es granel ni requiere lote → agregar directo con cantidad 1
+    if (!mapped.isBulk && !this.requiresBatchSelection(mapped)) {
+      mapped.amount = (mapped.hasFixedAmount && (mapped.fixedAmount ?? 0) > 0)
+        ? mapped.fixedAmount!
+        : 1;
+      mapped.totalValue = mapped.amount * mapped.price;
+      this.addProduct(mapped);
+      this.calculateTotalBilling();
+      toast.success(`✓ ${mapped.description} agregado`);
+      return;
+    }
+
+    // Granel o requiere lote → flujo normal (abre modal de cantidad/lote)
+    this.onPresentationSelected(mapped);
   }
 
   private findPresentationByBarcode(barcode: string): { product: Product; presentation: Presentation } | null {
