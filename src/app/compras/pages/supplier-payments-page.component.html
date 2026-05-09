@@ -13,11 +13,45 @@
       <div class="card-body">
         <div class="row g-3">
           <div class="col-12 col-md-6">
-            <label class="form-label">Proveedor</label>
-            <select class="form-select" formControlName="supplierId">
-              <option value="" disabled>Seleccione...</option>
-              <option *ngFor="let s of suppliers" [value]="s.id">{{s.name}} ({{s.documentType}} {{s.idNumber}})</option>
-            </select>
+            <label class="form-label">Proveedor <span class="text-danger">*</span></label>
+            <div class="position-relative">
+              <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-building"></i></span>
+                <input type="text"
+                       class="form-control"
+                       [class.is-invalid]="form.get('supplierId')?.invalid && form.get('supplierId')?.touched"
+                       [(ngModel)]="supplierSearchText"
+                       [ngModelOptions]="{standalone: true}"
+                       (input)="onSupplierSearchInput()"
+                       (focus)="onSupplierSearchInput()"
+                       (blur)="hideSupplierDropdownDelayed()"
+                       (keydown)="onSupplierKeydown($event)"
+                       placeholder="Buscar proveedor..."
+                       autocomplete="off">
+                <button type="button" class="btn btn-outline-danger"
+                        *ngIf="selectedSupplier"
+                        (click)="clearSupplierSelection()">
+                  <i class="bi bi-x"></i>
+                </button>
+              </div>
+              <div #supplierDropdownEl
+                   *ngIf="showSupplierDropdown && supplierSuggestions.length > 0"
+                   class="position-absolute w-100 bg-white border rounded shadow-sm mt-1"
+                   style="max-height: 240px; overflow-y: auto; z-index: 1055;">
+                <div *ngFor="let s of supplierSuggestions; let i = index"
+                     class="px-3 py-2 border-bottom supplier-suggestion-item"
+                     [style.background-color]="supplierActiveIndex === i ? '#0d6efd' : ''"
+                     [style.color]="supplierActiveIndex === i ? 'white' : ''"
+                     (mousedown)="selectSupplierFromAutocomplete(s)">
+                  <div class="fw-semibold small">{{ s.name }}</div>
+                  <div [style.color]="supplierActiveIndex === i ? 'rgba(255,255,255,0.8)' : ''" style="font-size:0.75rem;">{{ s.documentType }} {{ s.idNumber }}</div>
+                </div>
+              </div>
+            </div>
+            <div class="invalid-feedback d-block"
+                 *ngIf="form.get('supplierId')?.invalid && form.get('supplierId')?.touched">
+              Seleccione un proveedor
+            </div>
           </div>
           <div class="col-6 col-md-2">
             <label class="form-label">Fecha</label>

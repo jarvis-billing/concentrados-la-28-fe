@@ -1,6 +1,6 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ProductoService } from '../../producto/producto.service';
 import { PurchasesService } from '../services/purchases.service';
 import { CostHistoryEntry } from '../models/purchase-cost-history';
@@ -17,7 +17,7 @@ interface PresentationOption {
 @Component({
   selector: 'app-purchase-cost-history-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule],
   templateUrl: './purchase-cost-history-page.component.html'
 })
 export class PurchaseCostHistoryPageComponent implements OnInit {
@@ -35,6 +35,13 @@ export class PurchaseCostHistoryPageComponent implements OnInit {
   historyEntries: CostHistoryEntry[] = [];
   isLoading = false;
   selectedLabel = '';
+
+  presentationSearchText = '';
+  presentationSuggestions: PresentationOption[] = [];
+  showPresentationDropdown = false;
+  selectedPresentation: PresentationOption | null = null;
+  presentationActiveIndex = -1;
+  @ViewChild('presentationDropdownEl') presentationDropdownEl?: ElementRef;
 
   ngOnInit(): void {
     this.loadPresentationOptions();
@@ -89,8 +96,65 @@ export class PurchaseCostHistoryPageComponent implements OnInit {
     });
   }
 
+  onPresentationSearchInput(): void {
+    const q = this.presentationSearchText.trim().toLowerCase();
+    this.presentationActiveIndex = -1;
+    if (!q) { this.presentationSuggestions = []; this.showPresentationDropdown = false; return; }
+    this.presentationSuggestions = this.presentationOptions.filter(o =>
+      (o.productDescription || '').toLowerCase().includes(q) ||
+      (o.label || '').toLowerCase().includes(q) ||
+      (o.barcode || '').toLowerCase().includes(q)
+    ).slice(0, 10);
+    this.showPresentationDropdown = true;
+  }
+
+  selectPresentationFromAutocomplete(opt: PresentationOption): void {
+    this.selectedPresentation = opt;
+    this.presentationSearchText = `${opt.productDescription} — ${opt.label}`;
+    this.filterForm.patchValue({ presentationId: opt.barcode });
+    this.showPresentationDropdown = false;
+  }
+
+  clearPresentationSelection(): void {
+    this.selectedPresentation = null;
+    this.presentationSearchText = '';
+    this.filterForm.patchValue({ presentationId: '' });
+    this.presentationSuggestions = [];
+  }
+
+  onPresentationKeydown(event: KeyboardEvent): void {
+    if (!this.showPresentationDropdown) return;
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      this.presentationActiveIndex = Math.min(this.presentationActiveIndex + 1, this.presentationSuggestions.length - 1);
+      this.scrollDropdownItem(this.presentationDropdownEl, this.presentationActiveIndex);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      this.presentationActiveIndex = Math.max(this.presentationActiveIndex - 1, -1);
+      this.scrollDropdownItem(this.presentationDropdownEl, this.presentationActiveIndex);
+    } else if (event.key === 'Enter' && this.presentationActiveIndex >= 0) {
+      event.preventDefault();
+      this.selectPresentationFromAutocomplete(this.presentationSuggestions[this.presentationActiveIndex]);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      this.showPresentationDropdown = false;
+      this.presentationActiveIndex = -1;
+    }
+  }
+
+  private scrollDropdownItem(ref: ElementRef | undefined, index: number): void {
+    if (!ref || index < 0) return;
+    const item = ref.nativeElement.children[index] as HTMLElement | undefined;
+    item?.scrollIntoView({ block: 'nearest' });
+  }
+
+  hidePresentationDropdownDelayed(): void {
+    setTimeout(() => { this.showPresentationDropdown = false; this.presentationActiveIndex = -1; }, 200);
+  }
+
   clearFilters(): void {
     this.filterForm.reset({ presentationId: '', fromDate: '', toDate: '' });
+    this.clearPresentationSelection();
     this.historyEntries = [];
     this.selectedLabel = '';
   }

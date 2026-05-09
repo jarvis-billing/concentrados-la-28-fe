@@ -1,7 +1,7 @@
-import { Component, HostListener, inject } from '@angular/core';
+import { Component, ElementRef, HostListener, ViewChild, inject } from '@angular/core';
 import { CommonModule, DatePipe, CurrencyPipe } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { Supplier } from '../models/supplier';
 import { SupplierService } from '../services/supplier.service';
 import { SupplierPaymentsService } from '../services/supplier-payments.service';
@@ -12,7 +12,7 @@ import { BankAccountDto } from '../../bank-accounts/models/bank-account.model';
 @Component({
   selector: 'app-supplier-payments-list-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DatePipe, CurrencyPipe, RouterModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, DatePipe, CurrencyPipe, RouterModule],
   templateUrl: './supplier-payments-list-page.component.html'
 })
 export class SupplierPaymentsListPageComponent {
@@ -25,6 +25,13 @@ export class SupplierPaymentsListPageComponent {
   bankAccounts: BankAccountDto[] = [];
   payments: SupplierPayment[] = [];
   today: string = '';
+
+  supplierSearchText = '';
+  supplierSuggestions: Supplier[] = [];
+  showSupplierDropdown = false;
+  selectedSupplier: Supplier | null = null;
+  supplierActiveIndex = -1;
+  @ViewChild('supplierDropdownEl') supplierDropdownEl?: ElementRef;
 
   filter: FormGroup = this.fb.group({
     supplierId: [''],
@@ -43,6 +50,61 @@ export class SupplierPaymentsListPageComponent {
 
   loadSuppliers() {
     this.supplierService.list().subscribe(res => this.suppliers = res);
+  }
+
+  onSupplierSearchInput() {
+    const q = this.supplierSearchText.trim().toLowerCase();
+    this.supplierActiveIndex = -1;
+    if (!q) { this.supplierSuggestions = []; this.showSupplierDropdown = false; return; }
+    this.supplierSuggestions = this.suppliers.filter(s =>
+      (s.name || '').toLowerCase().includes(q) ||
+      (s.idNumber || '').toLowerCase().includes(q)
+    ).slice(0, 8);
+    this.showSupplierDropdown = true;
+  }
+
+  onSupplierKeydown(event: KeyboardEvent) {
+    if (!this.showSupplierDropdown) return;
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      this.supplierActiveIndex = Math.min(this.supplierActiveIndex + 1, this.supplierSuggestions.length - 1);
+      this.scrollDropdownItem(this.supplierDropdownEl, this.supplierActiveIndex);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      this.supplierActiveIndex = Math.max(this.supplierActiveIndex - 1, -1);
+      this.scrollDropdownItem(this.supplierDropdownEl, this.supplierActiveIndex);
+    } else if (event.key === 'Enter' && this.supplierActiveIndex >= 0) {
+      event.preventDefault();
+      this.selectSupplierFromAutocomplete(this.supplierSuggestions[this.supplierActiveIndex]);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      this.showSupplierDropdown = false;
+      this.supplierActiveIndex = -1;
+    }
+  }
+
+  private scrollDropdownItem(ref: ElementRef | undefined, index: number): void {
+    if (!ref || index < 0) return;
+    const item = ref.nativeElement.children[index] as HTMLElement | undefined;
+    item?.scrollIntoView({ block: 'nearest' });
+  }
+
+  selectSupplierFromAutocomplete(s: Supplier) {
+    this.selectedSupplier = s;
+    this.supplierSearchText = `${s.name} (${s.documentType} ${s.idNumber})`;
+    this.filter.patchValue({ supplierId: s.id });
+    this.showSupplierDropdown = false;
+  }
+
+  clearSupplierSelection() {
+    this.selectedSupplier = null;
+    this.supplierSearchText = '';
+    this.filter.patchValue({ supplierId: '' });
+    this.supplierSuggestions = [];
+  }
+
+  hideSupplierDropdownDelayed() {
+    setTimeout(() => { this.showSupplierDropdown = false; this.supplierActiveIndex = -1; }, 200);
   }
 
   loadBankAccounts() {
@@ -67,6 +129,7 @@ export class SupplierPaymentsListPageComponent {
 
   clearFilters() {
     this.filter.reset({ supplierId: '', bankAccountId: '', from: this.today, to: this.today });
+    this.clearSupplierSelection();
     this.search();
   }
 

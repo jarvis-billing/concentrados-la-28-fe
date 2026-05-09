@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, inject } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { PurchaseInvoice } from '../models/purchase-invoice';
@@ -30,6 +30,8 @@ export class PurchaseInvoicesListPageComponent implements OnInit {
   supplierFilterSearchText: string = '';
   showSupplierFilterDropdown: boolean = false;
   selectedSupplierForFilter: Supplier | null = null;
+  supplierActiveIndex = -1;
+  @ViewChild('supplierDropdownEl') supplierDropdownEl?: ElementRef;
   expandedInvoiceId: string | null = null;
   selectedProduct: Product | null = null;
 
@@ -62,6 +64,7 @@ export class PurchaseInvoicesListPageComponent implements OnInit {
 
   filterSuppliersForFilter(searchText: string) {
     this.supplierFilterSearchText = searchText;
+    this.supplierActiveIndex = -1;
     if (!searchText.trim()) {
       this.filteredSuppliersForFilter = this.suppliers;
       this.showSupplierFilterDropdown = false;
@@ -90,6 +93,36 @@ export class PurchaseInvoicesListPageComponent implements OnInit {
     this.supplierFilterSearchText = '';
     this.filterForm.patchValue({ supplierId: '' });
     this.filteredSuppliersForFilter = this.suppliers;
+  }
+
+  onSupplierKeydown(event: KeyboardEvent) {
+    if (!this.showSupplierFilterDropdown) return;
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      this.supplierActiveIndex = Math.min(this.supplierActiveIndex + 1, this.filteredSuppliersForFilter.length - 1);
+      this.scrollDropdownItem(this.supplierDropdownEl, this.supplierActiveIndex);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      this.supplierActiveIndex = Math.max(this.supplierActiveIndex - 1, -1);
+      this.scrollDropdownItem(this.supplierDropdownEl, this.supplierActiveIndex);
+    } else if (event.key === 'Enter' && this.supplierActiveIndex >= 0) {
+      event.preventDefault();
+      this.selectSupplierForFilter(this.filteredSuppliersForFilter[this.supplierActiveIndex]);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      this.showSupplierFilterDropdown = false;
+      this.supplierActiveIndex = -1;
+    }
+  }
+
+  private scrollDropdownItem(ref: ElementRef | undefined, index: number): void {
+    if (!ref || index < 0) return;
+    const item = ref.nativeElement.children[index] as HTMLElement | undefined;
+    item?.scrollIntoView({ block: 'nearest' });
+  }
+
+  hideSupplierDropdownDelayed() {
+    setTimeout(() => { this.showSupplierFilterDropdown = false; this.supplierActiveIndex = -1; }, 200);
   }
 
   loadInvoices() {

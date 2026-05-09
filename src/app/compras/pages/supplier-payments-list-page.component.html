@@ -12,10 +12,38 @@
       <form [formGroup]="filter" class="row g-2">
         <div class="col-12 col-md-3">
           <label class="form-label">Proveedor</label>
-          <select class="form-select" formControlName="supplierId">
-            <option value="">Todos</option>
-            <option *ngFor="let s of suppliers" [value]="s.id">{{s.name}}</option>
-          </select>
+          <div class="position-relative">
+            <div class="input-group">
+              <input type="text"
+                     class="form-control"
+                     [(ngModel)]="supplierSearchText"
+                     [ngModelOptions]="{standalone: true}"
+                     (input)="onSupplierSearchInput()"
+                     (focus)="onSupplierSearchInput()"
+                     (blur)="hideSupplierDropdownDelayed()"
+                     (keydown)="onSupplierKeydown($event)"
+                     placeholder="Buscar proveedor..."
+                     autocomplete="off">
+              <button type="button" class="btn btn-outline-danger"
+                      *ngIf="selectedSupplier"
+                      (click)="clearSupplierSelection()">
+                <i class="bi bi-x"></i>
+              </button>
+            </div>
+            <div #supplierDropdownEl
+                 *ngIf="showSupplierDropdown && supplierSuggestions.length > 0"
+                 class="position-absolute w-100 bg-white border rounded shadow-sm mt-1"
+                 style="max-height: 240px; overflow-y: auto; z-index: 1055;">
+              <div *ngFor="let s of supplierSuggestions; let i = index"
+                   class="px-3 py-2 border-bottom supplier-suggestion-item"
+                   [style.background-color]="supplierActiveIndex === i ? '#0d6efd' : ''"
+                   [style.color]="supplierActiveIndex === i ? 'white' : ''"
+                   (mousedown)="selectSupplierFromAutocomplete(s)">
+                <div class="fw-semibold small">{{ s.name }}</div>
+                <div [style.color]="supplierActiveIndex === i ? 'rgba(255,255,255,0.8)' : ''" style="font-size:0.75rem;">{{ s.documentType }} {{ s.idNumber }}</div>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="col-12 col-md-3">
           <label class="form-label">Cuenta Bancaria</label>

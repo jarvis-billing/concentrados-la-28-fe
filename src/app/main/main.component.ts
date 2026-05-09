@@ -4,11 +4,12 @@ import { MenuComponent } from '../menu/menu.component';
 import { LoadingOverlayComponent } from '../loading/loading-overlay.component';
 import { LoadingService } from '../loading/loading.service';
 import { BatchExpirationAlertComponent } from '../lotes/components/batch-expiration-alert/batch-expiration-alert.component';
+import { NetworkStatusComponent } from '../network-status/network-status.component';
 
 @Component({
   selector: 'app-main',
   standalone: true,
-  imports: [RouterOutlet, MenuComponent, LoadingOverlayComponent, BatchExpirationAlertComponent],
+  imports: [RouterOutlet, MenuComponent, LoadingOverlayComponent, BatchExpirationAlertComponent, NetworkStatusComponent],
   templateUrl: './main.component.html'
 })
 export class MainComponent {

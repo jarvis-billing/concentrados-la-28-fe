@@ -1,7 +1,7 @@
-import { Component, HostListener, inject, OnInit } from '@angular/core';
+import { Component, ElementRef, HostListener, ViewChild, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { toast } from 'ngx-sonner';
 import { Supplier } from '../models/supplier';
@@ -15,7 +15,7 @@ import { CurrencyFormatDirective } from '../../directive/currency-format.directi
 @Component({
   selector: 'app-supplier-payments-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, CurrencyFormatDirective],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, CurrencyFormatDirective],
   templateUrl: './supplier-payments-page.component.html'
 })
 export class SupplierPaymentsPageComponent implements OnInit {
@@ -29,6 +29,13 @@ export class SupplierPaymentsPageComponent implements OnInit {
   suppliers: Supplier[] = [];
   bankAccounts: BankAccountDto[] = [];
   supportFile: File | null = null;
+
+  supplierSearchText = '';
+  supplierSuggestions: Supplier[] = [];
+  showSupplierDropdown = false;
+  selectedSupplier: Supplier | null = null;
+  supplierActiveIndex = -1;
+  @ViewChild('supplierDropdownEl') supplierDropdownEl?: ElementRef;
   supportPreviewUrl: string | null = null; // object URL para previsualización
   supportMime: string | null = null;
   supportTrustedUrl: SafeResourceUrl | null = null; // para iframes (PDF)
@@ -71,6 +78,61 @@ export class SupplierPaymentsPageComponent implements OnInit {
 
   loadSuppliers() {
     this.supplierService.list().subscribe(res => this.suppliers = res);
+  }
+
+  onSupplierSearchInput() {
+    const q = this.supplierSearchText.trim().toLowerCase();
+    this.supplierActiveIndex = -1;
+    if (!q) { this.supplierSuggestions = []; this.showSupplierDropdown = false; return; }
+    this.supplierSuggestions = this.suppliers.filter(s =>
+      (s.name || '').toLowerCase().includes(q) ||
+      (s.idNumber || '').toLowerCase().includes(q)
+    ).slice(0, 8);
+    this.showSupplierDropdown = true;
+  }
+
+  onSupplierKeydown(event: KeyboardEvent) {
+    if (!this.showSupplierDropdown) return;
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      this.supplierActiveIndex = Math.min(this.supplierActiveIndex + 1, this.supplierSuggestions.length - 1);
+      this.scrollDropdownItem(this.supplierDropdownEl, this.supplierActiveIndex);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      this.supplierActiveIndex = Math.max(this.supplierActiveIndex - 1, -1);
+      this.scrollDropdownItem(this.supplierDropdownEl, this.supplierActiveIndex);
+    } else if (event.key === 'Enter' && this.supplierActiveIndex >= 0) {
+      event.preventDefault();
+      this.selectSupplierFromAutocomplete(this.supplierSuggestions[this.supplierActiveIndex]);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      this.showSupplierDropdown = false;
+      this.supplierActiveIndex = -1;
+    }
+  }
+
+  private scrollDropdownItem(ref: ElementRef | undefined, index: number): void {
+    if (!ref || index < 0) return;
+    const item = ref.nativeElement.children[index] as HTMLElement | undefined;
+    item?.scrollIntoView({ block: 'nearest' });
+  }
+
+  selectSupplierFromAutocomplete(s: Supplier) {
+    this.selectedSupplier = s;
+    this.supplierSearchText = `${s.name} (${s.documentType} ${s.idNumber})`;
+    this.form.patchValue({ supplierId: s.id });
+    this.showSupplierDropdown = false;
+  }
+
+  clearSupplierSelection() {
+    this.selectedSupplier = null;
+    this.supplierSearchText = '';
+    this.form.patchValue({ supplierId: '' });
+    this.supplierSuggestions = [];
+  }
+
+  hideSupplierDropdownDelayed() {
+    setTimeout(() => { this.showSupplierDropdown = false; this.supplierActiveIndex = -1; }, 200);
   }
 
   onSelectSupportFile(event: Event) {
@@ -141,10 +203,10 @@ export class SupplierPaymentsPageComponent implements OnInit {
       reference: '',
       notes: ''
     });
-    // Al resetear a EFECTIVO, quitar validador requerido del banco
     this.form.get('bankAccountId')!.clearValidators();
     this.form.get('bankAccountId')!.updateValueAndValidity();
     this.clearSupport();
+    this.clearSupplierSelection();
   }
 
   get isBankMethod(): boolean {
