@@ -166,6 +166,10 @@ export class ModalClientsListComponent implements OnInit {
   }
 
   cancelEdit() {
+    if (!this.editMode) {
+      this.closeModal();
+      return;
+    }
     this.editMode = false;
     this.selectedClientId = null;
     this.clientForm.reset({

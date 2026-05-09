@@ -5,36 +5,22 @@
 <div class="container-fluid">
   <h2 class="text-primary text-center">Factura de Venta</h2>
   <!-- Acciones -->
-  <div class="row mt-3">
-    <div class="col text-start">
-      <div class="dropdown">
-        <button class="btn btn-primary dropdown-toggle" type="button" id="accionesDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-          <i class="bi bi-gear-fill me-1"></i> Acciones Factura
-        </button>
-        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="accionesDropdown">
-          <li>
-            <button class="dropdown-item" (click)="onInitBilling()">
-              <i class="bi bi-file-earmark-plus me-1"></i> Nueva Factura (F2)
-            </button>
-          </li>
-          <li>
-            <button class="dropdown-item" (click)="saveBilling()">
-              <i class="bi bi-save me-1"></i> Guardar Factura (F4)
-            </button>
-          </li>
-          <li>
-            <button class="dropdown-item" (click)="printTicketBilling()">
-              <i class="bi bi-printer me-1"></i> Imprimir Factura
-            </button>
-          </li>
-          <li>
-            <button class="dropdown-item" (click)="openProductsModal()">
-              <i class="bi bi-search me-1"></i> Buscar productos (F3)
-            </button>
-          </li>
-        </ul>
-          </div>
-  </div>
+  <div class="row mt-2 mb-1 gx-2 align-items-center">
+    <div class="col-auto">
+      <button class="btn btn-outline-primary" type="button" (click)="onInitBilling()" title="Nueva Factura (F2)">
+        <i class="bi bi-file-earmark-plus me-1"></i> Nueva
+      </button>
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-success" type="button" (click)="saveBilling()" title="Guardar Factura (F4)">
+        <i class="bi bi-save me-1"></i> Guardar
+      </button>
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-outline-secondary" type="button" (click)="printTicketBilling()" title="Imprimir Factura">
+        <i class="bi bi-printer me-1"></i> Imprimir
+      </button>
+    </div>
   </div>
 
   <hr class="my-3">
@@ -64,10 +50,45 @@
         {{ paymentType === 'CREDITO' ? 'Venta a CRÉDITO' : 'Venta de CONTADO' }}
       </span>
     </div>
-    <div class="mb-2">
-      <button type="button" class="btn btn-outline-primary btn-sm w-100" (click)="openClientsModal()">
-        <i class="bi bi-people me-1"></i> Buscar cliente
-      </button>
+    <div class="mb-2 position-relative">
+      <div class="input-group input-group-sm">
+        <span class="input-group-text"><i class="bi bi-person-search"></i></span>
+        <input type="text"
+               class="form-control form-control-sm"
+               [formControl]="clientSearchInput"
+               (input)="onClientSearchInput()"
+               (focus)="onClientSearchInput()"
+               (blur)="hideClientDropdownDelayed()"
+               (keydown)="onClientKeydown($event)"
+               placeholder="Buscar cliente..."
+               autocomplete="off">
+        <button class="btn btn-outline-secondary btn-sm" type="button"
+                (click)="openClientsModal()"
+                title="Abrir lista de clientes / crear nuevo">
+          <i class="bi bi-people"></i>
+        </button>
+      </div>
+      <div *ngIf="showClientDropdown"
+           class="position-absolute bg-white border rounded shadow-sm mt-1"
+           style="z-index: 1055; max-height: 240px; overflow-y: auto; width: 100%;">
+        <div *ngFor="let c of clientSuggestions; let i = index"
+             class="px-3 py-2 border-bottom client-suggestion-item"
+             [class.suggestion-active]="clientActiveIndex === i"
+             (mousedown)="selectClientFromAutocomplete(c)">
+          <div class="fw-semibold small">{{ getClientDisplayName(c) }}</div>
+          <div class="text-muted" style="font-size: 0.75rem;">
+            {{ c.documentType }} {{ c.idNumber }}
+            <span *ngIf="c.phone" class="ms-1">· {{ c.phone }}</span>
+          </div>
+        </div>
+        <div class="px-3 py-2 client-suggestion-item d-flex align-items-center"
+             [class.suggestion-active]="clientActiveIndex === clientSuggestions.length"
+             (mousedown)="goToNewClient()">
+          <i class="bi bi-person-plus me-2 text-primary"></i>
+          <span class="fw-semibold small text-primary">Crear nuevo cliente</span>
+          <span *ngIf="clientSearchInput.value" class="text-muted small ms-1">&laquo;{{ clientSearchInput.value }}&raquo;</span>
+        </div>
+      </div>
     </div>
     <div class="mb-1">
       <strong>Doc:</strong>
@@ -202,6 +223,44 @@
     <!-- Productos Vendidos -->
     <div class="col-md-6">
       <h5 class="text-primary">Productos Vendidos</h5>
+
+      <!-- Búsqueda inline de producto + lector de código de barras -->
+      <div class="mb-2 position-relative">
+        <div class="input-group">
+          <span class="input-group-text bg-primary text-white border-primary" title="Escriba el nombre o escanee con el lector">
+            <i class="bi bi-upc-scan fs-5"></i>
+          </span>
+          <input #productAutocompleteInput
+                 type="text"
+                 class="form-control"
+                 [formControl]="productSearchInput"
+                 (input)="onProductSearchInput()"
+                 (keydown)="onProductKeydown($event)"
+                 (focus)="onProductSearchInput()"
+                 (blur)="hideProductDropdownDelayed()"
+                 placeholder="Buscar producto por nombre o código de barras... (F3)"
+                 autocomplete="off">
+          <button class="btn btn-outline-secondary" type="button"
+                  (click)="openProductsModal()"
+                  title="Catálogo completo">
+            <i class="bi bi-grid-3x3-gap"></i>
+          </button>
+        </div>
+        <div *ngIf="showProductDropdown && productSuggestions.length > 0"
+             class="position-absolute bg-white border rounded shadow"
+             style="z-index: 1055; max-height: 320px; overflow-y: auto; width: 100%; top: 100%;">
+          <div *ngFor="let s of productSuggestions; let i = index"
+               class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom product-suggestion-item"
+               [class.suggestion-active]="productActiveIndex === i"
+               (mousedown)="selectProductSuggestion(s)">
+            <div class="flex-grow-1 overflow-hidden me-2">
+              <div class="fw-semibold text-truncate small">{{ s.displayName }}</div>
+              <div class="text-muted" style="font-size: 0.75rem;">{{ s.barcode }}</div>
+            </div>
+            <span class="badge bg-success flex-shrink-0">{{ s.price | currency:'$ ':'symbol':'.0-0' }}</span>
+          </div>
+        </div>
+      </div>
       <div class="table-responsive fs-6" style="max-height: 60vh; overflow-y: auto;">
         <table class="table table-sm table-bordered align-middle text-center">
           <thead class="table-primary sticky-top">

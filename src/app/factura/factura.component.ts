@@ -2,7 +2,7 @@ import { AfterViewInit, Component, ElementRef, HostListener, ViewChild, inject, 
 import { FormControl, FormGroup, ReactiveFormsModule, FormArray } from '@angular/forms';
 import { toast } from 'ngx-sonner';
 import { CurrencyPipe, DatePipe, CommonModule } from '@angular/common';
-import { EVatType, Product } from '../producto/producto';
+import { EVatType, Presentation, Product } from '../producto/producto';
 import { FacturaService } from './factura.service';
 import { Billing, saleTypeFromString, saleType } from './billing';
 import { formatInTimeZone } from 'date-fns-tz';
@@ -28,6 +28,14 @@ import { Batch, BATCH_REQUIRED_CATEGORY } from '../lotes/models/batch';
 import { BatchSelectorModalComponent } from '../lotes/components/batch-selector-modal/batch-selector-modal.component';
 import { BatchExpirationAlertComponent } from '../lotes/components/batch-expiration-alert/batch-expiration-alert.component';
 import { BankAccountSelectComponent } from '../shared/components/bank-account-select/bank-account-select.component';
+
+interface ProductSuggestion {
+  product: Product;
+  presentation: Presentation;
+  displayName: string;
+  barcode: string;
+  price: number;
+}
 
 @Component({
   selector: 'app-factura',
@@ -55,6 +63,7 @@ export class FacturaComponent implements OnInit, AfterViewInit {
   @ViewChild(ProductsSearchModalComponent, { static: false }) productsSearchModalComp!: ProductsSearchModalComponent;
   @ViewChild(ModalClientsListComponent, { static: false }) clientsModalComp!: ModalClientsListComponent;
   @ViewChild('reciveValueInput', { static: false }) reciveValueInput!: ElementRef<HTMLInputElement>;
+  @ViewChild('productAutocompleteInput', { static: false }) productAutocompleteInputRef!: ElementRef<HTMLInputElement>;
   @ViewChild('confirmSaveModal', { static: false }) confirmSaveModalRef!: ElementRef;
   @ViewChild('multiPaymentModal', { static: false }) multiPaymentModalRef!: ElementRef;
   @ViewChild('cashAmountInput', { static: false }) cashAmountInput!: ElementRef<HTMLInputElement>;
@@ -151,7 +160,29 @@ export class FacturaComponent implements OnInit, AfterViewInit {
     this.paymentsForm.valueChanges.subscribe(() => {
       this.recalculateFromPayments();
     });
+    // Mantener lista local para autocomplete y lector de código de barras
+    this.productService.productos$.subscribe(products => {
+      this.allProducts = products || [];
+    });
   }
+
+  // --- Autocomplete cliente ---
+  clientSuggestions: Client[] = [];
+  showClientDropdown = false;
+  clientSearchInput = new FormControl('');
+
+  // --- Autocomplete + lector código de barras (producto) ---
+  allProducts: Product[] = [];
+  productSuggestions: ProductSuggestion[] = [];
+  showProductDropdown = false;
+  productSearchInput = new FormControl('');
+  clientActiveIndex = -1;
+  productActiveIndex = -1;
+
+  // --- Barcode scanner buffer ---
+  private barcodeBuffer = '';
+  private barcodeStartTime = 0;
+  private barcodeClearTimer: any;
 
   client!: Client;
   @Input() factura!: Billing;
@@ -560,6 +591,7 @@ export class FacturaComponent implements OnInit, AfterViewInit {
     this.client = client;
     this.creditToApply = 0;
     this.checkClientCredit(client);
+    setTimeout(() => this.focusProductSearch(), 350);
   }
 
   // Verificar si el cliente tiene saldo a favor
@@ -932,8 +964,8 @@ export class FacturaComponent implements OnInit, AfterViewInit {
     }
 
     if (event.key === 'F3') {
-      event.preventDefault(); // evita que el navegador use F3 por defecto
-      this.openProductsModal();
+      event.preventDefault();
+      this.focusProductSearch();
     }
 
     if (event.key === 'F4') {
@@ -951,6 +983,27 @@ export class FacturaComponent implements OnInit, AfterViewInit {
     const tag = (target?.tagName || '').toLowerCase();
     const isTyping = tag === 'input' || tag === 'textarea' || tag === 'select' || (target?.isContentEditable ?? false);
     if (!isTyping) {
+      // --- Lector código de barras: acumular caracteres ---
+      if (event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
+        if (this.barcodeBuffer.length === 0) {
+          this.barcodeStartTime = Date.now();
+        }
+        this.barcodeBuffer += event.key;
+        clearTimeout(this.barcodeClearTimer);
+        this.barcodeClearTimer = setTimeout(() => { this.barcodeBuffer = ''; }, 500);
+      }
+      if (event.key === 'Enter') {
+        clearTimeout(this.barcodeClearTimer);
+        const elapsed = Date.now() - this.barcodeStartTime;
+        if (this.barcodeBuffer.length >= 3 && elapsed < 500) {
+          event.preventDefault();
+          const code = this.barcodeBuffer.trim();
+          this.barcodeBuffer = '';
+          this.searchProductByBarcode(code);
+          return;
+        }
+        this.barcodeBuffer = '';
+      }
       // Confirm modal keyboard handling
       if (this.isConfirmOpen()) {
         if (event.key === 'Enter' || event.key.toLowerCase() === 'y') {
@@ -1365,5 +1418,213 @@ export class FacturaComponent implements OnInit, AfterViewInit {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     }).format(value);
+  }
+
+  // =============================================
+  // AUTOCOMPLETE CLIENTE
+  // =============================================
+
+  onClientSearchInput() {
+    const query = (this.clientSearchInput.value || '').trim().toLowerCase();
+    this.clientActiveIndex = -1;
+    if (!query) {
+      this.clientSuggestions = [];
+      this.showClientDropdown = false;
+      return;
+    }
+    this.clientSuggestions = this.originalListClients.filter(c =>
+      (c.idNumber || '').toLowerCase().includes(query) ||
+      (c.name || '').toLowerCase().includes(query) ||
+      (c.surname || '').toLowerCase().includes(query) ||
+      (c.businessName || '').toLowerCase().includes(query) ||
+      (c.nickname || '').toLowerCase().includes(query)
+    ).slice(0, 8);
+    this.showClientDropdown = true;
+  }
+
+  selectClientFromAutocomplete(c: Client) {
+    this.selectClient(c);
+    this.clientSearchInput.setValue('');
+    this.showClientDropdown = false;
+  }
+
+  hideClientDropdownDelayed() {
+    setTimeout(() => { this.showClientDropdown = false; this.clientActiveIndex = -1; }, 200);
+  }
+
+  getClientDisplayName(c: Client): string {
+    if (c?.name || c?.surname) return `${c.name || ''} ${c.surname || ''}`.trim();
+    return c?.businessName || c?.nickname || '';
+  }
+
+  // =============================================
+  // AUTOCOMPLETE PRODUCTO
+  // =============================================
+
+  onProductSearchInput() {
+    const query = (this.productSearchInput.value || '').trim().toLowerCase();
+    this.productActiveIndex = -1;
+    if (query.length < 2) {
+      this.productSuggestions = [];
+      this.showProductDropdown = false;
+      return;
+    }
+    const suggestions: ProductSuggestion[] = [];
+    for (const prod of this.allProducts) {
+      for (const pres of (prod.presentations || [])) {
+        const barcode = (pres.barcode || '').toLowerCase();
+        const rootDesc = (prod.description || '').toLowerCase();
+        const label = (pres.label || '').toLowerCase();
+        const productCode = (prod.productCode || '').toLowerCase();
+        const combined = `${rootDesc} ${label}`.trim();
+        if (barcode.includes(query) || combined.includes(query) || productCode.includes(query)) {
+          const labelPart = (pres.label || '').trim();
+          const rootPart = (prod.description || '').trim();
+          suggestions.push({
+            product: prod,
+            presentation: pres,
+            displayName: labelPart ? `${rootPart} - ${labelPart}` : rootPart,
+            barcode: pres.barcode || '',
+            price: pres.salePrice || 0
+          });
+        }
+      }
+      if (suggestions.length >= 10) break;
+    }
+    this.productSuggestions = suggestions.slice(0, 10);
+    this.showProductDropdown = this.productSuggestions.length > 0;
+  }
+
+  onProductSearchEnter() {
+    const query = (this.productSearchInput.value || '').trim();
+    if (!query) return;
+    const found = this.findPresentationByBarcode(query);
+    if (found) {
+      this.productSearchInput.setValue('');
+      this.showProductDropdown = false;
+      this.onPresentationSelected(this.mapPresentation(found.product, found.presentation));
+      return;
+    }
+    this.onProductSearchInput();
+    if (this.productSuggestions.length === 1) {
+      this.selectProductSuggestion(this.productSuggestions[0]);
+    } else if (this.productSuggestions.length === 0) {
+      toast.warning(`No se encontró producto: "${query}"`);
+    }
+  }
+
+  selectProductSuggestion(s: ProductSuggestion) {
+    this.productSearchInput.setValue('');
+    this.showProductDropdown = false;
+    this.onPresentationSelected(this.mapPresentation(s.product, s.presentation));
+  }
+
+  hideProductDropdownDelayed() {
+    setTimeout(() => { this.showProductDropdown = false; this.productActiveIndex = -1; }, 200);
+  }
+
+  focusProductSearch() {
+    try {
+      this.productAutocompleteInputRef?.nativeElement?.focus();
+      this.productAutocompleteInputRef?.nativeElement?.select();
+    } catch { /* noop */ }
+  }
+
+  onClientKeydown(event: KeyboardEvent) {
+    if (!this.showClientDropdown) return;
+    const total = this.clientSuggestions.length + 1; // +1 para "Nuevo cliente"
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      this.clientActiveIndex = Math.min(this.clientActiveIndex + 1, total - 1);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      this.clientActiveIndex = Math.max(this.clientActiveIndex - 1, -1);
+    } else if (event.key === 'Enter' && this.clientActiveIndex >= 0) {
+      event.preventDefault();
+      if (this.clientActiveIndex < this.clientSuggestions.length) {
+        this.selectClientFromAutocomplete(this.clientSuggestions[this.clientActiveIndex]);
+      } else {
+        this.goToNewClient();
+      }
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      this.showClientDropdown = false;
+      this.clientActiveIndex = -1;
+    }
+  }
+
+  onProductKeydown(event: KeyboardEvent) {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      if (!this.showProductDropdown) { this.onProductSearchInput(); return; }
+      this.productActiveIndex = Math.min(this.productActiveIndex + 1, this.productSuggestions.length - 1);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      this.productActiveIndex = Math.max(this.productActiveIndex - 1, -1);
+    } else if (event.key === 'Enter') {
+      if (this.productActiveIndex >= 0) {
+        event.preventDefault();
+        this.selectProductSuggestion(this.productSuggestions[this.productActiveIndex]);
+      } else {
+        this.onProductSearchEnter();
+      }
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      this.showProductDropdown = false;
+      this.productActiveIndex = -1;
+    }
+  }
+
+  goToNewClient() {
+    this.showClientDropdown = false;
+    this.clientSearchInput.setValue('');
+    this.openClientsModal();
+  }
+
+  // =============================================
+  // LECTOR CÓDIGO DE BARRAS
+  // =============================================
+
+  searchProductByBarcode(barcode: string) {
+    const found = this.findPresentationByBarcode(barcode);
+    if (found) {
+      this.onPresentationSelected(this.mapPresentation(found.product, found.presentation));
+    } else {
+      toast.warning(`Código de barras no encontrado: ${barcode}`);
+    }
+  }
+
+  private findPresentationByBarcode(barcode: string): { product: Product; presentation: Presentation } | null {
+    const code = barcode.trim().toLowerCase();
+    for (const prod of this.allProducts) {
+      for (const pres of (prod.presentations || [])) {
+        if ((pres.barcode || '').toLowerCase() === code) {
+          return { product: prod, presentation: pres };
+        }
+      }
+    }
+    return null;
+  }
+
+  private mapPresentation(product: Product, presentation: Presentation): Product {
+    const mapped: Product = { ...product };
+    mapped.barcode = presentation.barcode;
+    mapped.price = presentation.salePrice;
+    mapped.selectedUnitMeasure = presentation.unitMeasure;
+    mapped.selectedPresentationLabel = presentation.label || '';
+    const rootDesc = (product.description || '').trim();
+    const label = (presentation.label || '').trim();
+    mapped.description = label ? `${rootDesc} - ${label}` : rootDesc;
+    const bulkFlag = presentation.isBulk ?? /granel/i.test(label);
+    mapped.isBulk = !!bulkFlag;
+    if (presentation.isFixedAmount && (presentation.fixedAmount ?? 0) > 0) {
+      mapped.hasFixedAmount = true;
+      mapped.fixedAmount = presentation.fixedAmount;
+    } else {
+      mapped.hasFixedAmount = false;
+      mapped.fixedAmount = undefined;
+    }
+    if (!mapped.amount || mapped.amount < 1) mapped.amount = 1;
+    return mapped;
   }
 }

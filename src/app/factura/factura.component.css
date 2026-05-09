@@ -44,6 +44,7 @@ input[type=number]::-webkit-outer-spin-button {
 }
 
 input[type=number] {
+    appearance: textfield;
     -moz-appearance: textfield;
 }
 
@@ -98,4 +99,38 @@ select.form-select-sm {
 .table-responsive {
   border: 1px solid #dee2e6;
   border-radius: 0.25rem;
+}
+
+/* Autocomplete: ítems hover */
+.client-suggestion-item,
+.product-suggestion-item {
+  cursor: pointer;
+  transition: background-color 0.12s;
+}
+
+.client-suggestion-item:hover,
+.product-suggestion-item:hover {
+  background-color: #e8f4fd;
+}
+
+.client-suggestion-item.suggestion-active,
+.product-suggestion-item.suggestion-active {
+  background-color: #0d6efd;
+  color: white;
+}
+
+.client-suggestion-item.suggestion-active .text-muted,
+.client-suggestion-item.suggestion-active .text-primary,
+.product-suggestion-item.suggestion-active .text-muted {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.client-suggestion-item.suggestion-active i,
+.product-suggestion-item.suggestion-active i {
+  color: white !important;
+}
+
+.product-suggestion-item.suggestion-active .badge {
+  background-color: white !important;
+  color: #198754 !important;
 }
