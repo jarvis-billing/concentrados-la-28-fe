@@ -36,6 +36,7 @@ export class PaymentRegisterModalComponent {
     paymentMethods = Object.values(PaymentMethod).filter(m => m !== PaymentMethod.SALDO_FAVOR);
     isSubmitting: boolean = false;
     creditToApply: number = 0;
+    creditInputAmount: number = 0;
     showPrintConfirmation: boolean = false;
     
     // Datos para el comprobante de pago
@@ -73,23 +74,36 @@ export class PaymentRegisterModalComponent {
         return Math.min(this.clientCreditBalance, this.maxAmount);
     }
 
+    onCreditInputChange(event: Event): void {
+        const raw = (event.target as HTMLInputElement).value.replace(/[^\d]/g, '');
+        const val = Number(raw) || 0;
+        this.creditInputAmount = Math.min(val, this.maxCreditApplicable);
+    }
+
     applyCredit(): void {
         if (this.clientCreditBalance <= 0) {
             toast.warning('El cliente no tiene saldo a favor disponible.');
             return;
         }
-        this.creditToApply = this.maxCreditApplicable;
+        const toApply = Math.min(this.creditInputAmount, this.maxCreditApplicable);
+        if (toApply <= 0) {
+            toast.warning('Ingrese un monto mayor a 0 para aplicar del saldo.');
+            return;
+        }
+        this.creditToApply = toApply;
+        this.creditInputAmount = 0;
         toast.success(`Se aplicará ${this.formatCurrency(this.creditToApply)} del saldo a favor.`);
+    }
+
+    applyCreditMax(): void {
+        this.creditInputAmount = this.maxCreditApplicable;
+        this.applyCredit();
     }
 
     removeCredit(): void {
         this.creditToApply = 0;
+        this.creditInputAmount = 0;
         toast.info('Saldo a favor removido.');
-    }
-
-    applyCreditPartial(amount: number): void {
-        if (amount <= 0 || amount > this.clientCreditBalance || amount > this.maxAmount) return;
-        this.creditToApply = amount;
     }
 
     onSubmit(): void {
@@ -128,15 +142,6 @@ export class PaymentRegisterModalComponent {
         const cashNotes = cashAmount > 0 ? this.paymentForm.value.notes || '' : '';
         const combinedNotes = [creditNotes, cashNotes].filter(n => n).join(' | ');
 
-        // 1) Registrar pago con saldo a favor si aplica
-        const creditObs$ = this.creditToApply > 0
-            ? this.creditService.useCredit({
-                clientId: this.client.id,
-                amount: this.creditToApply,
-                notes: `Abono a cuenta crédito`
-            } as UseCreditRequest)
-            : of(null);
-
         // Validate bank account for transfers
         const payMethod = this.paymentForm.value.paymentMethod || PaymentMethod.EFECTIVO;
         if (cashAmount > 0 && payMethod === PaymentMethod.TRANSFERENCIA && !this.paymentForm.value.bankAccountId) {
@@ -145,8 +150,36 @@ export class PaymentRegisterModalComponent {
             return;
         }
 
-        // 2) Registrar pago normal si hay monto en efectivo/otro
-        const paymentObs$ = cashAmount > 0
+        const now = formatInTimeZone(new Date(), 'America/Bogota', "yyyy-MM-dd'T'HH:mm:ssXXX");
+
+        // 1) Descontar del saldo a favor del cliente (siempre que haya crédito aplicado)
+        const deductCreditObs$ = this.creditToApply > 0
+            ? this.creditService.useCredit({
+                clientId: this.client.id,
+                amount: this.creditToApply,
+                notes: `Abono a cuenta crédito`
+            } as UseCreditRequest)
+            : of(null);
+
+        // 2) Registrar movimiento SALDO_FAVOR en la cuenta (siempre que haya crédito aplicado)
+        const creditPaymentObs$ = this.creditToApply > 0
+            ? this.accountService.registerPayment({
+                id: '',
+                clientAccountId: this.client.id,
+                amount: this.creditToApply,
+                paymentMethod: PaymentMethod.SALDO_FAVOR,
+                reference: undefined,
+                notes: cashAmount > 0
+                    ? `Saldo a favor (pago combinado con ${payMethod})`
+                    : (combinedNotes || 'Pago con saldo a favor'),
+                paymentDate: now,
+                createdBy: user?.username || '',
+                createdAt: ''
+            })
+            : of(null);
+
+        // 3) Registrar movimiento del método adicional (solo si hay monto en cash/otro)
+        const cashPaymentObs$ = cashAmount > 0
             ? this.accountService.registerPayment({
                 id: '',
                 clientAccountId: this.client.id,
@@ -154,29 +187,16 @@ export class PaymentRegisterModalComponent {
                 paymentMethod: payMethod,
                 bankAccountId: payMethod === PaymentMethod.TRANSFERENCIA ? this.paymentForm.value.bankAccountId || undefined : undefined,
                 reference: this.paymentForm.value.reference || undefined,
-                notes: combinedNotes || undefined,
-                paymentDate: formatInTimeZone(new Date(), 'America/Bogota', "yyyy-MM-dd'T'HH:mm:ssXXX"),
+                notes: this.creditToApply > 0
+                    ? `${payMethod} (pago combinado con SALDO_FAVOR)`
+                    : (combinedNotes || undefined),
+                paymentDate: now,
                 createdBy: user?.username || '',
                 createdAt: ''
             })
             : of(null);
 
-        // 3) Si solo paga con saldo a favor (sin cash), registrar un pago con método SALDO_FAVOR
-        const creditOnlyPaymentObs$ = (this.creditToApply > 0 && cashAmount <= 0)
-            ? this.accountService.registerPayment({
-                id: '',
-                clientAccountId: this.client.id,
-                amount: this.creditToApply,
-                paymentMethod: PaymentMethod.SALDO_FAVOR,
-                reference: undefined,
-                notes: combinedNotes || 'Pago con saldo a favor',
-                paymentDate: formatInTimeZone(new Date(), 'America/Bogota', "yyyy-MM-dd'T'HH:mm:ssXXX"),
-                createdBy: user?.username || '',
-                createdAt: ''
-            })
-            : of(null);
-
-        forkJoin([creditObs$, cashAmount > 0 ? paymentObs$ : creditOnlyPaymentObs$]).subscribe({
+        forkJoin([deductCreditObs$, creditPaymentObs$, cashPaymentObs$]).subscribe({
             next: () => {
                 this.isSubmitting = false;
 

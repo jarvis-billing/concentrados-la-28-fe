@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { PurchaseInvoice, LinkedPayment } from '../models/purchase-invoice';
-import { PurchaseLastCostInfo, CostHistoryEntry } from '../models/purchase-cost-history';
+import { BulkLastCostItem, CostHistoryEntry, PurchaseLastCostInfo } from '../models/purchase-cost-history';
 import { urlConfig } from '../../../config/config';
 
 export interface PurchasePaymentDetailResponse {
@@ -45,6 +45,15 @@ export class PurchasesService {
   getLastCost(presentationId: string): Observable<PurchaseLastCostInfo | null> {
     const params = new HttpParams().set('presentationId', presentationId);
     return this.http.get<PurchaseLastCostInfo | null>(`${this.baseUrl}/last-cost`, { params });
+  }
+
+  /**
+   * Obtiene en una sola llamada el último costo para una lista de barcodes.
+   * El backend aplica fallback: si no hay historial de compras usa presentation.costPrice.
+   * Barcodes sin datos en ninguna fuente son omitidos del resultado.
+   */
+  bulkGetLastCost(barcodes: string[]): Observable<BulkLastCostItem[]> {
+    return this.http.post<BulkLastCostItem[]>(`${this.baseUrl}/last-cost/bulk`, { barcodes });
   }
 
   /**

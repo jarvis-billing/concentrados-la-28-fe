@@ -35,6 +35,7 @@ interface ProductSuggestion {
   displayName: string;
   barcode: string;
   price: number;
+  brand: string;
 }
 
 @Component({
@@ -64,6 +65,7 @@ export class FacturaComponent implements OnInit, AfterViewInit {
   @ViewChild(ModalClientsListComponent, { static: false }) clientsModalComp!: ModalClientsListComponent;
   @ViewChild('reciveValueInput', { static: false }) reciveValueInput!: ElementRef<HTMLInputElement>;
   @ViewChild('productAutocompleteInput', { static: false }) productAutocompleteInputRef!: ElementRef<HTMLInputElement>;
+  @ViewChild('productDropdownEl', { static: false }) productDropdownEl!: ElementRef<HTMLElement>;
   @ViewChild('confirmSaveModal', { static: false }) confirmSaveModalRef!: ElementRef;
   @ViewChild('multiPaymentModal', { static: false }) multiPaymentModalRef!: ElementRef;
   @ViewChild('cashAmountInput', { static: false }) cashAmountInput!: ElementRef<HTMLInputElement>;
@@ -208,6 +210,8 @@ export class FacturaComponent implements OnInit, AfterViewInit {
   showCreditModal: boolean = false;
   // Crédito aplicado en el modal de multipagos
   modalCreditApplied: number = 0;
+  // Monto parcial ingresado por el usuario para aplicar del saldo
+  creditInputAmount: number = 0;
 
   saleDetails: SaleDetail[] = [];
   // Vista previa en modo granel/peso
@@ -1316,23 +1320,43 @@ export class FacturaComponent implements OnInit, AfterViewInit {
     return Math.max(0, this.clientCreditBalance - this.modalCreditApplied);
   }
 
-  // Aplicar saldo a favor en el modal de multipagos
+  // Máximo aplicable del saldo: el menor entre saldo disponible y total pendiente
+  getMaxCreditApplicable(): number {
+    const pending = this.getPendingAmount() + this.modalCreditApplied;
+    return Math.min(this.clientCreditBalance, pending);
+  }
+
+  // Handler del input de monto parcial de saldo a favor
+  onCreditInputChange(event: Event): void {
+    const raw = (event.target as HTMLInputElement).value.replace(/[^\d]/g, '');
+    const val = Number(raw) || 0;
+    const max = this.getMaxCreditApplicable();
+    this.creditInputAmount = Math.min(val, max);
+  }
+
+  // Aplicar monto parcial del saldo a favor
   applyCredit(): void {
     if (this.clientCreditBalance <= 0) {
       toast.warning('El cliente no tiene saldo a favor disponible.');
       return;
     }
-    
+
     const pending = this.getPendingAmount();
     if (pending <= 0) {
       toast.info('No hay monto pendiente por pagar.');
       return;
     }
-    
-    // Aplicar el mínimo entre el saldo disponible y el pendiente
-    const toApply = Math.min(this.clientCreditBalance, pending + this.modalCreditApplied);
+
+    const max = this.getMaxCreditApplicable();
+    const toApply = Math.min(this.creditInputAmount, max);
+    if (toApply <= 0) {
+      toast.warning('Ingrese un monto mayor a 0 para aplicar del saldo.');
+      return;
+    }
+
     this.modalCreditApplied = toApply;
-    
+    this.creditInputAmount = 0;
+
     if (toApply >= this.totalBilling) {
       toast.success(`Saldo a favor cubre el total de la factura.`);
     } else {
@@ -1340,9 +1364,16 @@ export class FacturaComponent implements OnInit, AfterViewInit {
     }
   }
 
+  // Aplicar el máximo posible del saldo en un clic
+  applyCreditMax(): void {
+    this.creditInputAmount = this.getMaxCreditApplicable();
+    this.applyCredit();
+  }
+
   // Quitar el saldo a favor aplicado
   removeCredit(): void {
     this.modalCreditApplied = 0;
+    this.creditInputAmount = 0;
     toast.info('Saldo a favor removido.');
   }
 
@@ -1485,7 +1516,8 @@ export class FacturaComponent implements OnInit, AfterViewInit {
             presentation: pres,
             displayName: labelPart ? `${rootPart} - ${labelPart}` : rootPart,
             barcode: pres.barcode || '',
-            price: pres.salePrice || 0
+            price: pres.salePrice || 0,
+            brand: prod.brand || ''
           });
         }
       }
@@ -1558,9 +1590,11 @@ export class FacturaComponent implements OnInit, AfterViewInit {
       event.preventDefault();
       if (!this.showProductDropdown) { this.onProductSearchInput(); return; }
       this.productActiveIndex = Math.min(this.productActiveIndex + 1, this.productSuggestions.length - 1);
+      this.scrollProductDropdown();
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
       this.productActiveIndex = Math.max(this.productActiveIndex - 1, -1);
+      this.scrollProductDropdown();
     } else if (event.key === 'Enter') {
       if (this.productActiveIndex >= 0) {
         event.preventDefault();
@@ -1572,6 +1606,15 @@ export class FacturaComponent implements OnInit, AfterViewInit {
       event.preventDefault();
       this.showProductDropdown = false;
       this.productActiveIndex = -1;
+    }
+  }
+
+  private scrollProductDropdown(): void {
+    if (!this.productDropdownEl) return;
+    const container = this.productDropdownEl.nativeElement;
+    const items = container.querySelectorAll('.product-suggestion-item');
+    if (this.productActiveIndex >= 0 && items[this.productActiveIndex]) {
+      (items[this.productActiveIndex] as HTMLElement).scrollIntoView({ block: 'nearest' });
     }
   }
 
@@ -1610,9 +1653,7 @@ export class FacturaComponent implements OnInit, AfterViewInit {
 
     // Nuevo producto, no es granel ni requiere lote → agregar directo con cantidad 1
     if (!mapped.isBulk && !this.requiresBatchSelection(mapped)) {
-      mapped.amount = (mapped.hasFixedAmount && (mapped.fixedAmount ?? 0) > 0)
-        ? mapped.fixedAmount!
-        : 1;
+      mapped.amount = 1;
       mapped.totalValue = mapped.amount * mapped.price;
       this.addProduct(mapped);
       this.calculateTotalBilling();

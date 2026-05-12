@@ -306,7 +306,16 @@
                                             <span class="badge bg-danger-subtle text-danger-emphasis">Sin stock</span>
                                         }
                                     </td>
-                                    <td class="text-end text-muted">{{ formatCurrency(row.costPrice) }}</td>
+                                    <td class="text-end">
+                                        <div class="d-flex align-items-center justify-content-end gap-1">
+                                            <span class="text-muted">{{ formatCurrency(row.costPrice) }}</span>
+                                            @if (row.costSource === 'PURCHASE_INVOICE') {
+                                                <i class="bi bi-receipt text-success small" title="Costo de última factura de compra"></i>
+                                            } @else if (row.costSource === 'PRODUCT_ENTITY') {
+                                                <i class="bi bi-box-seam text-warning small" title="Costo de entidad producto (sin historial)"></i>
+                                            }
+                                        </div>
+                                    </td>
                                     <td>
                                         <input type="text"
                                             inputmode="numeric"

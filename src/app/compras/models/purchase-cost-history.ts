@@ -1,3 +1,27 @@
+export type CostSource = 'PURCHASE_INVOICE' | 'PRODUCT_ENTITY';
+
+/**
+ * Resultado de POST /api/purchases/invoices/last-cost/bulk para un barcode.
+ * source = PURCHASE_INVOICE → costo real de la última factura.
+ * source = PRODUCT_ENTITY   → fallback: costPrice de la entidad producto.
+ */
+export interface BulkLastCostItem {
+  barcode: string;
+  presentationId: string;
+  productDescription?: string;
+  lastUnitCost: number;
+  lastVatRate: number;
+  lastVatPerUnit: number;
+  lastFreightPerUnit: number;
+  lastUnitTotalCost: number;
+  lastInvoiceId?: string | null;
+  lastInvoiceNumber?: string | null;
+  lastInvoiceDate?: string | null;
+  lastSupplierId?: string | null;
+  lastSupplierName?: string | null;
+  source: CostSource;
+}
+
 /**
  * Última información de costo registrada para una presentación de producto.
  * Devuelta por GET /api/purchases/last-cost?presentationId=xxx

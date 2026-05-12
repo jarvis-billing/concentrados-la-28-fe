@@ -5,6 +5,8 @@ import { ProductoService } from '../../producto.service';
 import { CatalogService } from '../../catalog.service';
 import { Product } from '../../producto';
 import { PresentationPriceUpdate } from '../../models/bulk-price-update.model';
+import { PurchasesService } from '../../../compras/services/purchases.service';
+import { BulkLastCostItem } from '../../../compras/models/purchase-cost-history';
 import { toast } from 'ngx-sonner';
 
 interface PresentationRow {
@@ -22,6 +24,7 @@ interface PresentationRow {
     selected: boolean;
     stockQuantity: number;
     stockUnit: string;
+    costSource: 'PURCHASE_INVOICE' | 'PRODUCT_ENTITY' | 'NONE';
 }
 
 type BulkField = 'salePrice' | 'costPrice' | 'both';
@@ -41,6 +44,7 @@ export class PriceManagerPageComponent implements OnInit {
 
     private productService = inject(ProductoService);
     private catalogService = inject(CatalogService);
+    private purchasesService = inject(PurchasesService);
 
     // Data
     allRows: PresentationRow[] = [];
@@ -96,11 +100,48 @@ export class PriceManagerPageComponent implements OnInit {
             next: (products) => {
                 this.originalProducts = products || [];
                 this.buildRows();
+                this.loadLastCostsAndApply();
+            },
+            error: () => {
+                toast.error('Error al cargar productos');
+                this.isLoading = false;
+            }
+        });
+    }
+
+    private loadLastCostsAndApply(): void {
+        const barcodes = this.allRows.map(r => r.barcode).filter(b => b);
+        console.log('Barcodes to fetch last costs for:', barcodes.length);
+        if (barcodes.length === 0) {
+            this.applyFilters();
+            this.isLoading = false;
+            return;
+        }
+        if (barcodes.length > 500) {
+            toast.warning(`Hay ${barcodes.length} presentaciones. El backend permite máximo 500 por request. Usando las primeras 500.`);
+            barcodes.splice(500);
+        }
+
+        this.purchasesService.bulkGetLastCost(barcodes).subscribe({
+            next: (costItems: BulkLastCostItem[]) => {
+                const costMap = new Map<string, BulkLastCostItem>(costItems.map((c: BulkLastCostItem) => [c.barcode, c]));
+                this.allRows.forEach(row => {
+                    const costInfo = costMap.get(row.barcode);
+                    if (costInfo) {
+                        row.costPrice = costInfo.lastUnitTotalCost;
+                        row.newCostPrice = costInfo.lastUnitTotalCost;
+                        row.costSource = costInfo.source;
+                    } else {
+                        row.costSource = 'NONE';
+                    }
+                });
                 this.applyFilters();
                 this.isLoading = false;
             },
             error: () => {
-                toast.error('Error al cargar productos');
+                toast.warning('No se pudieron cargar los últimos costos. Se usan los precios de producto.');
+                this.allRows.forEach(r => r.costSource = 'NONE');
+                this.applyFilters();
                 this.isLoading = false;
             }
         });
@@ -124,7 +165,8 @@ export class PriceManagerPageComponent implements OnInit {
                     newCostPrice: pres.costPrice || 0,
                     selected: false,
                     stockQuantity: p.stock?.quantity || 0,
-                    stockUnit: p.stock?.unitMeasure || ''
+                    stockUnit: p.stock?.unitMeasure || '',
+                    costSource: 'NONE'
                 });
             }
         }

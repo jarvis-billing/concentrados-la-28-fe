@@ -204,7 +204,7 @@
                 <span class="fw-bold text-primary">{{ totalAfterCredit | currency:'$ ':'symbol':'.0-0' }}</span>
               </div>
             } @else {
-              <button type="button" class="btn btn-outline-success btn-sm w-100 mt-2" (click)="openUseCreditModal()" [disabled]="totalBilling <= 0">
+              <button type="button" class="btn btn-outline-success btn-sm w-100 mt-2" (click)="openMultiPaymentModal()" [disabled]="totalBilling <= 0 || paymentType === 'CREDITO'">
                 <i class="bi bi-check-circle me-1"></i> Usar saldo a favor
               </button>
             }
@@ -247,7 +247,7 @@
             <i class="bi bi-grid-3x3-gap"></i>
           </button>
         </div>
-        <div *ngIf="showProductDropdown && productSuggestions.length > 0"
+        <div #productDropdownEl *ngIf="showProductDropdown && productSuggestions.length > 0"
              class="position-absolute bg-white border rounded shadow"
              style="z-index: 1055; max-height: 320px; overflow-y: auto; width: 100%; top: 100%;">
           <div *ngFor="let s of productSuggestions; let i = index"
@@ -256,7 +256,7 @@
                (mousedown)="selectProductSuggestion(s)">
             <div class="flex-grow-1 overflow-hidden me-2">
               <div class="fw-semibold text-truncate small">{{ s.displayName }}</div>
-              <div class="text-muted" style="font-size: 0.75rem;">{{ s.barcode }}</div>
+              <div class="text-muted" style="font-size: 0.75rem;">{{ s.barcode }} <span *ngIf="s.brand" class="ms-1">· {{ s.brand }}</span></div>
             </div>
             <span class="badge bg-success flex-shrink-0">{{ s.price | currency:'$ ':'symbol':'.0-0' }}</span>
           </div>
@@ -554,13 +554,26 @@
                   </div>
                 }
               } @else {
-                <!-- Botón para aplicar saldo -->
-                <div class="d-flex justify-content-between align-items-center">
-                  <div>
-                    <span class="text-muted">El cliente tiene saldo a favor disponible.</span>
+                <!-- Input para monto parcial del saldo a favor -->
+                <div class="d-flex align-items-center gap-2">
+                  <div class="flex-grow-1">
+                    <div class="input-group input-group-sm">
+                      <span class="input-group-text bg-success text-white">$</span>
+                      <input type="text" class="form-control text-end fw-bold"
+                             [value]="creditInputAmount | number:'1.0-0'"
+                             (input)="onCreditInputChange($event)"
+                             placeholder="Monto a aplicar"
+                             [disabled]="getPendingAmount() <= 0">
+                    </div>
+                    <div class="form-text small mt-1">
+                      Máximo: {{ getMaxCreditApplicable() | currency:'$ ':'symbol':'.0-0' }}
+                    </div>
                   </div>
-                  <button type="button" class="btn btn-success" (click)="applyCredit()" [disabled]="getPendingAmount() <= 0">
-                    <i class="bi bi-check-circle me-1"></i> Usar Saldo a Favor
+                  <button type="button" class="btn btn-success btn-sm" (click)="applyCredit()" [disabled]="getPendingAmount() <= 0 || creditInputAmount <= 0">
+                    <i class="bi bi-check-circle me-1"></i> Aplicar
+                  </button>
+                  <button type="button" class="btn btn-outline-success btn-sm" (click)="applyCreditMax()" [disabled]="getPendingAmount() <= 0">
+                    Máx
                   </button>
                 </div>
               }
