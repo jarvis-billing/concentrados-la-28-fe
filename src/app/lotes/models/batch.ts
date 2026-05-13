@@ -49,6 +49,7 @@ export interface CreateBatchRequest {
  * DTO para actualizar precio de un lote (genera nuevo lote)
  */
 export interface UpdateBatchPriceRequest {
+    batchId: string;                  // ID del lote específico a actualizar (cierra solo ese lote)
     productId: string;
     newSalePrice: number;
     priceValidityDays?: number;       // Opcional: nuevos días de validez (si no se envía, usa el anterior)

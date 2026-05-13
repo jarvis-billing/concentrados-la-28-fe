@@ -118,7 +118,7 @@ export class PriceManagerPageComponent implements OnInit {
             return;
         }
         if (barcodes.length > 500) {
-            toast.warning(`Hay ${barcodes.length} presentaciones. El backend permite máximo 500 por request. Usando las primeras 500.`);
+            toast.warning(`Se encontraron ${barcodes.length} presentaciones. Solo se cargarán los costos de las primeras 500. Las demás mostrarán el costo registrado en el producto.`);
             barcodes.splice(500);
         }
 

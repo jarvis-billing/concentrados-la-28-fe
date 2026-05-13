@@ -209,9 +209,9 @@ import { toast } from 'ngx-sonner';
                                 </label>
                                 <div class="input-group">
                                     <span class="input-group-text">$</span>
-                                    <input type="number" class="form-control form-control-lg" 
-                                           [(ngModel)]="newSalePrice"
-                                           min="1"
+                                    <input type="text" class="form-control form-control-lg"
+                                           [value]="formatCurrencyInput(newSalePrice)"
+                                           (input)="onSalePriceInput($event)"
                                            placeholder="Ingrese el nuevo precio">
                                 </div>
                             </div>
@@ -337,6 +337,21 @@ export class BatchSelectorModalComponent implements OnChanges {
         }
     }
     
+    formatCurrencyInput(value: number): string {
+        if (!value && value !== 0) return '';
+        return new Intl.NumberFormat('es-CO', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(value);
+    }
+
+    onSalePriceInput(event: Event): void {
+        const input = event.target as HTMLInputElement;
+        const rawValue = input.value.replace(/\D/g, '');
+        this.newSalePrice = rawValue ? parseInt(rawValue, 10) : 0;
+        input.value = this.formatCurrencyInput(this.newSalePrice);
+    }
+
     isExpired(batch: Batch | null): boolean {
         if (!batch) return false;
         const expirationDate = new Date(batch.expirationDate);
@@ -377,6 +392,7 @@ export class BatchSelectorModalComponent implements OnChanges {
         this.isUpdatingPrice = true;
         
         const request: UpdateBatchPriceRequest = {
+            batchId: this.batchToUpdate.id!,
             productId: this.batchToUpdate.productId,
             newSalePrice: this.newSalePrice,
             priceValidityDays: this.newPriceValidityDays,

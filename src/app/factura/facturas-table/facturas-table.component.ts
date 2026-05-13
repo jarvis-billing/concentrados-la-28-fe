@@ -363,7 +363,7 @@ export class FacturasTableComponent implements OnInit {
   getPaymentBadgeClass(method: string): string {
     switch (method) {
       case 'EFECTIVO': return 'bg-success';
-      case 'TRANSFERENCIA': return 'bg-primary';
+      case 'TRANSFERENCIA': return 'badge-transferencia';
       case 'TARJETA_CREDITO': return 'bg-info';
       case 'TARJETA_DEBITO': return 'bg-info';
       case 'CHEQUE': return 'bg-warning text-dark';
@@ -375,7 +375,7 @@ export class FacturasTableComponent implements OnInit {
   getPaymentBorderClass(method: string): string {
     switch (method) {
       case 'EFECTIVO': return 'border-success';
-      case 'TRANSFERENCIA': return 'border-primary';
+      case 'TRANSFERENCIA': return 'border-transferencia';
       case 'TARJETA_CREDITO': return 'border-info';
       case 'TARJETA_DEBITO': return 'border-info';
       case 'CHEQUE': return 'border-warning';

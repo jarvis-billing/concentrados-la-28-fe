@@ -156,6 +156,7 @@ export class BatchManagementPageComponent implements OnInit {
 
         this.isUpdating = true;
         const request: UpdateBatchPriceRequest = {
+            batchId: this.selectedBatch.id!,
             productId: this.selectedBatch.productId,
             newSalePrice: this.newPrice,
             priceValidityDays: this.newPriceValidityDays,
@@ -277,5 +278,12 @@ export class BatchManagementPageComponent implements OnInit {
         const rawValue = input.value.replace(/\D/g, '');
         this.newPrice = rawValue ? parseInt(rawValue, 10) : 0;
         input.value = this.formatCurrencyInput(this.newPrice);
+    }
+
+    onCreateBatchSalePriceInput(event: Event): void {
+        const input = event.target as HTMLInputElement;
+        const rawValue = input.value.replace(/\D/g, '');
+        this.newBatch.salePrice = rawValue ? parseInt(rawValue, 10) : 0;
+        input.value = this.formatCurrencyInput(this.newBatch.salePrice);
     }
 }

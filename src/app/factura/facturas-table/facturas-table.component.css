@@ -20,6 +20,15 @@
     }
 }
 
+.badge-transferencia {
+    background-color: #5b9fce !important;
+    color: #fff !important;
+}
+
+.border-transferencia {
+    border-color: #5b9fce !important;
+}
+
 .fullscreen-loading {
     position: fixed;
     top: 0;
