@@ -45,6 +45,10 @@ import { BankReconciliationPageComponent } from './bank-reconciliation/pages/ban
 import { BankReconciliationReportsComponent } from './bank-reconciliation/pages/bank-reconciliation-reports/bank-reconciliation-reports.component';
 import { BankAccountsPageComponent } from './bank-accounts/pages/bank-accounts-page/bank-accounts-page.component';
 import { ClienteComponent } from './cliente/cliente.component';
+import { ReportsDashboardComponent } from './reportes/pages/reports-dashboard/reports-dashboard.component';
+import { ProfitReportComponent } from './reportes/pages/profit-report/profit-report.component';
+import { ProductMovementsReportComponent } from './reportes/pages/product-movements-report/product-movements-report.component';
+import { CashFlowReportComponent } from './reportes/pages/cash-flow-report/cash-flow-report.component';
 
 export const routes: Routes = [
     { path: '', pathMatch: 'full', redirectTo: '/login' },
@@ -188,6 +192,18 @@ export const routes: Routes = [
         },
         {
             path: 'cuentas-bancarias', component: BankAccountsPageComponent
+        },
+        {
+            path: 'reportes', component: ReportsDashboardComponent
+        },
+        {
+            path: 'reportes/utilidad', component: ProfitReportComponent
+        },
+        {
+            path: 'reportes/movimientos', component: ProductMovementsReportComponent
+        },
+        {
+            path: 'reportes/flujo-caja', component: CashFlowReportComponent
         }
     ]}
 ];

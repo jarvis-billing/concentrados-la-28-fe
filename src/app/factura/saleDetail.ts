@@ -5,6 +5,7 @@ export class SaleDetail {
     product: Product = new Product();
     amount: number = 0;
     unitPrice: number = 0;
+    unitCost: number = 0;         // Costo unitario al momento de la venta (para calcular utilidad)
     subTotal: number = 0;
     totalVat: number = 0;
     isBulkSale: boolean = false;  // Indica si es venta a granel (peso/volumen/longitud)

@@ -115,6 +115,27 @@
                     </div>
                 </li>
 
+                <li class="nav-item mx-2 dropdown">
+                    <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" routerLinkActive="active" role="button" aria-haspopup="true" aria-expanded="false">
+                        <i class="bi bi-bar-chart-line me-1"></i>Reportes
+                    </a>
+                    <div class="dropdown-menu" style="background-color: white; border-color: black;">
+                      <a class="dropdown-item" routerLink="/main/reportes" (click)="closeMenu()">
+                        <i class="bi bi-grid-1x2 me-1"></i> Centro de Reportes
+                      </a>
+                      <div class="dropdown-divider"></div>
+                      <a class="dropdown-item" routerLink="/main/reportes/utilidad" (click)="closeMenu()">
+                        <i class="bi bi-graph-up-arrow me-1"></i> Utilidad por Ventas
+                      </a>
+                      <a class="dropdown-item" routerLink="/main/reportes/movimientos" (click)="closeMenu()">
+                        <i class="bi bi-arrow-left-right me-1"></i> Movimientos de Productos
+                      </a>
+                      <a class="dropdown-item" routerLink="/main/reportes/flujo-caja" (click)="closeMenu()">
+                        <i class="bi bi-cash-coin me-1"></i> Flujo de Caja
+                      </a>
+                    </div>
+                </li>
+
                 <li class="nav-item mx-2">
                     <a class="nav-link" routerLink="/main/configuracion" routerLinkActive="active" (click)="closeMenu()">Configuracion</a>
                 </li>

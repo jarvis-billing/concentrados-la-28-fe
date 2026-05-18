@@ -1,0 +1,73 @@
+.chart-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1050;
+  animation: fadeIn 0.2s ease;
+}
+
+.chart-modal-container {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 70%;
+  max-width: 1000px;
+  height: 100%;
+  z-index: 1060;
+  animation: slideIn 0.3s ease;
+}
+
+.chart-modal-dialog {
+  background: white;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -5px 0 25px rgba(0, 0, 0, 0.15);
+}
+
+.chart-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #dee2e6;
+  background: #f8f9fa;
+}
+
+.chart-modal-controls {
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid #eee;
+}
+
+.chart-modal-body {
+  flex: 1;
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.chart-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@media (max-width: 768px) {
+  .chart-modal-container {
+    width: 95%;
+    max-width: none;
+  }
+}

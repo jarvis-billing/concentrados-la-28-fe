@@ -1,0 +1,53 @@
+<!-- Modal Backdrop -->
+<div class="chart-modal-backdrop" *ngIf="visible" (click)="close()"></div>
+
+<!-- Modal Content -->
+<div class="chart-modal-container" *ngIf="visible" [class.show]="visible">
+  <div class="chart-modal-dialog">
+    <!-- Header -->
+    <div class="chart-modal-header">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-graph-up fs-5 text-primary"></i>
+        <h5 class="mb-0 fw-bold">Gráficos del Reporte</h5>
+      </div>
+      <button type="button" class="btn-close" (click)="close()"></button>
+    </div>
+
+    <!-- Controls -->
+    <div class="chart-modal-controls">
+      <div class="d-flex flex-wrap gap-3 align-items-center">
+        <!-- Chart selector -->
+        <div *ngIf="availableCharts.length > 1">
+          <label class="form-label small fw-semibold mb-1">Gráfico</label>
+          <select class="form-select form-select-sm" [(ngModel)]="selectedChartIndex" (change)="onChartSelect()">
+            <option *ngFor="let chart of availableCharts; let i = index" [ngValue]="i">
+              {{ chart.title }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Chart type selector -->
+        <div>
+          <label class="form-label small fw-semibold mb-1">Tipo de gráfico</label>
+          <div class="btn-group btn-group-sm">
+            <button *ngFor="let ct of chartTypes"
+                    class="btn"
+                    [ngClass]="selectedChartType === ct.value ? 'btn-primary' : 'btn-outline-secondary'"
+                    (click)="selectedChartType = ct.value; onChartTypeChange()"
+                    [title]="ct.label">
+              <i class="bi" [ngClass]="ct.icon"></i>
+              <span class="d-none d-md-inline ms-1">{{ ct.label }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart Canvas -->
+    <div class="chart-modal-body">
+      <div class="chart-container">
+        <canvas #chartCanvas></canvas>
+      </div>
+    </div>
+  </div>
+</div>

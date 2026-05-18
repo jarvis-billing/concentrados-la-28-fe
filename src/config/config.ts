@@ -42,4 +42,6 @@ export const urlConfig = {
     getClientCreditsServiceUrl: () => urlConfig.baseUrl + '/api/client-credits',
     
     getBatchServiceUrl: () => urlConfig.baseUrl + '/api/batches',
+    
+    getReportsServiceUrl: () => urlConfig.baseUrl + '/api/reports',
 };

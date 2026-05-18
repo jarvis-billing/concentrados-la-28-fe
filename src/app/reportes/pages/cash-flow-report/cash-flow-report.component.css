@@ -1,0 +1,10 @@
+.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+.sortable:hover {
+  background-color: rgba(255,255,255,0.1);
+}
+.border-4 {
+  border-width: 4px !important;
+}

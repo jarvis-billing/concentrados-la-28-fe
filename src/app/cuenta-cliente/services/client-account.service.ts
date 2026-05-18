@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { urlConfig } from '../../../config/config';
 import { 
@@ -80,5 +80,15 @@ export class ClientAccountService {
      */
     registerManualDebt(request: ManualDebtRequest): Observable<any> {
         return this.http.post<any>(`${this.url}/manual-debt`, request);
+    }
+
+    /**
+     * Obtiene todos los pagos registrados en un rango de fechas
+     */
+    listAllPayments(filter: { fromDate?: string; toDate?: string }): Observable<AccountPayment[]> {
+        let params = new HttpParams();
+        if (filter.fromDate) params = params.set('fromDate', filter.fromDate);
+        if (filter.toDate) params = params.set('toDate', filter.toDate);
+        return this.http.get<AccountPayment[]>(`${this.url}/payments`, { params });
     }
 }

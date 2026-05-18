@@ -680,11 +680,18 @@ export class FacturaComponent implements OnInit, AfterViewInit {
     // Para normal: subtotal = cantidad * precio
     const subTotal = bulkInputAmount ?? (selectProduct.amount * selectProduct.price);
     
+    // Obtener el costo unitario de la presentación seleccionada (costPrice) como fallback
+    const matchedPresentation = (selectProduct.presentations || []).find(
+      pres => pres.barcode === selectProduct.barcode
+    );
+    const unitCost = matchedPresentation?.costPrice || 0;
+
     const saleDetail: SaleDetail = {
       id: selectProduct.id,
       product: selectProduct,
       amount: selectProduct.amount,
       unitPrice: selectProduct.price,
+      unitCost: unitCost,
       subTotal: subTotal,
       totalVat: 0,
       isBulkSale: isBulkSale,
