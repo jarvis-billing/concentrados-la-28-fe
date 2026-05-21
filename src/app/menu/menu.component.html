@@ -34,6 +34,10 @@
                       <a class="dropdown-item" routerLink="/main/factura" (click)="closeMenu()">Nueva venta</a>
                       <a class="dropdown-item" routerLink="/main/list/facturas" (click)="closeMenu()">Listar ventas</a>
                       <a class="dropdown-item" routerLink="/main/list/sale/products" (click)="closeMenu()">Listar productos vendidos</a>
+                      <div class="dropdown-divider"></div>
+                      <a class="dropdown-item" routerLink="/main/devoluciones/nueva-venta" (click)="closeMenu()">
+                        <i class="bi bi-cart-x me-1"></i> Nueva Dev. de Venta
+                      </a>
                     </div>
                 </li>
 
@@ -67,6 +71,10 @@
                       <div class="dropdown-divider"></div>
                       <a class="dropdown-item" routerLink="/main/compras/pagos-proveedor" (click)="closeMenu()">Pagos a proveedor</a>
                       <a class="dropdown-item" routerLink="/main/compras/pagos-proveedor/list" (click)="closeMenu()">Ver pagos registrados</a>
+                      <div class="dropdown-divider"></div>
+                      <a class="dropdown-item" routerLink="/main/devoluciones/nueva-compra" (click)="closeMenu()">
+                        <i class="bi bi-truck me-1"></i> Nueva Dev. de Compra
+                      </a>
                     </div>
                 </li>
 

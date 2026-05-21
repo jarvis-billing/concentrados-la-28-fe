@@ -20,6 +20,10 @@ export class MainComponent {
       }
       if (evt instanceof NavigationEnd || evt instanceof NavigationCancel || evt instanceof NavigationError) {
         this.loading.stop();
+        document.body.classList.remove('modal-open');
+        document.body.style.removeProperty('overflow');
+        document.body.style.removeProperty('padding-right');
+        document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
       }
     });
   }

@@ -1,0 +1,114 @@
+<div class="container py-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="m-0"><i class="bi bi-arrow-return-left me-2"></i>Devoluciones de Mercancías</h4>
+    <div class="d-flex gap-2">
+      <button class="btn btn-primary" (click)="goToNewSaleReturn()">
+        <i class="bi bi-plus-circle me-1"></i>Dev. de Venta
+      </button>
+      <button class="btn btn-warning" (click)="goToNewPurchaseReturn()">
+        <i class="bi bi-plus-circle me-1"></i>Dev. de Compra
+      </button>
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span>Filtros</span>
+      <button class="btn btn-sm btn-outline-secondary" (click)="clearFilters()">Limpiar</button>
+    </div>
+    <div class="card-body">
+      <form [formGroup]="filterForm" (ngSubmit)="search()">
+        <div class="row g-2">
+          <div class="col-12 col-md-2">
+            <label class="form-label">Tipo</label>
+            <select class="form-select" formControlName="returnType">
+              <option value="">Todos</option>
+              <option value="DEVOLUCION_VENTA">Venta</option>
+              <option value="DEVOLUCION_COMPRA">Compra</option>
+            </select>
+          </div>
+          <div class="col-12 col-md-2">
+            <label class="form-label">Estado</label>
+            <select class="form-select" formControlName="status">
+              <option value="">Todos</option>
+              <option value="PROCESADA">Procesada</option>
+              <option value="ANULADA">Anulada</option>
+            </select>
+          </div>
+          <div class="col-12 col-md-2">
+            <label class="form-label">Desde</label>
+            <input type="date" class="form-control" formControlName="fromDate">
+          </div>
+          <div class="col-12 col-md-2">
+            <label class="form-label">Hasta</label>
+            <input type="date" class="form-control" formControlName="toDate">
+          </div>
+          <div class="col-12 col-md-3">
+            <label class="form-label">N° Doc. Original</label>
+            <input type="text" class="form-control" formControlName="originalDocumentNumber" placeholder="Ej: F-0001">
+          </div>
+          <div class="col-12 col-md-1 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary w-100">
+              <i class="bi bi-search"></i>
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Tabla -->
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span>{{ returns.length }} devoluciones encontradas</span>
+      <span class="fw-bold">Total: {{ formatCurrency(totalAmount) }}</span>
+    </div>
+    <div class="card-body p-0">
+      <div *ngIf="isLoading" class="text-center py-4">
+        <div class="spinner-border text-primary" role="status"></div>
+      </div>
+      <div *ngIf="!isLoading && returns.length === 0" class="text-center py-4 text-muted">
+        <i class="bi bi-inbox fs-1"></i>
+        <p class="mt-2">No se encontraron devoluciones</p>
+      </div>
+      <div *ngIf="!isLoading && returns.length > 0" class="table-responsive">
+        <table class="table table-hover table-sm mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>N° Dev.</th>
+              <th>Tipo</th>
+              <th>Doc. Original</th>
+              <th>Cliente / Proveedor</th>
+              <th class="text-end">Total</th>
+              <th>Resolución</th>
+              <th>Estado</th>
+              <th>Fecha</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let r of returns" style="cursor:pointer" (click)="goToDetail(r.id)">
+              <td class="fw-bold">{{ r.returnNumber || r.id }}</td>
+              <td><span [class]="getTypeBadge(r.returnType)">{{ getTypeLabel(r.returnType) }}</span></td>
+              <td>{{ r.originalDocumentNumber || '-' }}</td>
+              <td>
+                <span *ngIf="r.returnType === 'DEVOLUCION_VENTA'">{{ r.clientName || '-' }}</span>
+                <span *ngIf="r.returnType === 'DEVOLUCION_COMPRA'">{{ r.supplierName || '-' }}</span>
+              </td>
+              <td class="text-end fw-bold">{{ formatCurrency(r.totalAmount) }}</td>
+              <td><small>{{ getResolutionLabel(r.resolution) }}</small></td>
+              <td><span [class]="getStatusBadge(r.status)">{{ r.status }}</span></td>
+              <td><small>{{ formatDate(r.createdAt) }}</small></td>
+              <td>
+                <button class="btn btn-sm btn-outline-primary" (click)="goToDetail(r.id); $event.stopPropagation()">
+                  <i class="bi bi-eye"></i>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

@@ -44,4 +44,6 @@ export const urlConfig = {
     getBatchServiceUrl: () => urlConfig.baseUrl + '/api/batches',
     
     getReportsServiceUrl: () => urlConfig.baseUrl + '/api/reports',
+
+    getMerchandiseReturnsServiceUrl: () => urlConfig.baseUrl + '/api/merchandise-returns',
 };

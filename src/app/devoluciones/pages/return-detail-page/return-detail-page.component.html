@@ -1,0 +1,186 @@
+<div class="container py-3" style="max-width: 900px;">
+
+  <!-- Loading -->
+  <div *ngIf="isLoading" class="text-center py-5">
+    <div class="spinner-border text-primary"></div>
+  </div>
+
+  <ng-container *ngIf="!isLoading && returnData">
+    <!-- Header -->
+    <div class="d-flex align-items-center mb-3 gap-2 flex-wrap">
+      <button class="btn btn-sm btn-outline-secondary" routerLink="/main/devoluciones">
+        <i class="bi bi-arrow-left"></i>
+      </button>
+      <h4 class="m-0 me-2">Devolución {{ returnData.returnNumber }}</h4>
+      <span [class]="getTypeBadge()">{{ getTypeLabel() }}</span>
+      <span [class]="getStatusBadge(returnData.status)">{{ returnData.status }}</span>
+      <div class="ms-auto">
+        <button *ngIf="isProcessed" class="btn btn-outline-danger" (click)="openCancelModal()">
+          <i class="bi bi-x-circle me-1"></i>Anular Devolución
+        </button>
+      </div>
+    </div>
+
+    <!-- Resumen principal -->
+    <div class="row g-3 mb-3">
+      <div class="col-12 col-md-6">
+        <div class="card h-100">
+          <div class="card-header fw-bold">Información General</div>
+          <div class="card-body">
+            <dl class="row mb-0">
+              <dt class="col-6">N° Devolución:</dt>
+              <dd class="col-6 fw-bold">{{ returnData.returnNumber || '-' }}</dd>
+
+              <dt class="col-6">Documento Original:</dt>
+              <dd class="col-6">{{ returnData.originalDocumentNumber || '-' }}</dd>
+
+              <dt class="col-6">Fecha:</dt>
+              <dd class="col-6">{{ formatDate(returnData.returnDate || returnData.createdAt) }}</dd>
+
+              <ng-container *ngIf="isSaleReturn">
+                <dt class="col-6">Cliente:</dt>
+                <dd class="col-6">{{ returnData.clientName || '-' }}</dd>
+              </ng-container>
+
+              <ng-container *ngIf="!isSaleReturn">
+                <dt class="col-6">Proveedor:</dt>
+                <dd class="col-6">{{ returnData.supplierName || '-' }}</dd>
+              </ng-container>
+
+              <dt class="col-6">Resolución:</dt>
+              <dd class="col-6">
+                <span class="badge bg-info text-dark">{{ getResolutionLabel(returnData.resolution) }}</span>
+              </dd>
+
+              <dt class="col-6">Creado por:</dt>
+              <dd class="col-6">{{ returnData.createdBy?.name || returnData.createdBy?.username || '-' }}</dd>
+
+              <dt class="col-6">Creado en:</dt>
+              <dd class="col-6">{{ formatDateTime(returnData.createdAt) }}</dd>
+
+              <ng-container *ngIf="returnData.cancelledAt">
+                <dt class="col-6">Anulado en:</dt>
+                <dd class="col-6">{{ formatDateTime(returnData.cancelledAt) }}</dd>
+                <dt class="col-6">Razón anulación:</dt>
+                <dd class="col-6 text-danger">{{ returnData.cancelReason || '-' }}</dd>
+              </ng-container>
+            </dl>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-md-6">
+        <div class="card h-100">
+          <div class="card-header fw-bold">Totales</div>
+          <div class="card-body">
+            <dl class="row mb-0">
+              <dt class="col-6">Subtotal:</dt>
+              <dd class="col-6">{{ formatCurrency(returnData.subtotal) }}</dd>
+              <dt class="col-6">IVA:</dt>
+              <dd class="col-6">{{ formatCurrency(returnData.totalVat) }}</dd>
+              <dt class="col-6 fw-bold fs-5">Total:</dt>
+              <dd class="col-6 fw-bold fs-5 text-primary">{{ formatCurrency(returnData.totalAmount) }}</dd>
+            </dl>
+
+            <!-- Alertas contables -->
+            <div *ngIf="returnData.resolution === 'NOTA_CREDITO' && isProcessed"
+              class="alert alert-success mt-3 mb-0 py-2">
+              <i class="bi bi-check-circle-fill me-1"></i>
+              <small><strong>Saldo a favor generado</strong> en la cuenta del cliente.</small>
+            </div>
+            <div *ngIf="(returnData.resolution === 'REEMBOLSO_EFECTIVO' || returnData.resolution === 'REEMBOLSO_TRANSFERENCIA') && isProcessed"
+              class="alert alert-warning mt-3 mb-0 py-2">
+              <i class="bi bi-exclamation-triangle-fill me-1"></i>
+              <small><strong>Pendiente entrega al cliente: {{ formatCurrency(returnData.totalAmount) }}</strong></small>
+            </div>
+            <div *ngIf="returnData.resolution === 'CAMBIO_PRODUCTO' && isProcessed"
+              class="alert alert-info mt-3 mb-0 py-2">
+              <i class="bi bi-arrow-left-right me-1"></i>
+              <small>Crear <strong>nueva venta</strong> para el producto de cambio.</small>
+            </div>
+            <div *ngIf="returnData.resolution === 'ABONO_PROVEEDOR' && isProcessed"
+              class="alert alert-info mt-3 mb-0 py-2">
+              <i class="bi bi-file-earmark-check me-1"></i>
+              <small>Nota crédito del proveedor registrada. <strong>Aplicable a futuras facturas.</strong></small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ítems -->
+    <div class="card mb-3">
+      <div class="card-header fw-bold">Ítems Devueltos</div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-sm mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Código</th>
+                <th>Descripción</th>
+                <th class="text-center">Cantidad</th>
+                <th class="text-end">Precio Unit.</th>
+                <th class="text-center">IVA%</th>
+                <th class="text-end">IVA $</th>
+                <th class="text-end">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of returnData.items">
+                <td><small class="text-muted">{{ item.presentationBarcode || item.productCode || '-' }}</small></td>
+                <td>{{ item.description || item.productId }}</td>
+                <td class="text-center fw-bold">{{ item.quantity }}</td>
+                <td class="text-end">{{ formatCurrency(item.unitPrice) }}</td>
+                <td class="text-center">{{ item.vatRate || 0 }}%</td>
+                <td class="text-end">{{ formatCurrency(item.vatAmount) }}</td>
+                <td class="text-end fw-bold">{{ formatCurrency(item.totalAmount) }}</td>
+              </tr>
+            </tbody>
+            <tfoot class="table-light fw-bold">
+              <tr>
+                <td colspan="6" class="text-end">Total:</td>
+                <td class="text-end text-primary">{{ formatCurrency(returnData.totalAmount) }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notas -->
+    <div *ngIf="returnData.notes" class="card">
+      <div class="card-header fw-bold">Notas</div>
+      <div class="card-body">{{ returnData.notes }}</div>
+    </div>
+  </ng-container>
+
+  <!-- Modal Anulación -->
+  <div *ngIf="showCancelModal" class="modal d-block" tabindex="-1" style="background:rgba(0,0,0,0.5);">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title"><i class="bi bi-x-circle me-2"></i>Anular Devolución</h5>
+          <button type="button" class="btn-close btn-close-white" (click)="closeCancelModal()"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            Al anular esta devolución, el <strong>stock será revertido automáticamente</strong>
+            y cualquier saldo a favor también será revertido.
+          </div>
+          <label class="form-label fw-bold">Razón de anulación <span class="text-danger">*</span></label>
+          <textarea class="form-control" rows="3" [(ngModel)]="cancelReason"
+            placeholder="Describe la razón de la anulación..." autofocus></textarea>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" (click)="closeCancelModal()">Cancelar</button>
+          <button class="btn btn-danger" (click)="confirmCancel()" [disabled]="isCancelling">
+            <span *ngIf="isCancelling" class="spinner-border spinner-border-sm me-1"></span>
+            <i *ngIf="!isCancelling" class="bi bi-x-circle me-1"></i>
+            Confirmar Anulación
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

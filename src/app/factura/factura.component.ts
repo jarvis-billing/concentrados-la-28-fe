@@ -147,6 +147,8 @@ export class FacturaComponent implements OnInit, AfterViewInit {
   onBatchSelectionCancelled(): void {
     this.showBatchSelectorModal = false;
     this.productForBatchSelection = null;
+    document.body.classList.remove('modal-open');
+    document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
   }
 
   // Selección de presentación viene del modal hijo vía onPresentationSelected
@@ -647,6 +649,8 @@ export class FacturaComponent implements OnInit, AfterViewInit {
   // Manejar cuando se cancela el uso del saldo
   onCreditCancelled(): void {
     this.creditToApply = 0;
+    document.body.classList.remove('modal-open');
+    document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
   }
 
   // Recalcular totales considerando el saldo a favor aplicado

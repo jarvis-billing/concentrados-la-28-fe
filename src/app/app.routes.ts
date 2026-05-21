@@ -49,6 +49,10 @@ import { ReportsDashboardComponent } from './reportes/pages/reports-dashboard/re
 import { ProfitReportComponent } from './reportes/pages/profit-report/profit-report.component';
 import { ProductMovementsReportComponent } from './reportes/pages/product-movements-report/product-movements-report.component';
 import { CashFlowReportComponent } from './reportes/pages/cash-flow-report/cash-flow-report.component';
+import { ReturnsListPageComponent } from './devoluciones/pages/returns-list-page/returns-list-page.component';
+import { SaleReturnFormComponent } from './devoluciones/pages/sale-return-form/sale-return-form.component';
+import { PurchaseReturnFormComponent } from './devoluciones/pages/purchase-return-form/purchase-return-form.component';
+import { ReturnDetailPageComponent } from './devoluciones/pages/return-detail-page/return-detail-page.component';
 
 export const routes: Routes = [
     { path: '', pathMatch: 'full', redirectTo: '/login' },
@@ -204,6 +208,18 @@ export const routes: Routes = [
         },
         {
             path: 'reportes/flujo-caja', component: CashFlowReportComponent
+        },
+        {
+            path: 'devoluciones', component: ReturnsListPageComponent
+        },
+        {
+            path: 'devoluciones/nueva-venta', component: SaleReturnFormComponent
+        },
+        {
+            path: 'devoluciones/nueva-compra', component: PurchaseReturnFormComponent
+        },
+        {
+            path: 'devoluciones/:id', component: ReturnDetailPageComponent
         }
     ]}
 ];
