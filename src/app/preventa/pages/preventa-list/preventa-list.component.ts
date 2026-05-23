@@ -1,7 +1,7 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { toast } from 'ngx-sonner';
 import { PreSaleService } from '../../services/pre-sale.service';
 import { PreSaleDto, PreSaleFilterDto, PreSaleStatus } from '../../models/pre-sale';
@@ -11,12 +11,15 @@ import { PreSaleDto, PreSaleFilterDto, PreSaleStatus } from '../../models/pre-sa
   standalone: true,
   imports: [CommonModule, FormsModule, CurrencyPipe, DatePipe, RouterLink],
   templateUrl: './preventa-list.component.html',
+  styleUrl: './preventa-list.component.css',
 })
 export class PreventaListComponent implements OnInit {
   private preSaleService = inject(PreSaleService);
+  private router = inject(Router);
 
   preventas: PreSaleDto[] = [];
   isLoading = false;
+  isMobileView = false;
 
   filterStatus: PreSaleStatus | '' = '';
   filterFromDate = '';
@@ -46,9 +49,14 @@ export class PreventaListComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.isMobileView = this.router.url.startsWith('/preventa/lista');
     this.filterFromDate = this.today();
     this.filterToDate = this.today();
     this.loadList();
+  }
+
+  goBack(): void {
+    this.router.navigate(['/preventa']);
   }
 
   loadList(): void {

@@ -21,6 +21,9 @@
           <span class="pending-count">{{ pendingPreSales.length }}</span>
         }
       </button>
+      <button class="pending-btn" routerLink="/preventa/lista" title="Ver todas mis preventas">
+        <i class="bi bi-list-check"></i>
+      </button>
       <span class="seller-chip">
         <i class="bi bi-person-fill me-1"></i>{{ sellerName }}
       </span>
@@ -50,27 +53,50 @@
   <!-- ====== VISTA: CAPTURA ====== -->
   @if (!savedPreSale) {
 
-    <!-- SCANNER INPUT -->
+    <!-- SCANNER INPUT / BÚSQUEDA -->
     <div class="scanner-section">
       <div class="input-group input-group-lg shadow-sm">
         <span class="input-group-text scanner-icon">
-          <i class="bi bi-upc-scan"></i>
+          <i class="bi" [class.bi-upc-scan]="scannerActive" [class.bi-search]="!scannerActive"></i>
         </span>
         <input
           #barcodeInputRef
           class="form-control scanner-input"
+          [class.disabled-input]="scannerActive"
           type="text"
           inputmode="text"
           autocomplete="off"
           autocorrect="off"
           spellcheck="false"
-          placeholder="Escanear código de barras…"
+          [placeholder]="scannerActive ? 'Escáner HID activo…' : 'Buscar producto por nombre…'"
           [(ngModel)]="barcodeInputValue"
-          (keyup.enter)="onBarcodeEnter()" />
-        <button class="btn btn-primary" type="button" (click)="onBarcodeEnter()">
+          (input)="onSearchInput()"
+          (keyup.enter)="scannerActive ? onBarcodeEnter() : null"
+          [disabled]="scannerActive" />
+        <button class="btn btn-primary" type="button" (click)="scannerActive ? onBarcodeEnter() : null">
           <i class="bi bi-search"></i>
         </button>
       </div>
+
+      <!-- AUTOCOMPLETE RESULTS -->
+      @if (showSearchResults && searchResults.length > 0) {
+        <div class="search-results">
+          @for (r of searchResults; track r.presentation.barcode) {
+            <div class="search-result-item"
+                 (click)="selectSearchResult(r)"
+                 (touchstart)="selectSearchResult(r)">
+              <div class="search-result-desc">{{ r.product.description }}{{ r.presentation.label ? ' - ' + r.presentation.label : '' }}</div>
+              <div class="search-result-meta">
+                <span class="search-result-barcode">{{ r.presentation.barcode }}</span>
+                <span class="search-result-price">{{ r.presentation.salePrice | currency:'$ ':'symbol':'.0-0' }}</span>
+                @if (r.presentation.isBulk) {
+                  <span class="badge bg-warning text-dark">Granel</span>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      }
     </div>
 
     <!-- ITEMS LIST -->
@@ -78,8 +104,13 @@
 
       @if (items.length === 0) {
         <div class="empty-state">
-          <i class="bi bi-upc-scan empty-icon"></i>
-          <p class="empty-text">Escanea un producto para empezar</p>
+          @if (scannerActive) {
+            <i class="bi bi-upc-scan empty-icon"></i>
+            <p class="empty-text">Escanea un producto para empezar</p>
+          } @else {
+            <i class="bi bi-search empty-icon"></i>
+            <p class="empty-text">Busca un producto por nombre para empezar</p>
+          }
         </div>
       }
 
@@ -298,3 +329,4 @@
   </div>
 
 </div>
+

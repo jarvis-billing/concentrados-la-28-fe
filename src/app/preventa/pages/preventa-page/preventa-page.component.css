@@ -53,6 +53,7 @@
   flex-shrink: 0;
   background: #fff;
   border-bottom: 1px solid #dee2e6;
+  position: relative;
 }
 
 .scanner-icon {
@@ -69,6 +70,71 @@
 .scanner-input:focus {
   box-shadow: none;
   border-color: #0d6efd;
+}
+
+.disabled-input {
+  background-color: #e9ecef;
+  color: #6c757d;
+  cursor: not-allowed;
+}
+
+/* ====== AUTOCOMPLETE RESULTS ====== */
+.search-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  max-height: 280px;
+  overflow-y: auto;
+  z-index: 1050;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+
+.search-result-item {
+  padding: 10px 14px;
+  border-bottom: 1px solid #f1f3f5;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.search-result-item:last-child {
+  border-bottom: none;
+}
+
+.search-result-item:active {
+  background: #e7f1ff;
+}
+
+.search-result-desc {
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: #212529;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.search-result-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 3px;
+  font-size: 0.82rem;
+}
+
+.search-result-barcode {
+  color: #6c757d;
+  font-family: monospace;
+}
+
+.search-result-price {
+  color: #0d6efd;
+  font-weight: 600;
+  margin-left: auto;
 }
 
 /* ====== ITEMS LIST ====== */

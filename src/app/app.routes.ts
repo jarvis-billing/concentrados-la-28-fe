@@ -62,6 +62,7 @@ import { CompanyPageComponent } from './configuracion/pages/company-page/company
 export const routes: Routes = [
     { path: '', pathMatch: 'full', redirectTo: '/login' },
     { path: 'preventa', component: PreventaPageComponent, canActivate: [authGuard] },
+    { path: 'preventa/lista', component: PreventaListComponent, canActivate: [authGuard] },
     { path: 'persona', component: PersonaComponent },
     { path: 'login', component: LoginComponent },
     { path: 'menu', component: MenuComponent },

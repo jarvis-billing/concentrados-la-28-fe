@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { CommonModule, CurrencyPipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { toast } from 'ngx-sonner';
 
 import { Presentation, Product, UnitMeasure } from '../../../producto/producto';
@@ -27,14 +27,13 @@ import {
 @Component({
   selector: 'app-preventa-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, CurrencyPipe, DecimalPipe],
+  imports: [CommonModule, FormsModule, CurrencyPipe, DecimalPipe, RouterLink],
   templateUrl: './preventa-page.component.html',
   styleUrl: './preventa-page.component.css',
 })
 export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('barcodeInputRef') barcodeInputRef!: ElementRef<HTMLInputElement>;
   @ViewChild('bulkAmountInputRef') bulkAmountInputRef!: ElementRef<HTMLInputElement>;
-
   sellerName = '';
   items: PreSaleItemDto[] = [];
   totalAmount = 0;
@@ -43,6 +42,8 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
 
   barcodeInputValue = '';
   scannerActive = true;
+  searchResults: { product: Product; presentation: Presentation }[] = [];
+  showSearchResults = false;
 
   showBulkDrawer = false;
   pendingBulkProduct: Product | null = null;
@@ -83,7 +84,8 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit(): void {
-    this.focusBarcodeInput();
+    // Scanner inicia activo: input deshabilitado, HID captura barcodes
+    this.barcodeInputRef?.nativeElement?.setAttribute('disabled', 'true');
   }
 
   ngOnDestroy(): void {
@@ -120,12 +122,20 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+    const scannerSection = document.querySelector('.scanner-section');
+    if (scannerSection && !scannerSection.contains(target)) {
+      this.showSearchResults = false;
+    }
+  }
+
   onBarcodeEnter(): void {
     const code = this.barcodeInputValue.trim();
     if (!code) return;
     this.processBarcode(code);
     this.barcodeInputValue = '';
-    this.focusBarcodeInput();
   }
 
   private processBarcode(barcode: string): void {
@@ -242,7 +252,10 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
     this.pendingBulkEditIndex = null;
     this.bulkAmountValue = null;
     this.bulkComputedQty = 0;
-    setTimeout(() => this.focusBarcodeInput(), 150);
+    // Si scanner está pausado, devolver foco al input de búsqueda
+    if (!this.scannerActive) {
+      setTimeout(() => this.focusBarcodeInput(), 150);
+    }
   }
 
   // =============================================
@@ -350,9 +363,14 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
     this.scannerActive = !this.scannerActive;
     if (this.scannerActive) {
       toast.info('Escáner activado — HID listo');
-      setTimeout(() => this.focusBarcodeInput(), 100);
+      this.barcodeInputRef?.nativeElement?.setAttribute('disabled', 'true');
+      this.barcodeInputRef?.nativeElement?.blur();
+      this.showSearchResults = false;
+      this.searchResults = [];
     } else {
-      toast.info('Escáner pausado');
+      toast.info('Escáner pausado — busca por descripción');
+      this.barcodeInputRef?.nativeElement?.removeAttribute('disabled');
+      setTimeout(() => this.barcodeInputRef?.nativeElement?.focus(), 100);
     }
   }
 
@@ -368,7 +386,44 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
     this.totalAmount = this.items.reduce((s, i) => s + i.subTotal, 0);
   }
 
+  onSearchInput(): void {
+    const query = this.barcodeInputValue.trim().toLowerCase();
+    if (query.length < 2) {
+      this.showSearchResults = false;
+      this.searchResults = [];
+      return;
+    }
+    const results: { product: Product; presentation: Presentation }[] = [];
+    for (const prod of this.allProducts) {
+      const rootDesc = (prod.description || '').toLowerCase();
+      for (const pres of prod.presentations || []) {
+        const label = (pres.label || '').toLowerCase();
+        const barcode = (pres.barcode || '').toLowerCase();
+        const combined = label ? `${rootDesc} - ${label}` : rootDesc;
+        if (combined.includes(query) || barcode.includes(query)) {
+          results.push({ product: prod, presentation: pres });
+        }
+      }
+    }
+    this.searchResults = results.slice(0, 15);
+    this.showSearchResults = this.searchResults.length > 0;
+  }
+
+  selectSearchResult(result: { product: Product; presentation: Presentation }): void {
+    const mapped = this.mapPresentation(result.product, result.presentation);
+    this.addOrAccumulate(mapped);
+    this.barcodeInputValue = '';
+    this.showSearchResults = false;
+    this.searchResults = [];
+    // Mantener foco para seguir buscando
+    if (!this.scannerActive) {
+      setTimeout(() => this.barcodeInputRef?.nativeElement?.focus(), 50);
+    }
+  }
+
   private focusBarcodeInput(): void {
+    // Solo enfocar si scanner está pausado (input habilitado para búsqueda)
+    if (this.scannerActive) return;
     setTimeout(() => this.barcodeInputRef?.nativeElement?.focus(), 100);
   }
 
