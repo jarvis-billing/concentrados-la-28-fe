@@ -1,9 +1,12 @@
 export const urlConfig = {
     
-    //For local server use:
+    //For local server use (desktop browser):
     
-     //baseUrl: 'http://localhost:8080',
+    //baseUrl: 'http://localhost:8080',
     
+    //For local network (mobile / same WiFi):
+    
+     //baseUrl: 'http://192.168.101.3:8080',
     
     //For remote server use:
     
@@ -46,4 +49,10 @@ export const urlConfig = {
     getReportsServiceUrl: () => urlConfig.baseUrl + '/api/reports',
 
     getMerchandiseReturnsServiceUrl: () => urlConfig.baseUrl + '/api/merchandise-returns',
+
+    getCompanyServiceUrl: () => urlConfig.baseUrl + '/api/company',
+
+    getPreSaleServiceUrl: () => urlConfig.baseUrl + '/api/preventas',
+
+    getWebSocketUrl: () => urlConfig.baseUrl.replace(/^http/, 'ws') + '/ws/preventa',
 };

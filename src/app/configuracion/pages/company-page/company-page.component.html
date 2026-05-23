@@ -1,0 +1,295 @@
+<div class="container py-4" style="max-width: 860px;">
+
+  <!-- Header -->
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <h3 class="mb-0 text-primary"><i class="bi bi-building-fill me-2"></i>Empresa</h3>
+    @if (mode === 'view') {
+      <button class="btn btn-primary" (click)="startNew()">
+        <i class="bi bi-plus-lg me-1"></i>Nueva empresa
+      </button>
+    } @else {
+      <button class="btn btn-outline-secondary" (click)="cancel()">
+        <i class="bi bi-x-lg me-1"></i>Cancelar
+      </button>
+    }
+  </div>
+
+  <!-- LOADING -->
+  @if (isLoading) {
+    <div class="text-center py-5 text-muted">
+      <div class="spinner-border me-2"></div> Cargando...
+    </div>
+  }
+
+  <!-- ========== VIEW MODE ========== -->
+  @if (!isLoading && mode === 'view') {
+
+    <!-- Empresa activa -->
+    @if (activeCompany) {
+      <div class="card shadow-sm mb-4 border-start border-4 border-success">
+        <div class="card-header d-flex align-items-center justify-content-between bg-success bg-opacity-10">
+          <div>
+            <span class="badge bg-success me-2">ACTIVA</span>
+            <strong class="fs-5">{{ activeCompany.businessName }}</strong>
+          </div>
+          <button class="btn btn-sm btn-outline-primary" (click)="startEdit(activeCompany)">
+            <i class="bi bi-pencil me-1"></i>Editar
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="row g-2 small">
+            <div class="col-sm-4">
+              <span class="text-muted">NIT</span><br>
+              <strong>{{ activeCompany.nit }}</strong>
+            </div>
+            <div class="col-sm-4">
+              <span class="text-muted">Teléfono</span><br>
+              {{ activeCompany.phone || '—' }}
+            </div>
+            <div class="col-sm-4">
+              <span class="text-muted">Email</span><br>
+              {{ activeCompany.email || '—' }}
+            </div>
+            <div class="col-sm-8">
+              <span class="text-muted">Dirección</span><br>
+              {{ activeCompany.address || '—' }}
+            </div>
+            <div class="col-sm-4">
+              <span class="text-muted">Tipo facturación</span><br>
+              {{ activeCompany.billingConfig?.billingType || '—' }}
+            </div>
+            @if (activeCompany.billingConfig?.prefixBill) {
+              <div class="col-sm-4">
+                <span class="text-muted">Prefijo / Resolución DIAN</span><br>
+                {{ activeCompany.billingConfig?.prefixBill }} · {{ activeCompany.billingConfig?.dianResolutionNumber || '—' }}
+              </div>
+            }
+            @if (activeCompany.billingConfig?.paymentMethods?.length) {
+              <div class="col-12">
+                <span class="text-muted d-block mb-1">Métodos de pago</span>
+                @for (m of activeCompany.billingConfig?.paymentMethods; track m) {
+                  <span class="badge bg-primary bg-opacity-10 text-primary me-1">{{ m }}</span>
+                }
+              </div>
+            }
+          </div>
+          @if (activeCompany.updatedBy) {
+            <div class="mt-2 pt-2 border-top">
+              <small class="text-muted">
+                <i class="bi bi-pencil me-1"></i>Modificado por <strong>{{ activeCompany.updatedBy }}</strong>
+                @if (activeCompany.updatedAt) { · {{ activeCompany.updatedAt | date:'dd/MM/yyyy HH:mm' }} }
+              </small>
+            </div>
+          }
+        </div>
+      </div>
+    } @else {
+      <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle me-2"></i>No hay empresa activa registrada.
+        <button class="btn btn-sm btn-warning ms-3" (click)="startNew()">Registrar ahora</button>
+      </div>
+    }
+
+    <!-- Empresas inactivas -->
+    @if (inactiveCompanies.length > 0) {
+      <h6 class="text-muted mb-2"><i class="bi bi-archive me-1"></i>Empresas inactivas</h6>
+      <div class="list-group mb-4">
+        @for (c of inactiveCompanies; track c.id) {
+          <div class="list-group-item d-flex align-items-center justify-content-between">
+            <div>
+              <span class="badge bg-secondary me-2">INACTIVA</span>
+              <strong>{{ c.businessName }}</strong>
+              <span class="text-muted small ms-2">NIT: {{ c.nit }}</span>
+            </div>
+            <div class="d-flex gap-2">
+              <button class="btn btn-sm btn-outline-secondary" (click)="startEdit(c)">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-success" (click)="activateCompany(c)">
+                <i class="bi bi-toggle-on me-1"></i>Activar
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  }
+
+  <!-- ========== EDIT / NEW FORM ========== -->
+  @if (!isLoading && (mode === 'edit' || mode === 'new')) {
+    <h5 class="mb-3">
+      @if (mode === 'new') { <i class="bi bi-plus-circle me-1 text-primary"></i>Registrar nueva empresa }
+      @else { <i class="bi bi-pencil-square me-1 text-primary"></i>Editar: {{ editingCompany?.businessName }} }
+    </h5>
+
+    <form [formGroup]="form" (ngSubmit)="save()">
+
+      <!-- Información general -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white fw-semibold">
+          <i class="bi bi-info-circle me-2"></i>Información General
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">NIT *</label>
+              <input type="text" class="form-control" formControlName="nit"
+                [class.is-invalid]="form.get('nit')!.invalid && form.get('nit')!.touched">
+              <div class="invalid-feedback">Campo requerido</div>
+            </div>
+            <div class="col-md-8">
+              <label class="form-label fw-semibold">Razón Social *</label>
+              <input type="text" class="form-control" formControlName="businessName"
+                [class.is-invalid]="form.get('businessName')!.invalid && form.get('businessName')!.touched">
+              <div class="invalid-feedback">Campo requerido</div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Teléfono</label>
+              <input type="text" class="form-control" formControlName="phone">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Email</label>
+              <input type="email" class="form-control" formControlName="email"
+                [class.is-invalid]="form.get('email')!.invalid && form.get('email')!.touched">
+              <div class="invalid-feedback">Email inválido</div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Dirección</label>
+              <input type="text" class="form-control" formControlName="address">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Configuración de facturación -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white fw-semibold">
+          <i class="bi bi-receipt me-2"></i>Configuración de Facturación
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Prefijo de factura</label>
+              <input type="text" class="form-control" formControlName="prefixBill" placeholder="Ej: CON">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">N° Resolución DIAN</label>
+              <input type="text" class="form-control" formControlName="dianResolutionNumber">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Vence resolución</label>
+              <input type="date" class="form-control" formControlName="resolutionExpiresDate">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Factura desde</label>
+              <input type="number" class="form-control" formControlName="billFrom" min="1">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Factura hasta</label>
+              <input type="number" class="form-control" formControlName="billUntil" min="1">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Tipo facturación</label>
+              <select class="form-select" formControlName="billingType">
+                <option value="">Seleccionar...</option>
+                @for (t of billingTypes; track t) {
+                  <option [value]="t">{{ t }}</option>
+                }
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Régimen tributario</label>
+              <select class="form-select" formControlName="taxRegime">
+                <option value="">Seleccionar...</option>
+                @for (r of taxRegimes; track r) {
+                  <option [value]="r">{{ r }}</option>
+                }
+              </select>
+            </div>
+            <div class="col-md-12">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="currentResolution" formControlName="isCurrentResolution">
+                <label class="form-check-label fw-semibold" for="currentResolution">
+                  Resolución activa (vigente)
+                </label>
+              </div>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Métodos de pago habilitados</label>
+              <div class="d-flex flex-wrap gap-2">
+                @for (m of paymentMethodOptions; track m) {
+                  <button type="button"
+                    class="btn btn-sm"
+                    [class.btn-primary]="selectedPaymentMethods.has(m)"
+                    [class.btn-outline-secondary]="!selectedPaymentMethods.has(m)"
+                    (click)="togglePaymentMethod(m)">
+                    {{ m }}
+                  </button>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Datos bancarios -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white fw-semibold">
+          <i class="bi bi-bank2 me-2"></i>Datos Bancarios
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Banco</label>
+              <input type="text" class="form-control" formControlName="bank">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Tipo de cuenta</label>
+              <select class="form-select" formControlName="bankAccountType">
+                <option value="">Seleccionar...</option>
+                <option value="CORRIENTE">CORRIENTE</option>
+                <option value="AHORROS">AHORROS</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">N° de cuenta</label>
+              <input type="text" class="form-control" formControlName="bankAccountNumber">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Auditoría (solo en edición) -->
+      @if (mode === 'edit' && (editingCompany?.createdBy || editingCompany?.updatedBy)) {
+        <div class="card border-0 bg-light mb-4">
+          <div class="card-body py-2">
+            <small class="text-muted">
+              @if (editingCompany?.createdBy) {
+                <span class="me-4">
+                  <i class="bi bi-person-check me-1"></i>Creado por <strong>{{ editingCompany!.createdBy }}</strong>
+                  @if (editingCompany?.createdAt) { · {{ editingCompany!.createdAt | date:'dd/MM/yyyy' }} }
+                </span>
+              }
+              @if (editingCompany?.updatedBy) {
+                <span>
+                  <i class="bi bi-pencil me-1"></i>Modificado por <strong>{{ editingCompany!.updatedBy }}</strong>
+                  @if (editingCompany?.updatedAt) { · {{ editingCompany!.updatedAt | date:'dd/MM/yyyy HH:mm' }} }
+                </span>
+              }
+            </small>
+          </div>
+        </div>
+      }
+
+      <div class="d-flex justify-content-end gap-2">
+        <button type="button" class="btn btn-outline-secondary" (click)="cancel()">Cancelar</button>
+        <button type="submit" class="btn btn-primary px-4" [disabled]="isSaving">
+          @if (isSaving) { <span class="spinner-border spinner-border-sm me-1"></span> }
+          @else { <i class="bi bi-floppy-fill me-1"></i> }
+          {{ mode === 'new' ? 'Registrar empresa' : 'Guardar cambios' }}
+        </button>
+      </div>
+
+    </form>
+  }
+</div>

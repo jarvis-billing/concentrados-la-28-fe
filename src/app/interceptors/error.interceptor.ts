@@ -32,7 +32,10 @@ export function errorInterceptor(req: HttpRequest<unknown>, next: HttpHandlerFn)
 
             zone.run(() => {
               setTimeout(() => {
-                router.navigate(['/login'], { replaceUrl: true }).finally(() => {
+                router.navigate(['/login'], {
+                  replaceUrl: true,
+                  queryParams: currentUrl && !currentUrl.startsWith('/login') ? { returnUrl: currentUrl } : {}
+                }).finally(() => {
                   isRedirecting = false;
                 });
               }, 500);

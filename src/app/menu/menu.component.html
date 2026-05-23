@@ -35,6 +35,10 @@
                       <a class="dropdown-item" routerLink="/main/list/facturas" (click)="closeMenu()">Listar ventas</a>
                       <a class="dropdown-item" routerLink="/main/list/sale/products" (click)="closeMenu()">Listar productos vendidos</a>
                       <div class="dropdown-divider"></div>
+                      <a class="dropdown-item" routerLink="/main/preventa/lista" (click)="closeMenu()">
+                        <i class="bi bi-phone me-1"></i> Preventas
+                      </a>
+                      <div class="dropdown-divider"></div>
                       <a class="dropdown-item" routerLink="/main/devoluciones/nueva-venta" (click)="closeMenu()">
                         <i class="bi bi-cart-x me-1"></i> Nueva Dev. de Venta
                       </a>
@@ -144,24 +148,19 @@
                     </div>
                 </li>
 
-                <li class="nav-item mx-2">
-                    <a class="nav-link" routerLink="/main/configuracion" routerLinkActive="active" (click)="closeMenu()">Configuracion</a>
+                <li class="nav-item mx-2 dropdown">
+                    <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" routerLinkActive="active" role="button" aria-haspopup="true" aria-expanded="false">
+                        <i class="bi bi-gear-fill me-1"></i>Configuración
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-end" style="background-color: white; border-color: black;">
+                      <a class="dropdown-item" routerLink="/main/configuracion/usuarios" (click)="closeMenu()">
+                        <i class="bi bi-people-fill me-2"></i>Usuarios
+                      </a>
+                      <a class="dropdown-item" routerLink="/main/configuracion/empresa" (click)="closeMenu()">
+                        <i class="bi bi-building-fill me-2"></i>Empresa
+                      </a>
+                    </div>
                 </li>
-
-
-                <!-- <li class="nav-item mx-2">
-                    <a class="nav-link" routerLink="/main/categoria" routerLinkActive="active" (click)="closeMenu()">Categoria</a>
-                </li> -->
-
-
-                <!-- <li class="nav-item mx-2">
-                    <a class="nav-link" routerLink="/main/empresa" routerLinkActive="active" (click)="closeMenu()">Empresa</a>
-                </li> -->
-
-
-                <!-- <li class="nav-item mx-2">
-                    <a class="nav-link" routerLink="/main/facturacion" routerLinkActive="active" (click)="closeMenu()">Facturación</a>
-                </li> -->
 
             </ul>
 

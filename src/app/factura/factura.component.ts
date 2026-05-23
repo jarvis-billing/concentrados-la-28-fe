@@ -1,8 +1,8 @@
-import { AfterViewInit, Component, ElementRef, HostListener, ViewChild, inject, Input, OnInit } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, HostListener, OnDestroy, ViewChild, inject, Input, OnInit } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, FormArray } from '@angular/forms';
 import { toast } from 'ngx-sonner';
 import { CurrencyPipe, DatePipe, CommonModule } from '@angular/common';
-import { EVatType, Presentation, Product } from '../producto/producto';
+import { ESaleType, EVatType, Presentation, Product, UnitMeasure } from '../producto/producto';
 import { FacturaService } from './factura.service';
 import { Billing, saleTypeFromString, saleType } from './billing';
 import { formatInTimeZone } from 'date-fns-tz';
@@ -12,7 +12,7 @@ import { ClienteService } from '../cliente/cliente.service';
 import { ProductoService } from '../producto/producto.service';
 import { SaleDetail } from './saleDetail';
 import { Router } from '@angular/router';
-import { Observable } from 'rxjs';
+import { Observable, Subscription } from 'rxjs';
 import { CurrencyFormatDirective } from '../directive/currency-format.directive';
 import { StorageService } from '../services/localStorage.service';
 import { LoginUserService } from '../auth/login/loginUser.service';
@@ -28,6 +28,9 @@ import { Batch, BATCH_REQUIRED_CATEGORY } from '../lotes/models/batch';
 import { BatchSelectorModalComponent } from '../lotes/components/batch-selector-modal/batch-selector-modal.component';
 import { BatchExpirationAlertComponent } from '../lotes/components/batch-expiration-alert/batch-expiration-alert.component';
 import { BankAccountSelectComponent } from '../shared/components/bank-account-select/bank-account-select.component';
+import { PreSaleWebSocketService } from '../preventa/services/pre-sale-websocket.service';
+import { PreSaleService } from '../preventa/services/pre-sale.service';
+import { PreSaleNotification } from '../preventa/models/pre-sale';
 
 interface ProductSuggestion {
   product: Product;
@@ -58,7 +61,7 @@ interface ProductSuggestion {
   templateUrl: './factura.component.html',
   styleUrl: './factura.component.css'
 })
-export class FacturaComponent implements OnInit, AfterViewInit {
+export class FacturaComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('productsAmountModal', { static: false }) productsAmountModalRef!: ElementRef;
   @ViewChild('amountProductInput', { static: false }) amountProductInput!: ElementRef<HTMLInputElement>;
   @ViewChild(ProductsSearchModalComponent, { static: false }) productsSearchModalComp!: ProductsSearchModalComponent;
@@ -168,6 +171,46 @@ export class FacturaComponent implements OnInit, AfterViewInit {
     this.productService.productos$.subscribe(products => {
       this.allProducts = products || [];
     });
+    // Cargar preventas PENDING existentes via REST al abrir la pantalla
+    this.preSaleService.list({ status: 'PENDING' }).subscribe({
+      next: (preSales) => {
+        preSales.forEach(ps => {
+          if (!this.pendingPreSaleNotifications.find(n => n.preSaleId === ps.id)) {
+            this.pendingPreSaleNotifications.push({
+              preSaleId: ps.id,
+              preSaleNumber: ps.preSaleNumber,
+              sellerName: ps.sellerName,
+              totalAmount: ps.totalAmount,
+              itemCount: ps.items?.length ?? 0,
+              createdAt: ps.createdAt,
+            });
+          }
+        });
+      },
+      error: () => {},
+    });
+    // Conectar WebSocket para notificaciones de preventa en tiempo real
+    const token = window.localStorage.getItem('authToken');
+    if (token) {
+      this.preSaleWebSocketService.connect(token);
+      this.wsSubscription = this.preSaleWebSocketService.notifications$.subscribe(
+        (notification) => {
+          const idx = this.pendingPreSaleNotifications.findIndex(
+            n => n.preSaleId === notification.preSaleId
+          );
+          if (idx >= 0) {
+            this.pendingPreSaleNotifications[idx] = notification;
+          } else {
+            this.pendingPreSaleNotifications.push(notification);
+          }
+        }
+      );
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.wsSubscription?.unsubscribe();
+    this.preSaleWebSocketService.disconnect();
   }
 
   // --- Autocomplete cliente ---
@@ -200,6 +243,12 @@ export class FacturaComponent implements OnInit, AfterViewInit {
   loginUserService = inject(LoginUserService);
   clientCreditService = inject(ClientCreditService);
   batchService = inject(BatchService);
+  private preSaleWebSocketService = inject(PreSaleWebSocketService);
+  private preSaleService = inject(PreSaleService);
+
+  pendingPreSaleNotifications: PreSaleNotification[] = [];
+  showPreventaPanel = false;
+  private wsSubscription: Subscription | null = null;
 
   // Lotes para productos de ANIMALES VIVOS
   showBatchSelectorModal = false;
@@ -1708,5 +1757,61 @@ export class FacturaComponent implements OnInit, AfterViewInit {
     }
     if (!mapped.amount || mapped.amount < 1) mapped.amount = 1;
     return mapped;
+  }
+
+  // =============================================
+  // PREVENTA — Importar al facturador
+  // =============================================
+
+  importPreSale(notification: PreSaleNotification): void {
+    this.preSaleService.getById(notification.preSaleId).subscribe({
+      next: (preSale) => {
+        preSale.items.forEach(item => {
+          const existingIdx = this.saleDetails.findIndex(
+            d => (d.product.barcode || '').toLowerCase() === (item.barcode || '').toLowerCase()
+          );
+          if (existingIdx >= 0 && !item.isBulk) {
+            this.saleDetails[existingIdx].amount += item.amount;
+            this.saleDetails[existingIdx].subTotal =
+              this.saleDetails[existingIdx].amount * this.saleDetails[existingIdx].unitPrice;
+          } else {
+            const prod = new Product();
+            prod.id = item.productId;
+            prod.barcode = item.barcode;
+            prod.description = item.description;
+            prod.price = item.price;
+            prod.amount = item.amount;
+            prod.saleType = item.saleType as ESaleType;
+            prod.selectedUnitMeasure = item.unitMeasure as UnitMeasure;
+            prod.selectedPresentationLabel = item.presentationLabel;
+            prod.isBulk = item.isBulk;
+            prod.totalValue = item.subTotal;
+            if (item.isBulk && item.bulkInputAmount) {
+              (prod as any)._bulkInputAmount = item.bulkInputAmount;
+            }
+            const detail = new SaleDetail();
+            detail.id = item.productId;
+            detail.product = prod;
+            detail.amount = item.amount;
+            detail.unitPrice = item.price;
+            detail.unitCost = 0;
+            detail.subTotal = item.subTotal;
+            detail.isBulkSale = item.isBulk;
+            detail.bulkInputAmount = item.bulkInputAmount;
+            this.saleDetails.push(detail);
+          }
+        });
+        this.calculateTotalBilling();
+        this.dismissPreSaleNotification(notification);
+        toast.success(`Preventa ${preSale.preSaleNumber} importada — ${preSale.items.length} ítem(s)`);
+      },
+      error: () => toast.error('Error al cargar la preventa'),
+    });
+  }
+
+  dismissPreSaleNotification(notification: PreSaleNotification): void {
+    this.pendingPreSaleNotifications = this.pendingPreSaleNotifications.filter(
+      n => n.preSaleId !== notification.preSaleId
+    );
   }
 }

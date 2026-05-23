@@ -1,6 +1,64 @@
 <!-- Alerta de lotes de animales vivos expirados/próximos a expirar -->
 <app-batch-expiration-alert></app-batch-expiration-alert>
 
+<!-- ═══════════════════════════════════════════════
+     FAB flotante — Preventas pendientes
+═══════════════════════════════════════════════ -->
+@if (pendingPreSaleNotifications.length > 0) {
+  <button class="preventa-fab" (click)="showPreventaPanel = true" title="Preventas pendientes">
+    <i class="bi bi-phone-fill"></i>
+    <span class="preventa-fab-badge">{{ pendingPreSaleNotifications.length }}</span>
+  </button>
+}
+
+<!-- Overlay -->
+@if (showPreventaPanel) {
+  <div class="preventa-overlay" (click)="showPreventaPanel = false"></div>
+}
+
+<!-- Side panel -->
+<div class="preventa-panel" [class.open]="showPreventaPanel">
+  <div class="preventa-panel-header">
+    <div>
+      <span class="preventa-panel-title">
+        <i class="bi bi-phone-fill me-2 text-primary"></i>Preventas listas
+      </span>
+      <span class="preventa-panel-count ms-2">{{ pendingPreSaleNotifications.length }}</span>
+    </div>
+    <button class="btn btn-sm btn-close" (click)="showPreventaPanel = false"></button>
+  </div>
+
+  <div class="preventa-panel-body">
+    @if (pendingPreSaleNotifications.length === 0) {
+      <div class="preventa-empty">
+        <i class="bi bi-inbox fs-1 d-block mb-2 text-muted"></i>
+        <span class="text-muted small">Sin preventas pendientes</span>
+      </div>
+    }
+    @for (n of pendingPreSaleNotifications; track n.preSaleId) {
+      <div class="preventa-card">
+        <div class="preventa-card-top">
+          <span class="preventa-num">{{ n.preSaleNumber }}</span>
+          <span class="preventa-amount">{{ n.totalAmount | currency:'$ ':'symbol':'.0-0' }}</span>
+        </div>
+        <div class="preventa-card-meta">
+          <i class="bi bi-person me-1"></i>{{ n.sellerName }}
+          <span class="mx-2 text-muted">·</span>
+          <i class="bi bi-box-seam me-1"></i>{{ n.itemCount }} ítem(s)
+        </div>
+        <div class="preventa-card-actions">
+          <button class="btn btn-sm btn-primary w-100" (click)="importPreSale(n); showPreventaPanel = false">
+            <i class="bi bi-file-arrow-down me-1"></i>Importar a factura
+          </button>
+          <button class="btn btn-sm btn-outline-secondary" (click)="dismissPreSaleNotification(n)" title="Descartar">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+</div>
+
 <!-- Secciones reorganizadas en columnas: Factura, Cliente, Totales y Productos -->
 <div class="container-fluid">
   <h2 class="text-primary text-center">Factura de Venta</h2>

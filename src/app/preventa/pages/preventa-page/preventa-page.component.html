@@ -1,0 +1,300 @@
+<div class="preventa-wrapper">
+
+  <!-- ====== HEADER ====== -->
+  <div class="preventa-header">
+    <div class="header-left">
+      <i class="bi bi-cart3 me-2"></i>
+      <span class="header-title">Preventa</span>
+    </div>
+    <div class="header-right">
+      <button
+        class="scanner-toggle-btn"
+        [class.active]="scannerActive"
+        (click)="toggleScanner()"
+        [title]="scannerActive ? 'Escáner activo — toca para pausar' : 'Escáner pausado — toca para activar'">
+        <i class="bi" [class.bi-upc-scan]="scannerActive" [class.bi-upc]="!scannerActive"></i>
+        <span class="scanner-toggle-label">{{ scannerActive ? 'ON' : 'OFF' }}</span>
+      </button>
+      <button class="pending-btn" (click)="togglePendingPanel()" title="Mis preventas pendientes">
+        <i class="bi bi-clock-history"></i>
+        @if (pendingPreSales.length > 0) {
+          <span class="pending-count">{{ pendingPreSales.length }}</span>
+        }
+      </button>
+      <span class="seller-chip">
+        <i class="bi bi-person-fill me-1"></i>{{ sellerName }}
+      </span>
+    </div>
+  </div>
+
+  <!-- ====== VISTA: CONFIRMACIÓN ====== -->
+  @if (savedPreSale) {
+    <div class="success-screen">
+      <div class="success-icon">
+        <i class="bi bi-check-circle-fill"></i>
+      </div>
+      <h4 class="success-title">¡Preventa Enviada!</h4>
+      <p class="success-number">{{ savedPreSale.preSaleNumber }}</p>
+      <p class="text-muted small">El facturador fue notificado y está procesando tu pedido.</p>
+      <div class="d-flex flex-column gap-2 mt-3">
+        <button class="btn btn-success btn-lg" (click)="newPreventa()">
+          <i class="bi bi-plus-circle me-2"></i>Nueva Preventa
+        </button>
+        <button class="btn btn-outline-secondary" (click)="goBack()">
+          <i class="bi bi-house me-2"></i>Ir al Inicio
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- ====== VISTA: CAPTURA ====== -->
+  @if (!savedPreSale) {
+
+    <!-- SCANNER INPUT -->
+    <div class="scanner-section">
+      <div class="input-group input-group-lg shadow-sm">
+        <span class="input-group-text scanner-icon">
+          <i class="bi bi-upc-scan"></i>
+        </span>
+        <input
+          #barcodeInputRef
+          class="form-control scanner-input"
+          type="text"
+          inputmode="text"
+          autocomplete="off"
+          autocorrect="off"
+          spellcheck="false"
+          placeholder="Escanear código de barras…"
+          [(ngModel)]="barcodeInputValue"
+          (keyup.enter)="onBarcodeEnter()" />
+        <button class="btn btn-primary" type="button" (click)="onBarcodeEnter()">
+          <i class="bi bi-search"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- ITEMS LIST -->
+    <div class="items-container" [class.blurred]="showBulkDrawer">
+
+      @if (items.length === 0) {
+        <div class="empty-state">
+          <i class="bi bi-upc-scan empty-icon"></i>
+          <p class="empty-text">Escanea un producto para empezar</p>
+        </div>
+      }
+
+      @for (item of items; track item.barcode; let i = $index) {
+        <div class="item-card">
+          <div class="item-info">
+            <div class="item-description">{{ item.description }}</div>
+            <div class="item-meta">
+              @if (item.presentationLabel) {
+                <span class="badge bg-secondary me-1">{{ item.presentationLabel }}</span>
+              }
+              @if (item.isBulk) {
+                <span class="badge bg-warning text-dark">
+                  <i class="bi bi-scale me-1"></i>Granel · {{ item.bulkInputAmount | currency:'$ ':'symbol':'.0-0' }}
+                </span>
+              } @else {
+                <span class="item-price">{{ item.price | currency:'$ ':'symbol':'.0-0' }} c/u</span>
+              }
+            </div>
+          </div>
+
+          <div class="item-actions">
+            @if (!item.isBulk) {
+              <button class="btn btn-sm qty-btn btn-outline-danger" (click)="decrementItem(i)">
+                <i class="bi bi-dash"></i>
+              </button>
+              <span class="qty-display">{{ item.amount }}</span>
+              <button class="btn btn-sm qty-btn btn-outline-success" (click)="incrementItem(i)">
+                <i class="bi bi-plus"></i>
+              </button>
+            } @else {
+              <button class="btn btn-sm btn-outline-primary" (click)="editBulkItem(i)" title="Editar monto">
+                <i class="bi bi-pencil-fill"></i>
+              </button>
+            }
+            <button class="btn btn-sm btn-outline-danger ms-1" (click)="removeItem(i)" title="Eliminar">
+              <i class="bi bi-trash3"></i>
+            </button>
+          </div>
+
+          <div class="item-subtotal">
+            {{ item.subTotal | currency:'$ ':'symbol':'.0-0' }}
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- FOOTER -->
+    <div class="preventa-footer">
+      <div class="total-row">
+        <span class="total-label">TOTAL</span>
+        <span class="total-value">{{ totalAmount | currency:'$ ':'symbol':'.0-0' }}</span>
+      </div>
+      <div class="footer-actions">
+        <button class="btn btn-outline-danger footer-btn-cancel" (click)="cancelPreventa()">
+          <i class="bi bi-x-circle me-1"></i>Cancelar
+        </button>
+        <button
+          class="btn btn-success footer-btn-send"
+          [disabled]="items.length === 0 || isSaving"
+          (click)="finalizePreventa()">
+          @if (isSaving) {
+            <span class="spinner-border spinner-border-sm me-2"></span>
+          } @else {
+            <i class="bi bi-send-check me-2"></i>
+          }
+          Finalizar
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- ====== BOTTOM DRAWER — GRANEL ====== -->
+  <div class="drawer-overlay" [class.visible]="showBulkDrawer" (click)="cancelBulkInput()"></div>
+
+  <div class="bulk-drawer" [class.visible]="showBulkDrawer">
+    <div class="drawer-handle"></div>
+
+    @if (pendingBulkProduct) {
+      <div class="drawer-body">
+        <h5 class="drawer-product-name">{{ pendingBulkProduct.description }}</h5>
+        <p class="drawer-product-price text-muted small">
+          <i class="bi bi-scale me-1"></i>
+          Precio: <strong>{{ pendingBulkProduct.price | currency:'$ ':'symbol':'.0-0' }}</strong>
+          / {{ pendingBulkProduct.selectedUnitMeasure }}
+        </p>
+
+        <label class="form-label fw-semibold">Total $ vendido:</label>
+
+        @if (bulkQuickAmounts.length > 0) {
+          <div class="quick-amounts-row mb-3">
+            @for (qa of bulkQuickAmounts; track qa) {
+              <button
+                class="quick-amount-chip"
+                [class.active]="bulkAmountValue === qa"
+                (click)="selectQuickAmount(qa)">
+                {{ qa | currency:'$':'symbol':'.0-0' }}
+              </button>
+            }
+          </div>
+        }
+
+        <div class="bulk-amount-preview mb-2">
+          <span [class.placeholder-text]="!bulkAmountValue || bulkAmountValue <= 0">
+            {{ (bulkAmountValue && bulkAmountValue > 0) ? (bulkAmountValue | currency:'$ ':'symbol':'.0-0') : '$ 0' }}
+          </span>
+        </div>
+
+        <div class="input-group input-group-lg mb-3">
+          <span class="input-group-text">$</span>
+          <input
+            #bulkAmountInputRef
+            class="form-control"
+            type="number"
+            inputmode="decimal"
+            min="0"
+            placeholder="0"
+            [(ngModel)]="bulkAmountValue"
+            (ngModelChange)="onBulkAmountChange()"
+            (keyup.enter)="confirmBulkInput()" />
+        </div>
+
+        @if (bulkComputedQty > 0) {
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <div class="card border-info text-center">
+                <div class="card-body py-2">
+                  <div class="text-muted small">Cantidad</div>
+                  <div class="fs-4 fw-bold text-info">{{ bulkComputedQty | number:'1.2-4' }}</div>
+                  <div class="text-muted small">{{ pendingBulkProduct.selectedUnitMeasure }}</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="card border-success text-center">
+                <div class="card-body py-2">
+                  <div class="text-muted small">Subtotal</div>
+                  <div class="fs-4 fw-bold text-success">{{ bulkAmountValue | currency:'$ ':'symbol':'.0-0' }}</div>
+                  <div class="text-success small"><i class="bi bi-check2-circle"></i> Monto exacto</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-secondary flex-fill" (click)="cancelBulkInput()">
+            <i class="bi bi-x me-1"></i>Cancelar
+          </button>
+          <button
+            class="btn btn-primary flex-fill btn-lg"
+            [disabled]="!bulkAmountValue || bulkAmountValue <= 0"
+            (click)="confirmBulkInput()">
+            <i class="bi bi-check-lg me-1"></i>Confirmar
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- ====== PREVENTAS PENDIENTES ====== -->
+  <div class="pending-overlay" [class.visible]="showPendingPanel" (click)="togglePendingPanel()"></div>
+
+  <div class="pending-drawer" [class.visible]="showPendingPanel">
+    <div class="drawer-handle"></div>
+    <div class="pending-header">
+      <div>
+        <h6 class="mb-0 fw-bold">Mis Preventas Pendientes</h6>
+        <small class="text-muted">Sin facturar · puedes reenviar{{ canDismiss ? ' o desestimar' : '' }}</small>
+      </div>
+      <button class="btn btn-sm btn-close" (click)="togglePendingPanel()"></button>
+    </div>
+    <div class="pending-body">
+      @if (isPendingLoading) {
+        <div class="text-center py-4">
+          <span class="spinner-border spinner-border-sm text-primary me-2"></span>Cargando…
+        </div>
+      } @else if (pendingPreSales.length === 0) {
+        <div class="text-center py-4 text-muted">
+          <i class="bi bi-check2-circle fs-2 d-block mb-2 text-success"></i>
+          Sin preventas pendientes
+        </div>
+      } @else {
+        <div class="pending-list">
+          @for (ps of pendingPreSales; track ps.id) {
+            <div class="pending-item">
+              <div class="pending-item-info">
+                <div class="pending-item-number">{{ ps.preSaleNumber }}</div>
+                <div class="pending-item-meta">
+                  <i class="bi bi-clock me-1"></i>{{ ps.createdAt | date:'HH:mm · d MMM' }}
+                  &nbsp;·&nbsp;{{ ps.items.length }} ítem{{ ps.items.length !== 1 ? 's' : '' }}
+                </div>
+                <div class="pending-item-total">{{ ps.totalAmount | currency:'$ ':'symbol':'.0-0' }}</div>
+              </div>
+              <div class="pending-item-actions">
+                <button
+                  class="btn btn-sm btn-outline-primary"
+                  (click)="resendPreSale(ps)"
+                  title="Reenviar al facturador">
+                  <i class="bi bi-send-fill"></i>
+                </button>
+                @if (canDismiss) {
+                  <button
+                    class="btn btn-sm btn-outline-danger"
+                    (click)="dismissPreSale(ps, $event)"
+                    title="Desestimar">
+                    <i class="bi bi-x-circle-fill"></i>
+                  </button>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+
+</div>

@@ -1,4 +1,23 @@
-<div class="loading-overlay" *ngIf="(isLoading$ | async)">
-  <div class="spinner"></div>
-  <div class="message">Procesando...</div>
+<div class="farm-overlay" *ngIf="(isLoading$ | async)">
+  <div class="farm-card">
+    <div class="orbit-scene">
+      <div class="orbit-track"></div>
+      <div class="animal-wrap a1"><span>🐔</span></div>
+      <div class="animal-wrap a2"><span>🐷</span></div>
+      <div class="animal-wrap a3"><span>🐓</span></div>
+      <div class="animal-wrap a4"><span>🐖</span></div>
+      <div class="animal-wrap a5"><span>🐄</span></div>
+      <div class="orbit-center">
+        <div class="dot-ring">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+    </div>
+
+    <p class="farm-message">Cargando, por favor espera…</p>
+    <p class="farm-user" *ngIf="userName">
+      Hola, <strong>{{ userName }}</strong> 👋
+    </p>
+
+  </div>
 </div>

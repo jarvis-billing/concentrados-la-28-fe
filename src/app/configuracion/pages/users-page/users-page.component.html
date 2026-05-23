@@ -1,0 +1,201 @@
+<div class="container-fluid py-4">
+
+  <!-- Header -->
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+      <h3 class="mb-0 text-primary"><i class="bi bi-people-fill me-2"></i>Gestión de Usuarios</h3>
+      <small class="text-muted">{{ users.length }} usuario(s) registrado(s)</small>
+    </div>
+    <button class="btn btn-primary" (click)="openCreate()">
+      <i class="bi bi-person-plus-fill me-1"></i> Nuevo usuario
+    </button>
+  </div>
+
+  <!-- Table -->
+  <div class="card shadow-sm">
+    <div class="card-body p-0">
+      @if (isLoading) {
+        <div class="text-center py-5 text-muted">
+          <div class="spinner-border spinner-border-sm me-2"></div> Cargando usuarios...
+        </div>
+      } @else if (users.length === 0) {
+        <div class="text-center py-5 text-muted">
+          <i class="bi bi-people fs-1 d-block mb-2"></i>No hay usuarios registrados
+        </div>
+      } @else {
+        <div class="table-responsive">
+          <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Nombre</th>
+                <th>Cédula</th>
+                <th>Teléfono</th>
+                <th>Dirección</th>
+                <th>Rol</th>
+                <th>Auditoría</th>
+                <th class="text-end">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (user of users; track user.id) {
+                <tr>
+                  <td>
+                    <div class="fw-semibold">{{ user.fullName || (user.name + ' ' + user.surname) }}</div>
+                  </td>
+                  <td class="text-muted small">{{ user.numberIdentity }}</td>
+                  <td class="small">{{ user.phone || '—' }}</td>
+                  <td class="small">{{ user.address || '—' }}</td>
+                  <td><span [class]="roleBadgeClass(user.rol)">{{ user.rol || '—' }}</span></td>
+                  <td class="small text-muted">
+                    @if (user.createdBy) {
+                      <div><i class="bi bi-person-check me-1"></i>Creado por <strong>{{ user.createdBy }}</strong></div>
+                    }
+                    @if (user.updatedBy) {
+                      <div><i class="bi bi-pencil me-1"></i>Editado por <strong>{{ user.updatedBy }}</strong></div>
+                    }
+                    @if (!user.createdBy && !user.updatedBy) { <span>—</span> }
+                  </td>
+                  <td class="text-end">
+                    <button class="btn btn-sm btn-outline-primary me-1" title="Editar" (click)="openEdit(user)">
+                      <i class="bi bi-pencil-fill"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary me-1" title="Cambiar contraseña" (click)="openChangePassword(user)">
+                      <i class="bi bi-key-fill"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" title="Eliminar" (click)="confirmDelete(user)">
+                      <i class="bi bi-trash-fill"></i>
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Crear / Editar usuario -->
+@if (showUserModal) {
+  <div class="modal-backdrop-custom" (click)="showUserModal = false"></div>
+  <div class="modal-panel shadow-lg">
+    <div class="modal-header border-bottom pb-3 mb-3">
+      <h5 class="modal-title mb-0">
+        <i class="bi bi-person-fill me-2 text-primary"></i>
+        {{ isEditMode ? 'Editar usuario' : 'Nuevo usuario' }}
+      </h5>
+      <button type="button" class="btn-close" (click)="showUserModal = false"></button>
+    </div>
+
+    <form [formGroup]="userForm" (ngSubmit)="saveUser()">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Cédula *</label>
+          <input type="text" class="form-control" formControlName="numberIdentity"
+            [class.is-invalid]="userForm.get('numberIdentity')!.invalid && userForm.get('numberIdentity')!.touched">
+          <div class="invalid-feedback">Campo requerido</div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Rol *</label>
+          <select class="form-select" formControlName="rol">
+            @for (r of roles; track r) {
+              <option [value]="r">{{ r }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Nombre *</label>
+          <input type="text" class="form-control" formControlName="name"
+            [class.is-invalid]="userForm.get('name')!.invalid && userForm.get('name')!.touched">
+          <div class="invalid-feedback">Campo requerido</div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Apellido *</label>
+          <input type="text" class="form-control" formControlName="surname"
+            [class.is-invalid]="userForm.get('surname')!.invalid && userForm.get('surname')!.touched">
+          <div class="invalid-feedback">Campo requerido</div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Teléfono</label>
+          <input type="text" class="form-control" formControlName="phone">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Dirección</label>
+          <input type="text" class="form-control" formControlName="address">
+        </div>
+        @if (!isEditMode) {
+          <div class="col-12">
+            <label class="form-label fw-semibold">Contraseña *</label>
+            <input type="password" class="form-control" formControlName="password"
+              [class.is-invalid]="userForm.get('password')!.invalid && userForm.get('password')!.touched">
+            <div class="invalid-feedback">Mínimo 6 caracteres</div>
+          </div>
+        }
+      </div>
+
+      <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+        <button type="button" class="btn btn-outline-secondary" (click)="showUserModal = false">Cancelar</button>
+        <button type="submit" class="btn btn-primary" [disabled]="isSaving">
+          <span *ngIf="isSaving" class="spinner-border spinner-border-sm me-1"></span>
+          {{ isEditMode ? 'Guardar cambios' : 'Crear usuario' }}
+        </button>
+      </div>
+    </form>
+  </div>
+}
+
+<!-- Modal: Cambiar contraseña -->
+@if (showPasswordModal) {
+  <div class="modal-backdrop-custom" (click)="showPasswordModal = false"></div>
+  <div class="modal-panel shadow-lg">
+    <div class="modal-header border-bottom pb-3 mb-3">
+      <h5 class="modal-title mb-0">
+        <i class="bi bi-key-fill me-2 text-warning"></i>
+        Cambiar contraseña — {{ selectedUser?.fullName || selectedUser?.name }}
+      </h5>
+      <button type="button" class="btn-close" (click)="showPasswordModal = false"></button>
+    </div>
+
+    <form [formGroup]="passwordForm" (ngSubmit)="savePassword()">
+      <div class="row g-3">
+        <div class="col-12">
+          <label class="form-label fw-semibold">Nueva contraseña *</label>
+          <input type="password" class="form-control" formControlName="newPassword"
+            [class.is-invalid]="passwordForm.get('newPassword')!.invalid && passwordForm.get('newPassword')!.touched">
+          <div class="invalid-feedback">Mínimo 6 caracteres</div>
+        </div>
+        <div class="col-12">
+          <label class="form-label fw-semibold">Confirmar contraseña *</label>
+          <input type="password" class="form-control" formControlName="confirmPassword"
+            [class.is-invalid]="passwordForm.get('confirmPassword')!.invalid && passwordForm.get('confirmPassword')!.touched">
+        </div>
+      </div>
+      <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+        <button type="button" class="btn btn-outline-secondary" (click)="showPasswordModal = false">Cancelar</button>
+        <button type="submit" class="btn btn-warning" [disabled]="isSaving">
+          <span *ngIf="isSaving" class="spinner-border spinner-border-sm me-1"></span>
+          Cambiar contraseña
+        </button>
+      </div>
+    </form>
+  </div>
+}
+
+<!-- Modal: Confirmar eliminación -->
+@if (showDeleteConfirm) {
+  <div class="modal-backdrop-custom" (click)="showDeleteConfirm = false"></div>
+  <div class="modal-panel modal-panel-sm shadow-lg">
+    <div class="modal-header border-bottom pb-3 mb-3">
+      <h5 class="modal-title mb-0 text-danger">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>Eliminar usuario
+      </h5>
+      <button type="button" class="btn-close" (click)="showDeleteConfirm = false"></button>
+    </div>
+    <p>¿Eliminar a <strong>{{ userToDelete?.fullName || userToDelete?.name }}</strong>? Esta acción no se puede deshacer.</p>
+    <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+      <button class="btn btn-outline-secondary" (click)="showDeleteConfirm = false">Cancelar</button>
+      <button class="btn btn-danger" (click)="deleteUser()">Eliminar</button>
+    </div>
+  </div>
+}

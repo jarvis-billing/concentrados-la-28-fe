@@ -9,4 +9,8 @@ export class Company {
     email: string = "";
     status: string = "ACTIVO";
     billingConfig: BillingConfig = new BillingConfig();
+    createdAt: string = "";
+    updatedAt: string = "";
+    createdBy: string = "";
+    updatedBy: string = "";
 }

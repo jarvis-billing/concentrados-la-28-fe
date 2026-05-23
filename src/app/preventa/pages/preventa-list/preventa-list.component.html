@@ -1,0 +1,248 @@
+<div class="container-fluid">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h4 class="text-primary mb-0">
+      <i class="bi bi-list-check me-2"></i>Preventas
+    </h4>
+    <a class="btn btn-outline-primary btn-sm" routerLink="/preventa" target="_blank">
+      <i class="bi bi-phone me-1"></i>Abrir en Móvil
+    </a>
+  </div>
+
+  <!-- Filtros -->
+  <div class="card mb-3 shadow-sm">
+    <div class="card-body py-2">
+      <div class="row g-2 align-items-end">
+        <div class="col-sm-3">
+          <label class="form-label small mb-1">Estado</label>
+          <select class="form-select form-select-sm" [(ngModel)]="filterStatus">
+            <option value="">Todos</option>
+            <option value="PENDING">Pendiente</option>
+            <option value="BILLED">Facturada</option>
+            <option value="CANCELLED">Cancelada</option>
+          </select>
+        </div>
+        <div class="col-sm-3">
+          <label class="form-label small mb-1">Desde</label>
+          <input type="date" class="form-control form-control-sm" [(ngModel)]="filterFromDate" />
+        </div>
+        <div class="col-sm-3">
+          <label class="form-label small mb-1">Hasta</label>
+          <input type="date" class="form-control form-control-sm" [(ngModel)]="filterToDate" />
+        </div>
+        <div class="col-sm-3 d-flex gap-2">
+          <button class="btn btn-primary btn-sm flex-fill" (click)="loadList()">
+            <i class="bi bi-search me-1"></i>Buscar
+          </button>
+          <button class="btn btn-outline-secondary btn-sm" (click)="clearFilters()">
+            <i class="bi bi-x-circle"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  @if (isLoading) {
+    <div class="text-center py-5">
+      <div class="spinner-border text-primary" role="status"></div>
+      <p class="text-muted mt-2">Cargando preventas…</p>
+    </div>
+  }
+
+  <!-- Totales -->
+  @if (!isLoading && preventas.length > 0) {
+    <div class="row g-2 mb-3">
+      <div class="col-6 col-sm-3">
+        <div class="card border-0 bg-warning bg-opacity-15 text-center py-2">
+          <div class="fs-4 fw-bold text-warning-emphasis">{{ countPending }}</div>
+          <div class="small text-muted">Pendientes</div>
+        </div>
+      </div>
+      <div class="col-6 col-sm-3">
+        <div class="card border-0 bg-success bg-opacity-10 text-center py-2">
+          <div class="fs-4 fw-bold text-success">{{ countBilled }}</div>
+          <div class="small text-muted">Facturadas</div>
+        </div>
+      </div>
+      <div class="col-6 col-sm-3">
+        <div class="card border-0 bg-danger bg-opacity-10 text-center py-2">
+          <div class="fs-4 fw-bold text-danger">{{ countCancelled }}</div>
+          <div class="small text-muted">Canceladas</div>
+        </div>
+      </div>
+      <div class="col-6 col-sm-3">
+        <div class="card border-0 bg-primary bg-opacity-10 text-center py-2">
+          <div class="fs-5 fw-bold text-primary">{{ totalBilledAmount | currency:'$ ':'symbol':'.0-0' }}</div>
+          <div class="small text-muted">Total facturado</div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Tabla -->
+  @if (!isLoading) {
+    @if (preventas.length === 0) {
+      <div class="text-center text-muted py-5">
+        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+        No hay preventas con los filtros seleccionados.
+      </div>
+    } @else {
+      <div class="table-responsive">
+        <table class="table table-hover table-sm align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>N°</th>
+              <th>Vendedor</th>
+              <th class="text-center">Items</th>
+              <th class="text-end">Total</th>
+              <th class="text-center">Estado</th>
+              <th>Fecha creación</th>
+              <th class="text-center">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of preventas; track p.id) {
+              <tr>
+                <td><strong>{{ p.preSaleNumber }}</strong></td>
+                <td>
+                  {{ p.sellerName }}
+                  @if (p.createdBy) {
+                    <div class="text-muted" style="font-size:0.75rem">
+                      <i class="bi bi-person-check me-1"></i>{{ p.createdBy }}
+                    </div>
+                  }
+                </td>
+                <td class="text-center">{{ p.items.length }}</td>
+                <td class="text-end fw-semibold">{{ p.totalAmount | currency:'$ ':'symbol':'.0-0' }}</td>
+                <td class="text-center">
+                  <span class="badge {{ statusClass(p.status) }}">{{ statusLabel(p.status) }}</span>
+                  @if (p.status === 'BILLED') {
+                    <div class="text-muted" style="font-size:0.72rem">
+                      <i class="bi bi-receipt me-1"></i>{{ p.billedBy || 'no registrado' }}
+                    </div>
+                  }
+                  @if (p.status === 'CANCELLED') {
+                    <div class="text-muted" style="font-size:0.72rem">
+                      <i class="bi bi-x-circle me-1"></i>{{ p.cancelledBy || 'no registrado' }}
+                    </div>
+                  }
+                </td>
+                <td class="text-muted small">{{ p.createdAt | date:'dd/MM/yyyy HH:mm' }}</td>
+                <td class="text-center">
+                  <button class="btn btn-sm btn-outline-info me-1" (click)="viewDetail(p)" title="Ver detalle">
+                    <i class="bi bi-eye"></i>
+                  </button>
+                  @if (p.status === 'PENDING') {
+                    <button class="btn btn-sm btn-outline-danger" (click)="cancelPreventa(p)" title="Cancelar">
+                      <i class="bi bi-x-circle"></i>
+                    </button>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+          <tfoot class="table-light">
+            <tr>
+              <td colspan="3" class="text-end fw-bold small">TOTAL {{ preventas.length }} preventas</td>
+              <td class="text-end fw-bold text-primary">{{ totalAmount | currency:'$ ':'symbol':'.0-0' }}</td>
+              <td colspan="3"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    }
+  }
+</div>
+
+<!-- Modal Detalle -->
+@if (selectedItem) {
+  <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="bi bi-cart3 me-2"></i>Preventa {{ selectedItem.preSaleNumber }}
+          </h5>
+          <button type="button" class="btn-close" (click)="closeDetail()"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-2 mb-3">
+            <div class="col-sm-4">
+              <small class="text-muted">Vendedor</small>
+              <div class="fw-semibold">{{ selectedItem.sellerName }}</div>
+              @if (selectedItem.createdBy) {
+                <div class="text-muted small"><i class="bi bi-person-check me-1"></i>Creado por {{ selectedItem.createdBy }}</div>
+              }
+            </div>
+            <div class="col-sm-4">
+              <small class="text-muted">Estado</small>
+              <div>
+                <span class="badge {{ statusClass(selectedItem.status) }}">{{ statusLabel(selectedItem.status) }}</span>
+              </div>
+              @if (selectedItem.status === 'BILLED') {
+                <div class="text-muted small">
+                  <i class="bi bi-receipt me-1"></i>Facturado por <strong>{{ selectedItem.billedBy || 'no registrado' }}</strong>
+                </div>
+                @if (selectedItem.billedAt) {
+                  <div class="text-muted small">{{ selectedItem.billedAt | date:'dd/MM/yyyy HH:mm' }}</div>
+                }
+              }
+              @if (selectedItem.status === 'CANCELLED') {
+                <div class="text-muted small">
+                  <i class="bi bi-x-circle me-1"></i>Cancelado por <strong>{{ selectedItem.cancelledBy || 'no registrado' }}</strong>
+                </div>
+                @if (selectedItem.cancelledAt) {
+                  <div class="text-muted small">{{ selectedItem.cancelledAt | date:'dd/MM/yyyy HH:mm' }}</div>
+                }
+              }
+            </div>
+            <div class="col-sm-4">
+              <small class="text-muted">Fecha creación</small>
+              <div>{{ selectedItem.createdAt | date:'dd/MM/yyyy HH:mm' }}</div>
+            </div>
+          </div>
+
+          <table class="table table-sm">
+            <thead class="table-light">
+              <tr>
+                <th>Producto</th>
+                <th class="text-center">Cant.</th>
+                <th class="text-end">Precio</th>
+                <th class="text-end">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of selectedItem.items; track item.barcode) {
+                <tr>
+                  <td>
+                    {{ item.description }}
+                    @if (item.presentationLabel) {
+                      <span class="badge bg-secondary ms-1">{{ item.presentationLabel }}</span>
+                    }
+                    @if (item.isBulk) {
+                      <span class="badge bg-warning text-dark ms-1">Granel</span>
+                    }
+                  </td>
+                  <td class="text-center">{{ item.amount | number:'1.0-4' }}</td>
+                  <td class="text-end">{{ item.price | currency:'$ ':'symbol':'.0-0' }}</td>
+                  <td class="text-end fw-semibold">{{ item.subTotal | currency:'$ ':'symbol':'.0-0' }}</td>
+                </tr>
+              }
+            </tbody>
+            <tfoot>
+              <tr class="table-light">
+                <td colspan="3" class="text-end fw-bold">TOTAL</td>
+                <td class="text-end fw-bold text-primary fs-6">
+                  {{ selectedItem.totalAmount | currency:'$ ':'symbol':'.0-0' }}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" (click)="closeDetail()">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+}

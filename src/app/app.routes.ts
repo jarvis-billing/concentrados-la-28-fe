@@ -53,9 +53,15 @@ import { ReturnsListPageComponent } from './devoluciones/pages/returns-list-page
 import { SaleReturnFormComponent } from './devoluciones/pages/sale-return-form/sale-return-form.component';
 import { PurchaseReturnFormComponent } from './devoluciones/pages/purchase-return-form/purchase-return-form.component';
 import { ReturnDetailPageComponent } from './devoluciones/pages/return-detail-page/return-detail-page.component';
+import { PreventaPageComponent } from './preventa/pages/preventa-page/preventa-page.component';
+import { PreventaListComponent } from './preventa/pages/preventa-list/preventa-list.component';
+import { authGuard } from './auth/auth.guard';
+import { UsersPageComponent } from './configuracion/pages/users-page/users-page.component';
+import { CompanyPageComponent } from './configuracion/pages/company-page/company-page.component';
 
 export const routes: Routes = [
     { path: '', pathMatch: 'full', redirectTo: '/login' },
+    { path: 'preventa', component: PreventaPageComponent, canActivate: [authGuard] },
     { path: 'persona', component: PersonaComponent },
     { path: 'login', component: LoginComponent },
     { path: 'menu', component: MenuComponent },
@@ -133,6 +139,12 @@ export const routes: Routes = [
         },
         {
             path: 'configuracion', component: ConfiguracionComponent
+        },
+        {
+            path: 'configuracion/usuarios', component: UsersPageComponent
+        },
+        {
+            path: 'configuracion/empresa', component: CompanyPageComponent
         },
         {
             path: 'inventario', component: InventoryDashboardComponent
@@ -220,6 +232,9 @@ export const routes: Routes = [
         },
         {
             path: 'devoluciones/:id', component: ReturnDetailPageComponent
+        },
+        {
+            path: 'preventa/lista', component: PreventaListComponent
         }
     ]}
 ];

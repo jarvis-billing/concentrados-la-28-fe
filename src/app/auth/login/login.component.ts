@@ -1,6 +1,6 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
-import { Router, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { toast } from 'ngx-sonner';
 import { LoginUserService } from './loginUser.service';
 import { TokenLoginUser } from '../TokenLoginUser';
@@ -14,22 +14,31 @@ import { ProductoService } from '../../producto/producto.service';
   imports: [RouterModule, FormsModule],
   templateUrl: './login.component.html'
 })
-export class LoginComponent {
+export class LoginComponent implements OnInit {
 
   router = inject(Router);
+  route = inject(ActivatedRoute);
 
   tokenLoginUser: TokenLoginUser = new TokenLoginUser();
   loginUser: LoginUser = new LoginUser();
   productService = inject(ProductoService);
   currentYear = new Date().getFullYear();
+  returnUrl = '/main/inicio';
 
-  constructor(private loginService: LoginUserService, 
+  constructor(private loginService: LoginUserService,
     private localStorage: StorageService
   ) {}
 
-  onSubmit() { 
+  ngOnInit(): void {
+    const qReturn = this.route.snapshot.queryParamMap.get('returnUrl');
+    if (qReturn) {
+      this.returnUrl = qReturn;
+    }
+  }
+
+  onSubmit() {
     toast.success('Sesion iniciada con éxito');
-    this.router.navigate(['/main/inicio'])
+    this.router.navigateByUrl(this.returnUrl);
   }
 
   login(formLogin: NgForm) {
@@ -49,10 +58,15 @@ export class LoginComponent {
               this.localStorage.set("allTypeVats", JSON.stringify(vats))
             }
           })
-          
+
           formLogin.resetForm();
           toast.success('Bienvenido, haz iniciado sesion en Jarvis.');
-          this.router.navigate(['/main/inicio'])
+          const payload = this.tokenLoginUser.token.split('.')[1];
+          const user = JSON.parse(atob(payload));
+          const sub = user?.sub;
+          const rol: string = (sub ? user[sub]?.rol : '') || '';
+          const destination = rol.includes('VENDEDOR') ? '/preventa' : this.returnUrl;
+          this.router.navigateByUrl(destination);
         },
         error: error => {
           const errorMessage = error.message ? error.message : error.error;
@@ -65,7 +79,7 @@ export class LoginComponent {
         }
       });
 
-      
+
     }
 
   }

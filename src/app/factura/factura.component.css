@@ -134,3 +134,192 @@ select.form-select-sm {
   background-color: white !important;
   color: #198754 !important;
 }
+
+/* ════════════════════════════════════════
+   Preventa — FAB flotante
+════════════════════════════════════════ */
+.preventa-fab {
+  position: fixed;
+  bottom: 20px;
+  right: 90px;
+  z-index: 1050;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0d6efd, #0a58ca);
+  border: none;
+  color: white;
+  font-size: 1.35rem;
+  box-shadow: 0 4px 18px rgba(13, 110, 253, 0.45);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.18s, box-shadow 0.18s;
+  animation: fab-pulse 2.4s ease-in-out infinite;
+}
+
+.preventa-fab:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 24px rgba(13, 110, 253, 0.6);
+}
+
+.preventa-fab-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #dc3545;
+  color: white;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid white;
+  line-height: 1;
+}
+
+@keyframes fab-pulse {
+  0%, 100% { box-shadow: 0 4px 18px rgba(13, 110, 253, 0.45); }
+  50%       { box-shadow: 0 4px 28px rgba(13, 110, 253, 0.75); }
+}
+
+/* ════════════════════════════════════════
+   Preventa — Overlay
+════════════════════════════════════════ */
+.preventa-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 1055;
+  backdrop-filter: blur(2px);
+  animation: fade-in 0.2s ease;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ════════════════════════════════════════
+   Preventa — Side panel
+════════════════════════════════════════ */
+.preventa-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100dvh;
+  width: 360px;
+  max-width: 95vw;
+  background: #fff;
+  z-index: 1060;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -6px 0 32px rgba(0, 0, 0, 0.18);
+  transform: translateX(100%);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.preventa-panel.open {
+  transform: translateX(0);
+}
+
+.preventa-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #e9ecef;
+  background: #f8f9fa;
+}
+
+.preventa-panel-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #212529;
+}
+
+.preventa-panel-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #0d6efd;
+  color: white;
+  border-radius: 999px;
+  min-width: 22px;
+  height: 22px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0 6px;
+}
+
+.preventa-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.preventa-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 0;
+}
+
+/* ── Preventa card ── */
+.preventa-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  transition: box-shadow 0.15s;
+}
+
+.preventa-card:hover {
+  box-shadow: 0 3px 12px rgba(13, 110, 253, 0.12);
+  border-color: #a8c7fa;
+}
+
+.preventa-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.3rem;
+}
+
+.preventa-num {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #0d6efd;
+}
+
+.preventa-amount {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #198754;
+}
+
+.preventa-card-meta {
+  font-size: 0.8rem;
+  color: #6c757d;
+  margin-bottom: 0.7rem;
+}
+
+.preventa-card-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+@media (max-width: 576px) {
+  .preventa-fab { right: 86px; bottom: 16px; }
+}
