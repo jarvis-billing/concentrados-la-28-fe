@@ -44,6 +44,10 @@
           <button class="btn btn-primary btn-sm flex-fill" (click)="loadList()">
             <i class="bi bi-search me-1"></i>Buscar
           </button>
+          <button class="btn btn-outline-secondary btn-sm" (click)="toggleSort()"
+            [title]="sortOrder === 'desc' ? 'Más reciente primero' : 'Más antiguo primero'">
+            <i class="bi" [class.bi-sort-down]="sortOrder === 'desc'" [class.bi-sort-up]="sortOrder === 'asc'"></i>
+          </button>
           <button class="btn btn-outline-secondary btn-sm" (click)="clearFilters()">
             <i class="bi bi-x-circle"></i>
           </button>
@@ -63,6 +67,11 @@
       </select>
       <input type="date" class="form-control form-control-sm" [(ngModel)]="filterFromDate" (change)="loadList()" />
       <input type="date" class="form-control form-control-sm" [(ngModel)]="filterToDate" (change)="loadList()" />
+      <button class="btn btn-outline-secondary btn-sm" (click)="toggleSort()"
+        [title]="sortOrder === 'desc' ? 'Más reciente primero' : 'Más antiguo primero'">
+        <i class="bi" [class.bi-sort-down]="sortOrder === 'desc'" [class.bi-sort-up]="sortOrder === 'asc'"></i>
+        {{ sortOrder === 'desc' ? 'Reciente' : 'Antiguo' }}
+      </button>
     </div>
   }
 

@@ -23,6 +23,7 @@ export interface LabelConfig {
     showBarcodeNumber: boolean;
     showDescription: boolean;
     showPrice: boolean;
+    showBrand: boolean;
     
     // Nombre de la empresa (personalizable)
     companyName: string;
@@ -35,7 +36,7 @@ export interface LabelConfig {
  * Campos disponibles para mostrar en la etiqueta
  */
 export interface LabelField {
-    key: keyof Pick<LabelConfig, 'showCompanyName' | 'showBarcode' | 'showBarcodeNumber' | 'showDescription' | 'showPrice'>;
+    key: keyof Pick<LabelConfig, 'showCompanyName' | 'showBarcode' | 'showBarcodeNumber' | 'showDescription' | 'showPrice' | 'showBrand'>;
     label: string;
     description: string;
 }
@@ -48,7 +49,8 @@ export const AVAILABLE_LABEL_FIELDS: LabelField[] = [
     { key: 'showBarcode', label: 'Código de Barras', description: 'Imagen del código de barras' },
     { key: 'showBarcodeNumber', label: 'Número de Código', description: 'Número debajo del código de barras' },
     { key: 'showDescription', label: 'Descripción/Presentación', description: 'Descripción del producto' },
-    { key: 'showPrice', label: 'Precio de Venta', description: 'Precio del producto' }
+    { key: 'showPrice', label: 'Precio de Venta', description: 'Precio del producto' },
+    { key: 'showBrand', label: 'Marca', description: 'Marca del producto en la etiqueta' }
 ];
 
 /**
@@ -69,6 +71,7 @@ export const DEFAULT_LABEL_CONFIG: LabelConfig = {
     showBarcodeNumber: true,
     showDescription: true,
     showPrice: false,
+    showBrand: false,
     companyName: 'CONCENTRADOS LA 28',
     presetName: 'Etiqueta 50x25mm (1 columna)'
 };
@@ -96,6 +99,7 @@ export const LABEL_PRESETS: LabelConfig[] = [
         showBarcodeNumber: true,
         showDescription: true,
         showPrice: false,
+        showBrand: false,
         companyName: 'CONCENTRADOS LA 28',
         presetName: 'Etiqueta 32x25mm (2 columnas)'
     },
@@ -114,6 +118,7 @@ export const LABEL_PRESETS: LabelConfig[] = [
         showBarcodeNumber: true,
         showDescription: true,
         showPrice: false,
+        showBrand: false,
         companyName: 'CONCENTRADOS LA 28',
         presetName: 'Etiqueta 40x30mm (2 columnas)'
     },
@@ -132,6 +137,7 @@ export const LABEL_PRESETS: LabelConfig[] = [
         showBarcodeNumber: true,
         showDescription: true,
         showPrice: false,
+        showBrand: false,
         companyName: 'CONCENTRADOS LA 28',
         presetName: 'Etiqueta 30x20mm (3 columnas, sin empresa)'
     }

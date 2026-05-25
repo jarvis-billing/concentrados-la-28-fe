@@ -35,6 +35,8 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('barcodeInputRef') barcodeInputRef!: ElementRef<HTMLInputElement>;
   @ViewChild('bulkAmountInputRef') bulkAmountInputRef!: ElementRef<HTMLInputElement>;
   sellerName = '';
+  isVendedor = false;
+  showUserMenu = false;
   items: PreSaleItemDto[] = [];
   totalAmount = 0;
   isSaving = false;
@@ -44,6 +46,18 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
   scannerActive = true;
   searchResults: { product: Product; presentation: Presentation }[] = [];
   showSearchResults = false;
+  activeSearchIndex = -1;
+
+  itemsSortOrder: 'desc' | 'asc' = 'desc';
+
+  get displayItems(): { item: PreSaleItemDto; idx: number }[] {
+    const indexed = this.items.map((item, idx) => ({ item, idx }));
+    return this.itemsSortOrder === 'desc' ? [...indexed].reverse() : indexed;
+  }
+
+  toggleItemsSort(): void {
+    this.itemsSortOrder = this.itemsSortOrder === 'desc' ? 'asc' : 'desc';
+  }
 
   showBulkDrawer = false;
   pendingBulkProduct: Product | null = null;
@@ -75,6 +89,7 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
       this.sellerName = `${user.name || ''} ${user.lastName || ''}`.trim() || user.username || 'Vendedor';
       const rol: string = user.rol || '';
       this.canDismiss = rol.includes('ADMIN') || rol.includes('FACTURADOR');
+      this.isVendedor = !this.canDismiss;
       this.loadPendingPreSales();
     }
     this.productoService.getAll().subscribe({
@@ -129,6 +144,19 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
     if (scannerSection && !scannerSection.contains(target)) {
       this.showSearchResults = false;
     }
+    const userMenu = document.querySelector('.user-menu-container');
+    if (userMenu && !userMenu.contains(target)) {
+      this.showUserMenu = false;
+    }
+  }
+
+  toggleUserMenu(): void {
+    this.showUserMenu = !this.showUserMenu;
+  }
+
+  logout(): void {
+    localStorage.removeItem('authToken');
+    this.router.navigate(['/login']);
   }
 
   onBarcodeEnter(): void {
@@ -387,6 +415,7 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   onSearchInput(): void {
+    this.activeSearchIndex = -1;
     const query = this.barcodeInputValue.trim().toLowerCase();
     if (query.length < 2) {
       this.showSearchResults = false;
@@ -410,15 +439,53 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   selectSearchResult(result: { product: Product; presentation: Presentation }): void {
+    this.activeSearchIndex = -1;
     const mapped = this.mapPresentation(result.product, result.presentation);
     this.addOrAccumulate(mapped);
     this.barcodeInputValue = '';
     this.showSearchResults = false;
     this.searchResults = [];
-    // Mantener foco para seguir buscando
     if (!this.scannerActive) {
       setTimeout(() => this.barcodeInputRef?.nativeElement?.focus(), 50);
     }
+  }
+
+  onSearchKeyDown(event: KeyboardEvent): void {
+    if (this.showSearchResults && this.searchResults.length > 0) {
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        this.activeSearchIndex = Math.min(this.activeSearchIndex + 1, this.searchResults.length - 1);
+        this.scrollActiveResultIntoView();
+        return;
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        this.activeSearchIndex = Math.max(this.activeSearchIndex - 1, -1);
+        this.scrollActiveResultIntoView();
+        return;
+      }
+      if (event.key === 'Enter' && this.activeSearchIndex >= 0) {
+        event.preventDefault();
+        this.selectSearchResult(this.searchResults[this.activeSearchIndex]);
+        return;
+      }
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        this.showSearchResults = false;
+        this.activeSearchIndex = -1;
+        return;
+      }
+    }
+    if (event.key === 'Enter') {
+      this.onBarcodeEnter();
+    }
+  }
+
+  private scrollActiveResultIntoView(): void {
+    setTimeout(() => {
+      const el = document.getElementById(`search-result-${this.activeSearchIndex}`);
+      el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }, 0);
   }
 
   private focusBarcodeInput(): void {

@@ -34,17 +34,60 @@
   letter-spacing: 0.5px;
 }
 
+.user-menu-container {
+  position: relative;
+  flex-shrink: 1;
+}
+
 .seller-chip {
   background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: #fff;
   border-radius: 999px;
   padding: 4px 10px;
   font-size: 0.8rem;
   font-weight: 500;
-  max-width: 140px;
+  max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex-shrink: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.seller-chip:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.user-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 1100;
+  min-width: 160px;
+  overflow: hidden;
+}
+
+.user-dropdown-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 0.875rem;
+  color: #dc3545;
+  background: none;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.user-dropdown-item:hover {
+  background: #fff5f5;
 }
 
 /* ====== SCANNER INPUT ====== */
@@ -105,8 +148,13 @@
   border-bottom: none;
 }
 
-.search-result-item:active {
+.search-result-item:hover,
+.search-result-item.active {
   background: #e7f1ff;
+}
+
+.search-result-item:active {
+  background: #cfe2ff;
 }
 
 .search-result-desc {
@@ -137,7 +185,40 @@
   margin-left: auto;
 }
 
-/* ====== ITEMS LIST ====== */
+/* ====== ITEMS SORT BAR ====== */
+.items-sort-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 2px 2px;
+  margin-bottom: 4px;
+}
+
+.items-count {
+  font-size: 0.78rem;
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.sort-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: 1px solid #dee2e6;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 0.75rem;
+  color: #495057;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.sort-toggle-btn:hover {
+  background: #f1f3f5;
+}
+
+/* ====== ITEMS LIST ======*/
 .items-container {
   flex: 1;
   overflow-y: auto;

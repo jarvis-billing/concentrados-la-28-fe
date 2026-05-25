@@ -57,7 +57,7 @@
         </div>
 
         <!-- Categoría -->
-        <div class="col-md-3">
+        <div class="col-md-2">
           <label class="form-label">Categoría</label>
           <select 
             class="form-select" 
@@ -65,6 +65,18 @@
             (change)="onCategoryChange(selectedCategory)">
             <option value="">Todas las categorías</option>
             <option *ngFor="let cat of categories" [value]="cat">{{ cat }}</option>
+          </select>
+        </div>
+
+        <!-- Marca -->
+        <div class="col-md-2">
+          <label class="form-label">Marca</label>
+          <select 
+            class="form-select" 
+            [(ngModel)]="selectedBrand"
+            (change)="onBrandChange(selectedBrand)">
+            <option value="">Todas las marcas</option>
+            <option *ngFor="let brand of brands" [value]="brand">{{ brand }}</option>
           </select>
         </div>
 
@@ -177,6 +189,9 @@
             
             <!-- Presentación -->
             <div class="label-presentation">{{ label.presentationLabel }}</div>
+
+            <!-- Marca -->
+            <div class="label-brand" *ngIf="labelConfig.showBrand && label.brand">{{ label.brand }}</div>
             
             <!-- Precio -->
             <div class="label-price">{{ formatPrice(label.salePrice) }}</div>

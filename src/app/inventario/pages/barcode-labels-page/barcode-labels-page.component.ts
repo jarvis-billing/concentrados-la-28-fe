@@ -29,6 +29,7 @@ interface LabelData {
   presentationLabel: string;
   salePrice: number | string;
   companyName: string;
+  brand: string;
   selected: boolean;
   quantity: number; // Cantidad de copias a imprimir (en modo factura = cantidad comprada)
 }
@@ -55,7 +56,9 @@ export class BarcodeLabelsPageComponent implements OnInit {
   allProducts: Product[] = [];
   products: Product[] = [];
   categories: string[] = [];
+  brands: string[] = [];
   selectedCategory = '';
+  selectedBrand = '';
   searchTerm = '';
   labels: LabelData[] = [];
   isLoading = true;
@@ -105,12 +108,14 @@ export class BarcodeLabelsPageComponent implements OnInit {
         // Buscar el producto y presentación en allProducts para obtener salePrice
         let salePrice: number | string = 0;
         let presentationLabel = item.description || '';
+        let brand = '';
         for (const prod of this.allProducts) {
           const pres = (prod.presentations || []).find(p => p.barcode === item.presentationBarcode);
           if (pres) {
             const unitAbbr = UNIT_ABBREVIATIONS[pres.unitMeasure] || pres.unitMeasure;
             salePrice = pres.isBulk ? pres.salePrice + ' ' + unitAbbr : pres.salePrice;
             presentationLabel = pres.label || item.description || '';
+            brand = prod.brand || '';
             break;
           }
         }
@@ -120,6 +125,7 @@ export class BarcodeLabelsPageComponent implements OnInit {
           presentationLabel: presentationLabel,
           salePrice: salePrice || 0,
           companyName: this.labelConfig.companyName || 'CONCENTRADOS LA 28',
+          brand,
           selected: false,
           quantity: Math.ceil(item.quantity) || 1
         });
@@ -165,6 +171,12 @@ export class BarcodeLabelsPageComponent implements OnInit {
             .filter(c => c && c.trim() !== '')
         )].sort();
 
+        this.brands = [...new Set(
+          this.allProducts
+            .map(p => p.brand)
+            .filter(b => b && b.trim() !== '')
+        )].sort();
+
         this.products = [...this.allProducts];
         this.buildLabels();
         this.isLoading = false;
@@ -190,6 +202,7 @@ export class BarcodeLabelsPageComponent implements OnInit {
             presentationLabel: pres.label || '',
             salePrice: salePrice || 0,
             companyName: this.labelConfig.companyName || 'CONCENTRADOS LA 28',
+            brand: product.brand || '',
             selected: false,
             quantity: 1
           });
@@ -201,6 +214,15 @@ export class BarcodeLabelsPageComponent implements OnInit {
 
   onCategoryChange(category: string): void {
     this.selectedCategory = category;
+    if (this.invoiceMode) {
+      this.buildLabelsFromInvoice(this.selectedInvoice!);
+    } else {
+      this.applyFilters();
+    }
+  }
+
+  onBrandChange(brand: string): void {
+    this.selectedBrand = brand;
     if (this.invoiceMode) {
       this.buildLabelsFromInvoice(this.selectedInvoice!);
     } else {
@@ -221,6 +243,10 @@ export class BarcodeLabelsPageComponent implements OnInit {
 
     if (this.selectedCategory) {
       filtered = filtered.filter(p => p.category === this.selectedCategory);
+    }
+
+    if (this.selectedBrand) {
+      filtered = filtered.filter(p => p.brand === this.selectedBrand);
     }
 
     if (this.searchTerm.trim()) {
@@ -501,6 +527,17 @@ export class BarcodeLabelsPageComponent implements OnInit {
         doc.text(line, centerX, currentY + 2.5 + (index * 2.5), { align: 'center' });
       });
       currentY += 2.5 * descLines.length;
+    }
+
+    // Marca
+    if (config.showBrand && label.brand) {
+      const fontSize = Math.max(4, Math.min(6, w / 10));
+      doc.setFontSize(fontSize);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(80, 80, 80);
+      doc.text(label.brand, centerX, currentY + 2, { align: 'center' });
+      doc.setTextColor(0, 0, 0);
+      currentY += lineSpacing * 0.6;
     }
 
     // Precio de venta

@@ -26,6 +26,7 @@ export class PreventaListComponent implements OnInit {
   filterToDate = '';
 
   selectedItem: PreSaleDto | null = null;
+  sortOrder: 'desc' | 'asc' = 'desc';
 
   private today(): string {
     return new Date().toISOString().split('T')[0];
@@ -68,6 +69,7 @@ export class PreventaListComponent implements OnInit {
     this.preSaleService.list(filter).subscribe({
       next: (data) => {
         this.preventas = data;
+        this.sortList();
         this.isLoading = false;
       },
       error: () => {
@@ -75,6 +77,18 @@ export class PreventaListComponent implements OnInit {
         this.isLoading = false;
       },
     });
+  }
+
+  sortList(): void {
+    this.preventas.sort((a, b) => {
+      const diff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      return this.sortOrder === 'desc' ? -diff : diff;
+    });
+  }
+
+  toggleSort(): void {
+    this.sortOrder = this.sortOrder === 'desc' ? 'asc' : 'desc';
+    this.sortList();
   }
 
   clearFilters(): void {
