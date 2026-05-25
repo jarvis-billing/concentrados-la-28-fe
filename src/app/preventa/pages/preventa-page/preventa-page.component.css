@@ -90,6 +90,80 @@
   background: #fff5f5;
 }
 
+.user-dropdown-item.text-body {
+  color: #212529;
+}
+
+.user-dropdown-item.text-body:hover {
+  background: #f1f3f5;
+}
+
+.user-dropdown-divider {
+  height: 1px;
+  background: #dee2e6;
+  margin: 2px 0;
+}
+
+/* ====== OFFLINE INDICATORS ====== */
+.offline-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #dc3545;
+  color: #fff;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.sync-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #fff3cd;
+  color: #664d03;
+  border: 1px solid #ffc107;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.sync-badge.syncing {
+  background: #cff4fc;
+  color: #055160;
+  border-color: #0dcaf0;
+}
+
+.cache-banner {
+  background: #fff3cd;
+  color: #664d03;
+  border-bottom: 1px solid #ffc107;
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 500;
+  padding: 5px 12px;
+  flex-shrink: 0;
+}
+
+.success-icon.offline {
+  color: #ffc107;
+}
+
+.offline-queue-info {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-size: 0.83rem;
+  color: #664d03;
+  margin-top: 10px;
+  text-align: center;
+}
+
 /* ====== SCANNER INPUT ====== */
 .scanner-section {
   padding: 12px 12px 6px;

@@ -18,6 +18,8 @@ import { ESaleType } from '../../../producto/producto';
 import { ProductoService } from '../../../producto/producto.service';
 import { LoginUserService } from '../../../auth/login/loginUser.service';
 import { PreSaleService } from '../../services/pre-sale.service';
+import { OfflineQueueService } from '../../services/offline-queue.service';
+import { ChangePasswordModalComponent } from '../../../auth/components/change-password-modal/change-password-modal.component';
 import {
   CreatePreSaleRequest,
   PreSaleDto,
@@ -27,7 +29,7 @@ import {
 @Component({
   selector: 'app-preventa-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, CurrencyPipe, DecimalPipe, RouterLink],
+  imports: [CommonModule, FormsModule, CurrencyPipe, DecimalPipe, RouterLink, ChangePasswordModalComponent],
   templateUrl: './preventa-page.component.html',
   styleUrl: './preventa-page.component.css',
 })
@@ -37,6 +39,15 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
   sellerName = '';
   isVendedor = false;
   showUserMenu = false;
+  showChangePassword = false;
+
+  isOffline = !navigator.onLine;
+  usingCachedProducts = false;
+  productCacheDate = '';
+  pendingSyncCount = 0;
+  isSyncing = false;
+  isQueuedOffline = false;
+
   items: PreSaleItemDto[] = [];
   totalAmount = 0;
   isSaving = false;
@@ -79,9 +90,14 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
   private barcodeClearTimer: ReturnType<typeof setTimeout> | null = null;
 
   private preSaleService = inject(PreSaleService);
+  private offlineQueue = inject(OfflineQueueService);
   private productoService = inject(ProductoService);
   private router = inject(Router);
   private loginUserService = inject(LoginUserService);
+
+  private onlineHandler = () => this.onReconnect();
+  private offlineHandler = () => { this.isOffline = true; };
+  private syncIntervalId: ReturnType<typeof setInterval> | null = null;
 
   ngOnInit(): void {
     const user = this.loginUserService.getUserFromToken();
@@ -92,9 +108,49 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
       this.isVendedor = !this.canDismiss;
       this.loadPendingPreSales();
     }
+    window.addEventListener('online', this.onlineHandler);
+    window.addEventListener('offline', this.offlineHandler);
+
+    this.pendingSyncCount = this.offlineQueue.queueLength;
+    this.loadProducts();
+    this.restoreDraft();
+
+    if (navigator.onLine && this.pendingSyncCount > 0) {
+      setTimeout(() => this.syncOfflineQueue(), 1500);
+    }
+
+    this.syncIntervalId = setInterval(() => {
+      if (navigator.onLine && this.offlineQueue.queueLength > 0 && !this.isSyncing) {
+        this.syncOfflineQueue();
+      }
+    }, 30_000);
+  }
+
+  private restoreDraft(): void {
+    const draft = this.offlineQueue.loadDraft();
+    if (!draft || draft.items.length === 0) return;
+    this.items = draft.items;
+    this.totalAmount = draft.totalAmount;
+    toast.info('Preventa en progreso restaurada.');
+  }
+
+  private loadProducts(): void {
     this.productoService.getAll().subscribe({
-      next: (products) => { this.allProducts = products; },
-      error: () => toast.error('Error al cargar el catálogo de productos'),
+      next: (products) => {
+        this.allProducts = products;
+        this.offlineQueue.saveProductCache(products);
+        this.usingCachedProducts = false;
+      },
+      error: () => {
+        const cache = this.offlineQueue.loadProductCache();
+        if (cache) {
+          this.allProducts = cache.products;
+          this.usingCachedProducts = true;
+          this.productCacheDate = cache.cachedAt;
+        } else {
+          toast.error('Sin catálogo disponible. Solo funciona el escáner de código de barras.');
+        }
+      },
     });
   }
 
@@ -105,6 +161,9 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     if (this.barcodeClearTimer) clearTimeout(this.barcodeClearTimer);
+    if (this.syncIntervalId) clearInterval(this.syncIntervalId);
+    window.removeEventListener('online', this.onlineHandler);
+    window.removeEventListener('offline', this.offlineHandler);
   }
 
   // =============================================
@@ -338,7 +397,6 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
 
   finalizePreventa(): void {
     if (this.items.length === 0 || this.isSaving) return;
-    this.isSaving = true;
 
     const request: CreatePreSaleRequest = {
       sellerName: this.sellerName,
@@ -346,10 +404,33 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
       totalAmount: this.totalAmount,
     };
 
+    if (!navigator.onLine) {
+      const queued = this.offlineQueue.addToQueue(request);
+      this.pendingSyncCount = this.offlineQueue.queueLength;
+      this.isQueuedOffline = true;
+      this.savedPreSale = {
+        id: queued.tempId,
+        preSaleNumber: queued.tempId,
+        status: 'PENDING',
+        sellerName: this.sellerName,
+        items: this.items,
+        totalAmount: this.totalAmount,
+        createdAt: queued.queuedAt,
+      } as PreSaleDto;
+      this.items = [];
+      this.totalAmount = 0;
+      this.offlineQueue.clearDraft();
+      toast.warning('Sin conexión: preventa guardada localmente. Se enviará al reconectar.');
+      return;
+    }
+
+    this.isSaving = true;
+    this.isQueuedOffline = false;
     this.preSaleService.create(request).subscribe({
       next: (preSale) => {
         this.isSaving = false;
         this.savedPreSale = preSale;
+        this.offlineQueue.clearDraft();
         toast.success(`Preventa ${preSale.preSaleNumber} enviada al facturador`);
         this.items = [];
         this.totalAmount = 0;
@@ -359,6 +440,44 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
         this.isSaving = false;
         toast.error('Error al enviar la preventa. Verifique la conexión.');
       },
+    });
+  }
+
+  private onReconnect(): void {
+    this.isOffline = false;
+    this.loadProducts();
+    this.syncOfflineQueue();
+  }
+
+  private syncOfflineQueue(): void {
+    const queue = this.offlineQueue.getQueue();
+    if (queue.length === 0) return;
+
+    this.isSyncing = true;
+    toast.info(`Reconectado — sincronizando ${queue.length} preventa(s) pendiente(s)...`);
+
+    let remaining = queue.length;
+    queue.forEach(item => {
+      this.preSaleService.create(item.request).subscribe({
+        next: () => {
+          this.offlineQueue.removeFromQueue(item.tempId);
+          this.pendingSyncCount = this.offlineQueue.queueLength;
+          remaining--;
+          if (remaining === 0) {
+            this.isSyncing = false;
+            if (this.offlineQueue.queueLength === 0) {
+              toast.success('Todas las preventas pendientes fueron enviadas.');
+            }
+          }
+        },
+        error: () => {
+          remaining--;
+          if (remaining === 0) {
+            this.isSyncing = false;
+            toast.error('Algunas preventas no pudieron sincronizarse. Se reintentará al reconectar.');
+          }
+        },
+      });
     });
   }
 
@@ -375,6 +494,7 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
           this.items = [];
           this.totalAmount = 0;
           this.savedPreSale = null;
+          this.offlineQueue.clearDraft();
         },
       },
     });
@@ -382,8 +502,10 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
 
   newPreventa(): void {
     this.savedPreSale = null;
+    this.isQueuedOffline = false;
     this.items = [];
     this.totalAmount = 0;
+    this.offlineQueue.clearDraft();
     this.focusBarcodeInput();
   }
 
@@ -412,6 +534,7 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private recalcTotal(): void {
     this.totalAmount = this.items.reduce((s, i) => s + i.subTotal, 0);
+    this.offlineQueue.saveDraft(this.items, this.totalAmount);
   }
 
   onSearchInput(): void {

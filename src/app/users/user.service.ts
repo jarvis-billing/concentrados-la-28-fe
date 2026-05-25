@@ -33,6 +33,10 @@ export class UserService {
     return this.http.patch<void>(`${this.url}/${id}/password`, request);
   }
 
+  changeOwnPassword(request: ChangePasswordRequest): Observable<void> {
+    return this.http.patch<void>(`${this.url}/me/password`, request);
+  }
+
   delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.url}/${id}`);
   }

@@ -2,14 +2,16 @@ import { Component, inject } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import { toast } from 'ngx-sonner';
 import { StorageService } from '../services/localStorage.service';
+import { ChangePasswordModalComponent } from '../auth/components/change-password-modal/change-password-modal.component';
 
 @Component({
   selector: 'app-menu',
   standalone: true,
-  imports: [RouterModule],
+  imports: [RouterModule, ChangePasswordModalComponent],
   templateUrl: './menu.component.html'
 })
 export class MenuComponent {
+  showChangePassword = false;
 
   router= inject(Router);
 
@@ -26,6 +28,11 @@ export class MenuComponent {
         }
       },
     });
+  }
+
+  openChangePassword(): void {
+    this.closeMenu();
+    this.showChangePassword = true;
   }
 
   closeMenu() {

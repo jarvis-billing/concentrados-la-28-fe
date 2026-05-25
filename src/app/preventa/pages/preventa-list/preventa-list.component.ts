@@ -5,6 +5,7 @@ import { Router, RouterLink } from '@angular/router';
 import { toast } from 'ngx-sonner';
 import { PreSaleService } from '../../services/pre-sale.service';
 import { PreSaleDto, PreSaleFilterDto, PreSaleStatus } from '../../models/pre-sale';
+import { LoginUserService } from '../../../auth/login/loginUser.service';
 
 @Component({
   selector: 'app-preventa-list',
@@ -15,6 +16,7 @@ import { PreSaleDto, PreSaleFilterDto, PreSaleStatus } from '../../models/pre-sa
 })
 export class PreventaListComponent implements OnInit {
   private preSaleService = inject(PreSaleService);
+  private loginUserService = inject(LoginUserService);
   private router = inject(Router);
 
   preventas: PreSaleDto[] = [];
@@ -27,6 +29,7 @@ export class PreventaListComponent implements OnInit {
 
   selectedItem: PreSaleDto | null = null;
   sortOrder: 'desc' | 'asc' = 'desc';
+  canCancel = false;
 
   private today(): string {
     return new Date().toISOString().split('T')[0];
@@ -51,6 +54,11 @@ export class PreventaListComponent implements OnInit {
 
   ngOnInit(): void {
     this.isMobileView = this.router.url.startsWith('/preventa/lista');
+    const user = this.loginUserService.getUserFromToken();
+    if (user) {
+      const rol: string = user.rol || '';
+      this.canCancel = rol.includes('ADMIN') || rol.includes('FACTURADOR');
+    }
     this.filterFromDate = this.today();
     this.filterToDate = this.today();
     this.loadList();

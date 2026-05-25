@@ -24,6 +24,21 @@
       <button class="pending-btn" routerLink="/preventa/lista" title="Ver todas mis preventas">
         <i class="bi bi-list-check"></i>
       </button>
+      @if (isOffline) {
+        <span class="offline-badge" title="Sin conexión a internet">
+          <i class="bi bi-wifi-off"></i>
+        </span>
+      }
+      @if (pendingSyncCount > 0) {
+        <span class="sync-badge" [class.syncing]="isSyncing" title="Preventas pendientes de sincronizar">
+          @if (isSyncing) {
+            <span class="spinner-border spinner-border-sm"></span>
+          } @else {
+            <i class="bi bi-cloud-arrow-up"></i>
+          }
+          {{ pendingSyncCount }}
+        </span>
+      }
       <div class="user-menu-container">
         <button class="seller-chip" (click)="toggleUserMenu()" title="Opciones de usuario">
           <i class="bi bi-person-fill me-1"></i>{{ sellerName }}
@@ -31,6 +46,10 @@
         </button>
         @if (showUserMenu) {
           <div class="user-dropdown">
+            <button class="user-dropdown-item text-body" (click)="showChangePassword = true; showUserMenu = false">
+              <i class="bi bi-key-fill me-2"></i>Cambiar contraseña
+            </button>
+            <div class="user-dropdown-divider"></div>
             <button class="user-dropdown-item" (click)="logout()">
               <i class="bi bi-box-arrow-right me-2"></i>Cerrar sesión
             </button>
@@ -43,12 +62,25 @@
   <!-- ====== VISTA: CONFIRMACIÓN ====== -->
   @if (savedPreSale) {
     <div class="success-screen">
-      <div class="success-icon">
-        <i class="bi bi-check-circle-fill"></i>
-      </div>
-      <h4 class="success-title">¡Preventa Enviada!</h4>
-      <p class="success-number">{{ savedPreSale.preSaleNumber }}</p>
-      <p class="text-muted small">El facturador fue notificado y está procesando tu pedido.</p>
+      @if (isQueuedOffline) {
+        <div class="success-icon offline">
+          <i class="bi bi-cloud-arrow-up-fill"></i>
+        </div>
+        <h4 class="success-title">Guardada localmente</h4>
+        <p class="success-number">{{ savedPreSale.preSaleNumber }}</p>
+        <p class="text-muted small">Sin conexión. La preventa se enviará automáticamente al facturador cuando se restaure la red.</p>
+        <div class="offline-queue-info">
+          <i class="bi bi-info-circle me-1"></i>
+          {{ pendingSyncCount }} preventa{{ pendingSyncCount !== 1 ? 's' : '' }} pendiente{{ pendingSyncCount !== 1 ? 's' : '' }} de sincronizar
+        </div>
+      } @else {
+        <div class="success-icon">
+          <i class="bi bi-check-circle-fill"></i>
+        </div>
+        <h4 class="success-title">¡Preventa Enviada!</h4>
+        <p class="success-number">{{ savedPreSale.preSaleNumber }}</p>
+        <p class="text-muted small">El facturador fue notificado y está procesando tu pedido.</p>
+      }
       <div class="d-flex flex-column gap-2 mt-3">
         <button class="btn btn-success btn-lg" (click)="newPreventa()">
           <i class="bi bi-plus-circle me-2"></i>Nueva Preventa
@@ -64,6 +96,14 @@
 
   <!-- ====== VISTA: CAPTURA ====== -->
   @if (!savedPreSale) {
+
+    <!-- BANNER: catálogo en caché -->
+    @if (usingCachedProducts) {
+      <div class="cache-banner">
+        <i class="bi bi-database me-1"></i>
+        Catálogo guardado · {{ productCacheDate | date:'dd/MM/yy HH:mm' }}
+      </div>
+    }
 
     <!-- SCANNER INPUT / BÚSQUEDA -->
     <div class="scanner-section">
@@ -355,4 +395,9 @@
   </div>
 
 </div>
+
+<app-change-password-modal
+  [show]="showChangePassword"
+  (closed)="showChangePassword = false">
+</app-change-password-modal>
 
