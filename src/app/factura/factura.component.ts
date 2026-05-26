@@ -248,6 +248,7 @@ export class FacturaComponent implements OnInit, AfterViewInit, OnDestroy {
 
   pendingPreSaleNotifications: PreSaleNotification[] = [];
   showPreventaPanel = false;
+  preventaPanelSortOrder: 'desc' | 'asc' = 'desc';
   private wsSubscription: Subscription | null = null;
   private importedPreSaleIds: string[] = [];
   private importedNotifications: PreSaleNotification[] = [];
@@ -1835,5 +1836,16 @@ export class FacturaComponent implements OnInit, AfterViewInit, OnDestroy {
     this.pendingPreSaleNotifications = this.pendingPreSaleNotifications.filter(
       n => n.preSaleId !== notification.preSaleId
     );
+  }
+
+  get sortedPreSaleNotifications(): PreSaleNotification[] {
+    return [...this.pendingPreSaleNotifications].sort((a, b) => {
+      const diff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      return this.preventaPanelSortOrder === 'desc' ? -diff : diff;
+    });
+  }
+
+  togglePreventaSort(): void {
+    this.preventaPanelSortOrder = this.preventaPanelSortOrder === 'desc' ? 'asc' : 'desc';
   }
 }

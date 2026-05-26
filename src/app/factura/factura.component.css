@@ -314,6 +314,12 @@ select.form-select-sm {
   margin-bottom: 0.7rem;
 }
 
+.preventa-card-date {
+  font-size: 0.75rem;
+  color: #6c757d;
+  margin-bottom: 0.6rem;
+}
+
 .preventa-card-actions {
   display: flex;
   gap: 0.5rem;
