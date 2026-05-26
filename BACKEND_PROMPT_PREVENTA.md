@@ -9,7 +9,7 @@
 ## 1. Modelo de Datos — `PreSale` (MongoDB collection: `pre_sales`)
 
 ```java
-@Document(collection = "pre_sales")
+@Document(collection = "PRE_SALES")
 public class PreSale {
     @Id
     private String id;
@@ -20,9 +20,13 @@ public class PreSale {
     private double totalAmount;
     private String notes;
     private LocalDateTime createdAt;
-    private LocalDateTime finalizedAt;    // Cuando se confirma en el móvil
+    private String createdBy;             // numberIdentity del vendedor
+    private LocalDateTime finalizedAt;
     private LocalDateTime billedAt;       // Cuando el facturador la importa
     private String billingId;             // ID de la factura generada
+    private String billedBy;              // numberIdentity del facturador
+    private LocalDateTime cancelledAt;
+    private String cancelledBy;           // numberIdentity de quien canceló
 }
 
 public enum PreSaleStatus { PENDING, BILLED, CANCELLED }
@@ -311,21 +315,24 @@ public class PreSaleService {
         return repository.save(preSale);
     }
 
-    public PreSale cancel(String id) {
+    public PreSale cancel(String id, String cancelledBy) {
         PreSale ps = findOrThrow(id);
         if (ps.getStatus() != PreSaleStatus.PENDING)
             throw new BusinessException("Solo se pueden cancelar preventas en estado PENDIENTE");
         ps.setStatus(PreSaleStatus.CANCELLED);
+        ps.setCancelledAt(LocalDateTime.now());
+        ps.setCancelledBy(cancelledBy);   // Extraer de @AuthenticationPrincipal
         return repository.save(ps);
     }
 
-    public PreSale markAsBilled(String id, String billingId) {
+    public PreSale markAsBilled(String id, String billingId, String billedBy) {
         PreSale ps = findOrThrow(id);
         if (ps.getStatus() != PreSaleStatus.PENDING)
             throw new BusinessException("La preventa ya fue procesada");
         ps.setStatus(PreSaleStatus.BILLED);
         ps.setBillingId(billingId);
         ps.setBilledAt(LocalDateTime.now());
+        ps.setBilledBy(billedBy);         // Extraer de @AuthenticationPrincipal
         return repository.save(ps);
     }
 

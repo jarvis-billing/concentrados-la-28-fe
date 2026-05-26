@@ -249,6 +249,7 @@ export class FacturaComponent implements OnInit, AfterViewInit, OnDestroy {
   pendingPreSaleNotifications: PreSaleNotification[] = [];
   showPreventaPanel = false;
   private wsSubscription: Subscription | null = null;
+  private importedPreSaleIds: string[] = [];
 
   // Lotes para productos de ANIMALES VIVOS
   showBatchSelectorModal = false;
@@ -1009,6 +1010,7 @@ export class FacturaComponent implements OnInit, AfterViewInit, OnDestroy {
       this.client = new Client();
       this.creditToApply = 0;
       this.clientCreditBalance = 0;
+      this.importedPreSaleIds = [];
       this.ensureDefaultClientForContado();
       this.resetPaymentsForm();
     });
@@ -1124,6 +1126,12 @@ export class FacturaComponent implements OnInit, AfterViewInit, OnDestroy {
     this.facturaService.save(this.factura).subscribe({
       next: (factura) => {
         if (factura.id) {
+          // Vincular preventas importadas a esta factura
+          const billedPreSaleIds = [...this.importedPreSaleIds];
+          billedPreSaleIds.forEach(preSaleId => {
+            this.preSaleService.markAsBilled(preSaleId, factura.id).subscribe();
+          });
+
           // Verificar si hay pago con saldo a favor para descontarlo
           const creditPayment = this.factura.payments?.find(p => p.method === 'SALDO_FAVOR');
           if (creditPayment && creditPayment.amount > 0 && this.client?.id) {
@@ -1802,6 +1810,7 @@ export class FacturaComponent implements OnInit, AfterViewInit, OnDestroy {
           }
         });
         this.calculateTotalBilling();
+        this.importedPreSaleIds.push(preSale.id);
         this.dismissPreSaleNotification(notification);
         toast.success(`Preventa ${preSale.preSaleNumber} importada — ${preSale.items.length} ítem(s)`);
       },
