@@ -250,6 +250,7 @@ export class FacturaComponent implements OnInit, AfterViewInit, OnDestroy {
   showPreventaPanel = false;
   private wsSubscription: Subscription | null = null;
   private importedPreSaleIds: string[] = [];
+  private importedNotifications: PreSaleNotification[] = [];
 
   // Lotes para productos de ANIMALES VIVOS
   showBatchSelectorModal = false;
@@ -1010,7 +1011,14 @@ export class FacturaComponent implements OnInit, AfterViewInit, OnDestroy {
       this.client = new Client();
       this.creditToApply = 0;
       this.clientCreditBalance = 0;
+      // Restaurar al panel las preventas importadas pero no facturadas (canceló sin guardar)
+      this.importedNotifications.forEach(n => {
+        if (!this.pendingPreSaleNotifications.find(x => x.preSaleId === n.preSaleId)) {
+          this.pendingPreSaleNotifications.unshift(n);
+        }
+      });
       this.importedPreSaleIds = [];
+      this.importedNotifications = [];
       this.ensureDefaultClientForContado();
       this.resetPaymentsForm();
     });
@@ -1131,6 +1139,10 @@ export class FacturaComponent implements OnInit, AfterViewInit, OnDestroy {
           billedPreSaleIds.forEach(preSaleId => {
             this.preSaleService.markAsBilled(preSaleId, factura.id).subscribe();
           });
+
+          // Limpiar tracking ANTES de onInitBilling para que no restaure las notificaciones
+          this.importedPreSaleIds = [];
+          this.importedNotifications = [];
 
           // Verificar si hay pago con saldo a favor para descontarlo
           const creditPayment = this.factura.payments?.find(p => p.method === 'SALDO_FAVOR');
@@ -1811,6 +1823,7 @@ export class FacturaComponent implements OnInit, AfterViewInit, OnDestroy {
         });
         this.calculateTotalBilling();
         this.importedPreSaleIds.push(preSale.id);
+        this.importedNotifications.push(notification);
         this.dismissPreSaleNotification(notification);
         toast.success(`Preventa ${preSale.preSaleNumber} importada — ${preSale.items.length} ítem(s)`);
       },
