@@ -6,6 +6,7 @@ import { InicioComponent } from './inicio/inicio.component';
 import { MainComponent } from './main/main.component';
 import { ProductoComponent } from './producto/producto.component';
 import { PriceManagerPageComponent } from './producto/pages/price-manager-page/price-manager-page.component';
+import { PresentationEditorPageComponent } from './producto/pages/presentation-editor-page/presentation-editor-page.component';
 import { CategoriaComponent } from './categoria/categoria.component';
 import { EmpresaComponent } from './empresa/empresa.component';
 import { FacturacionComponent } from './facturacion/facturacion.component';
@@ -15,6 +16,7 @@ import { FacturaComponent } from './factura/factura.component';
 import { CrearProductoComponent } from './producto/crear-producto.component';
 import { ImportOrderComponent } from './factura/components/import-order/import-order.component';
 import { FacturasTableComponent } from './factura/facturas-table/facturas-table.component';
+import { InvoicesReportPageComponent } from './factura/pages/invoices-report-page/invoices-report-page.component';
 import { ConfiguracionComponent } from './configuracion/configuracion.component';
 import { ProductsSalesListComponent } from './factura/components/products-sales-list/products-sales-list.component';
 import { PurchaseInvoicesPageComponent } from './compras/pages/purchase-invoices-page.component';
@@ -40,6 +42,7 @@ import { BatchManagementPageComponent } from './lotes/pages/batch-management-pag
 import { CashCountPageComponent } from './arqueo-caja/pages/cash-count-page/cash-count-page.component';
 import { CashCountReportsComponent } from './arqueo-caja/pages/cash-count-reports/cash-count-reports.component';
 import { CashLoansPageComponent } from './arqueo-caja/pages/cash-loans-page/cash-loans-page.component';
+import { OwnerWithdrawalsPageComponent } from './arqueo-caja/pages/owner-withdrawals-page/owner-withdrawals-page.component';
 import { TransfersListComponent } from './traslados/pages/transfers-list/transfers-list.component';
 import { BankReconciliationPageComponent } from './bank-reconciliation/pages/bank-reconciliation-page/bank-reconciliation-page.component';
 import { BankReconciliationReportsComponent } from './bank-reconciliation/pages/bank-reconciliation-reports/bank-reconciliation-reports.component';
@@ -82,6 +85,9 @@ export const routes: Routes = [
             path:'producto/precios', component: PriceManagerPageComponent
         },
         {
+            path:'producto/presentaciones', component: PresentationEditorPageComponent
+        },
+        {
             path:'crearproducto/:barcode', component: CrearProductoComponent
         },
         {
@@ -104,6 +110,9 @@ export const routes: Routes = [
         },
         {
             path:'list/facturas', component: FacturasTableComponent
+        },
+        {
+            path:'ventas/reporte-facturas', component: InvoicesReportPageComponent
         },
         {
             path:'list/sale/products', component: ProductsSalesListComponent
@@ -200,6 +209,9 @@ export const routes: Routes = [
         },
         {
             path: 'arqueo-caja/traslados', component: TransfersListComponent
+        },
+        {
+            path: 'arqueo-caja/retiros-propietario', component: OwnerWithdrawalsPageComponent
         },
         {
             path: 'arqueo-bancario', component: BankReconciliationPageComponent

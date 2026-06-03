@@ -1,0 +1,260 @@
+<div class="container-fluid py-4" [class.has-save-bar]="isDirty">
+
+    <!-- ══ HEADER ══════════════════════════════════════════════════ -->
+    <div class="row mb-4 align-items-center">
+        <div class="col">
+            <h4 class="mb-0 fw-bold">
+                <i class="bi bi-boxes me-2 text-primary"></i>
+                Editor de Presentaciones
+            </h4>
+            <p class="text-muted small mb-0 mt-1">
+                Busca un producto y edita sus presentaciones directamente en las tarjetas.
+            </p>
+        </div>
+    </div>
+
+    <!-- ══ BÚSQUEDA ════════════════════════════════════════════════ -->
+    <div class="row mb-4">
+        <div class="col-12 col-md-7 col-lg-5">
+
+            @if (!selectedProduct) {
+                <!-- Buscador -->
+                <div class="search-wrap">
+                    <i class="bi bi-search search-icon"></i>
+                    <input
+                        type="text"
+                        class="form-control search-input"
+                        placeholder="Buscar producto por nombre, código o barcode…"
+                        [value]="searchQuery"
+                        (input)="onSearchInput($any($event.target).value)"
+                        (blur)="showDropdown = false"
+                        autocomplete="off"
+                    />
+
+                    @if (isSearching) {
+                        <div class="search-dropdown px-3 py-2 text-muted small d-flex align-items-center gap-2">
+                            <span class="spinner-border spinner-border-sm"></span> Buscando…
+                        </div>
+                    }
+
+                    @if (showDropdown && searchResults.length > 0) {
+                        <div class="search-dropdown">
+                            @for (p of searchResults; track p.id) {
+                                <div class="search-item" (mousedown)="selectProduct(p)">
+                                    <div class="product-name">{{ p.description }}</div>
+                                    <div class="product-meta">
+                                        {{ p.productCode }} &nbsp;·&nbsp;
+                                        {{ saleTypeLabels[p.saleType] }} &nbsp;·&nbsp;
+                                        {{ p.presentations?.length ?? 0 }} presentación(es)
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            } @else {
+                <!-- Producto seleccionado — chip -->
+                <div class="product-chip">
+                    <i class="bi bi-box-seam"></i>
+                    <span>{{ selectedProduct.description }}</span>
+                    <span class="sale-type-badge">{{ saleTypeLabels[selectedProduct.saleType] }}</span>
+                    <span class="text-muted small">{{ selectedProduct.productCode }}</span>
+                    <button class="clear-btn" title="Cambiar producto" (click)="clearProduct()">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- ══ EMPTY STATE ══════════════════════════════════════════════ -->
+    @if (!selectedProduct) {
+        <div class="empty-state">
+            <span class="empty-icon">📦</span>
+            <h5>Selecciona un producto para comenzar</h5>
+            <p class="small">Usa el buscador de arriba para encontrar el producto cuyas presentaciones quieres editar.</p>
+        </div>
+    }
+
+    <!-- ══ GRID DE PRESENTACIONES ═══════════════════════════════════ -->
+    @if (selectedProduct) {
+        <div class="presentations-grid">
+
+            <!-- ── Tarjetas de presentación ── -->
+            @for (pres of presentations; track trackById($index, pres)) {
+                <div class="pres-card" [class.dirty]="pres._dirty && !pres._isNew" [class.is-new]="pres._isNew">
+
+                    <!-- Cabecera de tarjeta -->
+                    <div class="card-header-row">
+                        <span class="pres-label-display" [title]="pres.label || '(sin etiqueta)'">
+                            {{ pres.label || '(sin etiqueta)' }}
+                        </span>
+                        <div class="d-flex align-items-center gap-2">
+                            @if (pres._isNew) {
+                                <span class="status-badge new-item">+ Nueva</span>
+                            } @else if (pres._dirty) {
+                                <span class="status-badge modified">● Modificada</span>
+                            }
+                            <div class="card-actions">
+                                <button class="action-btn" title="Duplicar" (click)="duplicatePresentation(pres)">
+                                    <i class="bi bi-copy"></i>
+                                </button>
+                                <button class="action-btn delete-btn" title="Eliminar" (click)="removePresentation(pres._id)">
+                                    <i class="bi bi-trash3"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cuerpo editable -->
+                    <div class="card-body-inner">
+
+                        <!-- Chips de modo de venta -->
+                        @if (showModeSelector()) {
+                            <div class="mode-chips">
+                                @for (mode of ['NORMAL','BULK','FIXED_FULL','FIXED_HALF']; track mode) {
+                                    <button
+                                        type="button"
+                                        class="mode-chip"
+                                        [class.active-normal]="pres._saleMode === 'NORMAL' && mode === 'NORMAL'"
+                                        [class.active-bulk]="pres._saleMode === 'BULK' && mode === 'BULK'"
+                                        [class.active-full]="pres._saleMode === 'FIXED_FULL' && mode === 'FIXED_FULL'"
+                                        [class.active-half]="pres._saleMode === 'FIXED_HALF' && mode === 'FIXED_HALF'"
+                                        [class.disabled-chip]="!isModeAvailable($any(mode), pres) && pres._saleMode !== mode"
+                                        [disabled]="!isModeAvailable($any(mode), pres) && pres._saleMode !== mode"
+                                        (click)="onSaleModeChange(pres, $any(mode))"
+                                        [title]="!isModeAvailable($any(mode), pres) && pres._saleMode !== mode ? 'Ya existe una presentación con este modo' : ''"
+                                    >
+                                        {{ modeLabel($any(mode)) }}
+                                    </button>
+                                }
+                            </div>
+                        }
+
+                        <!-- Pack size (Bulto / Medio Bulto) -->
+                        @if (pres._saleMode === 'FIXED_FULL' || pres._saleMode === 'FIXED_HALF') {
+                            <div class="pack-row">
+                                <div>
+                                    <label class="field-label">Tamaño del bulto</label>
+                                    <input
+                                        type="number"
+                                        class="field-input"
+                                        [value]="pres._packSize ?? ''"
+                                        (input)="onPackSizeChange(pres, +$any($event.target).value)"
+                                        min="0.01" step="0.01"
+                                        placeholder="ej: 40"
+                                    />
+                                </div>
+                                <div>
+                                    <label class="field-label">Cantidad fija</label>
+                                    <div class="computed-label">
+                                        @if (pres._packSize) {
+                                            {{ pres._saleMode === 'FIXED_HALF' ? (pres._packSize / 2) : pres._packSize }}
+                                            {{ unitMeasureLabels[pres.unitMeasure] }}
+                                        } @else {
+                                            —
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        <!-- Barcode + Etiqueta -->
+                        <div class="price-row">
+                            <div class="field-group">
+                                <label class="field-label">Barcode</label>
+                                <input
+                                    type="text"
+                                    class="field-input"
+                                    [(ngModel)]="pres.barcode"
+                                    (ngModelChange)="onFieldChange(pres)"
+                                    placeholder="Ej: 7500000000001"
+                                />
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Unidad medida</label>
+                                <select class="field-select" [(ngModel)]="pres.unitMeasure" (ngModelChange)="onFieldChange(pres)">
+                                    @for (u of allowedUnits(pres); track u) {
+                                        <option [value]="u">{{ unitMeasureLabels[u] }}</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="field-group">
+                            <label class="field-label">Etiqueta</label>
+                            <input
+                                type="text"
+                                class="field-input"
+                                [(ngModel)]="pres.label"
+                                (ngModelChange)="onFieldChange(pres)"
+                                placeholder="Nombre visible de la presentación"
+                            />
+                        </div>
+
+                        <!-- Precios -->
+                        <div class="price-row">
+                            <div class="field-group">
+                                <label class="field-label">Precio venta</label>
+                                <input
+                                    type="text"
+                                    class="field-input"
+                                    [value]="formatPriceInput(pres.salePrice)"
+                                    (input)="onPriceInput(pres, 'salePrice', $event)"
+                                    placeholder="0"
+                                />
+                                <small class="text-muted" style="font-size:.7rem">
+                                    {{ formatCurrency(pres.salePrice) }}
+                                </small>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Precio costo</label>
+                                <input
+                                    type="text"
+                                    class="field-input"
+                                    [value]="formatPriceInput(pres.costPrice)"
+                                    (input)="onPriceInput(pres, 'costPrice', $event)"
+                                    placeholder="0"
+                                />
+                                <small class="text-muted" style="font-size:.7rem">
+                                    {{ formatCurrency(pres.costPrice) }}
+                                </small>
+                            </div>
+                        </div>
+
+                    </div><!-- /card-body-inner -->
+                </div><!-- /pres-card -->
+            }
+
+            <!-- ── Tarjeta "Agregar" ── -->
+            <div class="add-card" (click)="addPresentation()" role="button" tabindex="0"
+                 (keyup.enter)="addPresentation()">
+                <span class="add-icon"><i class="bi bi-plus-circle"></i></span>
+                <span class="add-text">Agregar presentación</span>
+            </div>
+
+        </div><!-- /presentations-grid -->
+    }
+
+</div><!-- /container -->
+
+<!-- ══ STICKY SAVE BAR ═══════════════════════════════════════════════ -->
+@if (isDirty) {
+    <div class="save-bar">
+        <div class="bar-info">
+            <strong>{{ dirtyCount }}</strong> presentación{{ dirtyCount !== 1 ? 'es' : '' }} con cambios sin guardar
+        </div>
+        <div class="bar-actions">
+            <button class="btn-discard" (click)="discard()">
+                <i class="bi bi-arrow-counterclockwise me-1"></i>Descartar
+            </button>
+            <button class="btn-save" (click)="save()" [disabled]="isSaving">
+                @if (isSaving) {
+                    <span class="spinner-border spinner-border-sm me-1"></span> Guardando…
+                } @else {
+                    <i class="bi bi-check-lg me-1"></i>Guardar cambios
+                }
+            </button>
+        </div>
+    </div>
+}

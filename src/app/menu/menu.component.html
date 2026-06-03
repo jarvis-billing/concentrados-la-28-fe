@@ -32,7 +32,12 @@
                     <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" routerLinkActive="active" role="button" aria-haspopup="true" aria-expanded="false">Ventas</a>
                     <div class="dropdown-menu" style="background-color: white; border-color: black;">
                       <a class="dropdown-item" routerLink="/main/factura" (click)="closeMenu()">Nueva venta</a>
-                      <a class="dropdown-item" routerLink="/main/list/facturas" (click)="closeMenu()">Listar ventas</a>
+                      <a class="dropdown-item" routerLink="/main/list/facturas" (click)="closeMenu()">
+                        <i class="bi bi-list-ul me-1"></i> Listar ventas
+                      </a>
+                      <a class="dropdown-item" routerLink="/main/ventas/reporte-facturas" (click)="closeMenu()">
+                        <i class="bi bi-receipt me-1"></i> Reporte de facturas
+                      </a>
                       <a class="dropdown-item" routerLink="/main/list/sale/products" (click)="closeMenu()">Listar productos vendidos</a>
                       <div class="dropdown-divider"></div>
                       <a class="dropdown-item" routerLink="/main/preventa/lista" (click)="closeMenu()">
@@ -92,6 +97,9 @@
                       <a class="dropdown-item" routerLink="/main/producto/precios" (click)="closeMenu()">
                         <i class="bi bi-tags-fill me-1"></i> Actualizar precios y costos
                       </a>
+                      <a class="dropdown-item" routerLink="/main/producto/presentaciones" (click)="closeMenu()">
+                        <i class="bi bi-boxes me-1"></i> Editar presentaciones
+                      </a>
                     </div>
                 </li>
 
@@ -120,6 +128,9 @@
                       <div class="dropdown-divider"></div>
                       <a class="dropdown-item" routerLink="/main/arqueo-caja/traslados" (click)="closeMenu()">
                         <i class="bi bi-arrow-left-right me-1"></i> Traslados a Banco
+                      </a>
+                      <a class="dropdown-item" routerLink="/main/arqueo-caja/retiros-propietario" (click)="closeMenu()">
+                        <i class="bi bi-person-wallet me-1"></i> Retiros Propietario
                       </a>
                       <a class="dropdown-item" routerLink="/main/cuentas-bancarias" (click)="closeMenu()">
                         <i class="bi bi-bank2 me-1"></i> Cuentas Bancarias

@@ -1,0 +1,329 @@
+<div class="container-fluid mb-5">
+
+    <!-- HEADER -->
+    <div class="d-flex justify-content-between align-items-center mb-3 mt-3">
+        <div>
+            <h4 class="mb-0"><i class="bi bi-receipt me-2"></i>Reporte de Facturas</h4>
+            <small class="text-muted">Consulta facturas con y sin preventa con los mismos filtros del listado de ventas.</small>
+        </div>
+    </div>
+
+    <!-- FILTROS -->
+    <div class="card mb-3 shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-funnel me-1"></i>Filtros</span>
+            <button class="btn btn-sm btn-outline-secondary" (click)="clearFilters()">
+                <i class="bi bi-x-circle me-1"></i>Limpiar
+            </button>
+        </div>
+        <div class="card-body">
+            <form [formGroup]="filterForm">
+                <div class="row g-3">
+                    <!-- Fecha desde -->
+                    <div class="col-12 col-md-2">
+                        <label class="form-label small fw-semibold">Fecha desde</label>
+                        <input type="date" class="form-control" formControlName="startDate" [max]="today" />
+                    </div>
+                    <!-- Fecha hasta -->
+                    <div class="col-12 col-md-2">
+                        <label class="form-label small fw-semibold">Fecha hasta</label>
+                        <input type="date" class="form-control" formControlName="endDate" [max]="today" />
+                    </div>
+                    <!-- Cliente -->
+                    <div class="col-12 col-md-3">
+                        <label class="form-label small fw-semibold">Cliente</label>
+                        <div class="position-relative">
+                            <div class="input-group">
+                                <input type="text" class="form-control"
+                                    [(ngModel)]="clientSearchText"
+                                    [ngModelOptions]="{standalone:true}"
+                                    (input)="filterClients(clientSearchText)"
+                                    (focus)="showClientDropdown=true"
+                                    placeholder="Buscar cliente…" autocomplete="off">
+                                @if (selectedClient) {
+                                    <button class="btn btn-outline-danger" type="button" (click)="clearClient()">
+                                        <i class="bi bi-x"></i>
+                                    </button>
+                                }
+                            </div>
+                            @if (showClientDropdown && filteredClients.length > 0) {
+                                <div class="position-absolute w-100 bg-white border rounded shadow-sm mt-1"
+                                     style="max-height:220px;overflow-y:auto;z-index:1000;">
+                                    @for (c of filteredClients; track c.id) {
+                                        <div class="p-2 border-bottom" style="cursor:pointer"
+                                             (mousedown)="selectClient(c)"
+                                             (mouseenter)="$any($event.target).style.background='#f8f9fa'"
+                                             (mouseleave)="$any($event.target).style.background='white'">
+                                            <div class="fw-bold small">{{ clientName(c) }}</div>
+                                            <small class="text-muted">{{ c.documentType }} {{ c.idNumber }}</small>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                    <!-- Producto -->
+                    <div class="col-12 col-md-3">
+                        <label class="form-label small fw-semibold">Producto</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" formControlName="productSearch"
+                                   placeholder="Código o descripción" readonly>
+                            <button class="btn btn-outline-secondary" type="button"
+                                    (click)="productsModal?.openModal()">Buscar</button>
+                            @if (selectedProduct) {
+                                <button class="btn btn-outline-danger" type="button" (click)="clearProduct()">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            }
+                        </div>
+                    </div>
+                    <!-- Número factura -->
+                    <div class="col-12 col-md-2">
+                        <label class="form-label small fw-semibold">N° Factura</label>
+                        <input type="text" class="form-control" formControlName="billNumber" placeholder="Ej: FAC-001">
+                    </div>
+                </div>
+
+                <div class="row g-3 mt-1">
+                    <!-- Tipo de venta -->
+                    <div class="col-12 col-md-2">
+                        <label class="form-label small fw-semibold">Tipo de venta</label>
+                        <select class="form-select" formControlName="saleType">
+                            <option value="">Todos</option>
+                            <option value="CONTADO">Contado</option>
+                            <option value="CREDITO">Crédito</option>
+                        </select>
+                    </div>
+                    <!-- Método de pago -->
+                    <div class="col-12 col-md-2">
+                        <label class="form-label small fw-semibold">Método de pago</label>
+                        <select class="form-select" formControlName="paymentMethod">
+                            <option value="">Todos</option>
+                            <option value="EFECTIVO">Efectivo</option>
+                            <option value="TRANSFERENCIA">Transferencia</option>
+                            <option value="TARJETA_CREDITO">T. Crédito</option>
+                            <option value="TARJETA_DEBITO">T. Débito</option>
+                            <option value="CHEQUE">Cheque</option>
+                            <option value="SALDO_FAVOR">Saldo a Favor</option>
+                        </select>
+                    </div>
+                    <!-- Origen preventa (chips) -->
+                    <div class="col-12 col-md-5">
+                        <label class="form-label small fw-semibold d-block">Origen</label>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <span class="filter-chip" [class.active-all]="preSaleFilter==='ALL'"
+                                  (click)="preSaleFilter='ALL'">
+                                <i class="bi bi-collection"></i> Todas
+                            </span>
+                            <span class="filter-chip" [class.active-with]="preSaleFilter==='WITH'"
+                                  (click)="preSaleFilter='WITH'">
+                                <i class="bi bi-cart-check"></i> Con preventa
+                            </span>
+                            <span class="filter-chip" [class.active-without]="preSaleFilter==='WITHOUT'"
+                                  (click)="preSaleFilter='WITHOUT'">
+                                <i class="bi bi-cart-x"></i> Sin preventa
+                            </span>
+                        </div>
+                    </div>
+                    <!-- Botones -->
+                    <div class="col-12 col-md-3 d-flex align-items-end gap-2 flex-wrap">
+                        <button class="btn btn-primary" type="button" (click)="applyFilters()">
+                            <i class="bi bi-search me-1"></i>Buscar
+                        </button>
+                        <div class="btn-group">
+                            <button class="btn btn-danger" type="button" (click)="generatePdf(true)"
+                                    [disabled]="isGeneratingPdf || !allResults.length"
+                                    title="PDF detallado con productos">
+                                @if (isGeneratingPdf) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                                <i class="bi bi-file-earmark-pdf me-1"></i>PDF Det.
+                            </button>
+                            <button class="btn btn-outline-danger" type="button" (click)="generatePdf(false)"
+                                    [disabled]="isGeneratingPdf || !allResults.length"
+                                    title="PDF solo resumen">
+                                <i class="bi bi-file-pdf me-1"></i>Res.
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- TARJETAS DE RESUMEN -->
+    @if (salesTotals) {
+        <div class="row g-3 mb-3">
+            <div class="col-6 col-md-3">
+                <div class="card border-0 shadow-sm text-center py-2">
+                    <small class="text-muted">Total facturas</small>
+                    <h4 class="mb-0">{{ salesTotals.totalInvoices }}</h4>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-0 shadow-sm text-center py-2">
+                    <small class="text-muted">Con preventa</small>
+                    <h4 class="mb-0" style="color:#6f42c1">{{ countWithPreSale }}</h4>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-0 shadow-sm text-center py-2">
+                    <small class="text-muted">Sin preventa</small>
+                    <h4 class="mb-0 text-success">{{ countWithoutPreSale }}</h4>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-0 shadow-sm text-center py-2">
+                    <small class="text-muted">Total general</small>
+                    <h4 class="mb-0">{{ salesTotals.totalGeneral | currency:'$ ':'symbol':'.0-0' }}</h4>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- TABLA -->
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            @if (isLoading) {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary"></div>
+                    <p class="mt-2 text-muted small">Cargando facturas…</p>
+                </div>
+            } @else if (!allResults.length) {
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                    No hay facturas para los filtros seleccionados.
+                </div>
+            } @else {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>N° Factura</th>
+                                <th>Fecha</th>
+                                <th>Cliente</th>
+                                <th>Preventa</th>
+                                <th>Tipo</th>
+                                <th>Medio pago</th>
+                                <th class="text-end">Subtotal</th>
+                                <th class="text-end">IVA</th>
+                                <th class="text-end">Total</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (b of filteredBilling; track b.id) {
+                                <tr [class.presale-row]="b.preSaleNumber" style="cursor:pointer"
+                                    (click)="toggleDetails(b.id)">
+                                    <td>
+                                        <i class="bi me-1" [ngClass]="expandedBillingId===b.id ? 'bi-chevron-down':'bi-chevron-right'"></i>
+                                        {{ b.billNumber }}
+                                    </td>
+                                    <td>{{ formatDate(b.dateTimeRecord) }}</td>
+                                    <td>{{ b.client?.fullName }}</td>
+                                    <td>
+                                        @if (b.preSaleNumber) {
+                                            <span class="badge badge-presale">
+                                                <i class="bi bi-cart-check me-1"></i>{{ b.preSaleNumber }}
+                                            </span>
+                                        } @else {
+                                            <span class="text-muted small">—</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (b.saleType === 'CONTADO') { <span class="badge bg-success">Contado</span> }
+                                        @else if (b.saleType === 'CREDITO') { <span class="badge bg-warning text-dark">Crédito</span> }
+                                        @else { <span class="badge bg-secondary">N/A</span> }
+                                    </td>
+                                    <td>
+                                        @if (b.payments?.length) {
+                                            @for (p of b.payments; track p.method) {
+                                                <span class="badge me-1" [ngClass]="getPaymentBadgeClass(p.method)">
+                                                    {{ formatPaymentMethod(p.method) }}
+                                                </span>
+                                            }
+                                        } @else {
+                                            @for (m of b.paymentMethods; track m) {
+                                                <span class="badge me-1" [ngClass]="getPaymentBadgeClass(m)">{{ formatPaymentMethod(m) }}</span>
+                                            }
+                                        }
+                                    </td>
+                                    <td class="text-end">{{ b.subTotalSale | currency:'$ ':'symbol':'.0-0' }}</td>
+                                    <td class="text-end">{{ b.totalIVAT | currency:'$ ':'symbol':'.0-0' }}</td>
+                                    <td class="text-end fw-bold">{{ (b.subTotalSale + b.totalIVAT) | currency:'$ ':'symbol':'.0-0' }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-secondary" (click)="openDetail(b); $event.stopPropagation()">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                @if (expandedBillingId === b.id) {
+                                    <tr>
+                                        <td colspan="10" class="bg-light p-3">
+                                            <table class="table table-sm mb-0">
+                                                <thead><tr class="table-secondary">
+                                                    <th>Código</th><th>Producto</th><th class="text-center">Cant.</th>
+                                                    <th class="text-end">P. Unit.</th><th class="text-end">Subtotal</th><th class="text-end">IVA</th><th class="text-end">Total</th>
+                                                </tr></thead>
+                                                <tbody>
+                                                    @for (d of b.saleDetails; track $index) {
+                                                        <tr>
+                                                            <td><small>{{ d.product?.barcode }}</small></td>
+                                                            <td>{{ d.product?.description }}</td>
+                                                            <td class="text-center">{{ d.amount }}</td>
+                                                            <td class="text-end">{{ d.unitPrice | currency:'$ ':'symbol':'.0-0' }}</td>
+                                                            <td class="text-end">{{ d.subTotal | currency:'$ ':'symbol':'.0-0' }}</td>
+                                                            <td class="text-end">{{ d.totalVat | currency:'$ ':'symbol':'.0-0' }}</td>
+                                                            <td class="text-end fw-semibold">{{ (d.subTotal + d.totalVat) | currency:'$ ':'symbol':'.0-0' }}</td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Paginación -->
+                <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
+                    <small class="text-muted">
+                        Mostrando {{ currentPage * pageSize + 1 }} – {{ Math.min((currentPage+1)*pageSize, allResults.length) }}
+                        de {{ allResults.length }} facturas
+                    </small>
+                    <div class="d-flex align-items-center gap-2">
+                        <select class="form-select form-select-sm" style="width:auto" [(ngModel)]="pageSize" (change)="onPageSizeChange()">
+                            <option [value]="10">10</option>
+                            <option [value]="20">20</option>
+                            <option [value]="50">50</option>
+                            <option [value]="100">100</option>
+                        </select>
+                        <nav>
+                            <ul class="pagination pagination-sm mb-0">
+                                <li class="page-item" [class.disabled]="isFirstPage">
+                                    <button class="page-link" (click)="prevPage()"><i class="bi bi-chevron-left"></i></button>
+                                </li>
+                                @for (p of visiblePages; track p) {
+                                    <li class="page-item" [class.active]="p===currentPage">
+                                        <button class="page-link" (click)="goToPage(p)">{{ p+1 }}</button>
+                                    </li>
+                                }
+                                <li class="page-item" [class.disabled]="isLastPage">
+                                    <button class="page-link" (click)="nextPage()"><i class="bi bi-chevron-right"></i></button>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Modal detalle -->
+<app-modal-sale-detail
+    [saleDetails]="selectedBilling?.saleDetails ?? []"
+    [billingNumber]="selectedBilling?.billNumber ?? ''" />
+
+<!-- Modal búsqueda producto -->
+<app-products-search-modal #productsModal (productSelected)="onProductSelected($event)" />

@@ -929,3 +929,103 @@
     sessionLabel="arqueo"
     (closed)="onReopenModalClosed()"
     (confirmed)="onReopenConfirmed($event)" />
+
+<!-- ===================== Modal de cierre con fondo fijo ===================== -->
+@if (showCloseModal) {
+<div class="modal d-block" tabindex="-1" style="background:rgba(0,0,0,.5);">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-lock me-2"></i>Cerrar Arqueo</h5>
+                <button type="button" class="btn-close" (click)="cancelCloseModal()"></button>
+            </div>
+
+            <div class="modal-body">
+
+                <!-- Resumen rápido -->
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <div class="p-2 rounded bg-light text-center">
+                            <small class="text-muted d-block">Físico contado</small>
+                            <strong class="text-primary">{{ formatCurrency(totalCashCounted) }}</strong>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-2 rounded bg-light text-center">
+                            <small class="text-muted d-block">Esperado en caja</small>
+                            <strong>{{ formatCurrency(expectedTotalCash) }}</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Campo fondo fijo -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">
+                        <i class="bi bi-safe me-1 text-warning"></i>
+                        ¿Cuánto dinero dejas en caja para mañana? (fondo fijo)
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input type="text" class="form-control"
+                            [value]="closingBaseInput"
+                            (input)="onClosingBaseInput($event)"
+                            placeholder="0">
+                    </div>
+                    <div class="form-text">Ingresa 0 si no quieres definir un fondo fijo.</div>
+                </div>
+
+                <!-- Alerta fondo insuficiente -->
+                @if (isUnderBase) {
+                    <div class="alert alert-warning py-2 mb-3">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        El físico contado (<strong>{{ formatCurrency(totalCashCounted) }}</strong>) es menor
+                        al fondo deseado (<strong>{{ formatCurrency(closingBase) }}</strong>).
+                        Se dejará todo lo disponible como apertura mañana.
+                    </div>
+                }
+
+                <!-- Excedente sin justificar -->
+                @if (hasUnjustifiedExcess) {
+                    <div class="alert alert-warning mb-3">
+                        <div class="fw-semibold mb-1">
+                            <i class="bi bi-exclamation-circle me-1"></i>
+                            Excedente sin justificar: <strong class="text-danger">{{ formatCurrency(closingExcess) }}</strong>
+                        </div>
+                        <small class="d-block mb-2 text-muted">
+                            ¿Qué pasó con este dinero? Regístralo para que el arqueo refleje la realidad.
+                        </small>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button class="btn btn-sm btn-outline-success" (click)="registerBankTransfer()" [disabled]="isRegisteringExcess">
+                                <i class="bi bi-bank me-1"></i>Traslado a banco
+                            </button>
+                            <button class="btn btn-sm btn-outline-warning" (click)="registerOwnerWithdrawal()" [disabled]="isRegisteringExcess">
+                                <i class="bi bi-person-wallet me-1"></i>Retiro propietario
+                                @if (isRegisteringExcess) { <span class="spinner-border spinner-border-sm ms-1"></span> }
+                            </button>
+                        </div>
+                    </div>
+                }
+
+                <!-- Todo OK -->
+                @if (!hasUnjustifiedExcess && !isUnderBase && totalCashCounted > 0) {
+                    <div class="alert alert-success py-2 mb-3">
+                        <i class="bi bi-check-circle me-1"></i>
+                        Todo justificado. El arqueo cerrará con diferencia de
+                        <strong>{{ formatCurrency(cashDifference) }}</strong>.
+                    </div>
+                }
+
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" (click)="cancelCloseModal()">Cancelar</button>
+                <button class="btn btn-danger" (click)="confirmCloseCount()">
+                    <i class="bi bi-lock-fill me-1"></i>Cerrar Arqueo
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+}

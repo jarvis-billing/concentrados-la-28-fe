@@ -1,0 +1,180 @@
+<div class="container-fluid py-4">
+
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h4 class="mb-0">
+                <i class="bi bi-person-wallet me-2"></i>
+                Retiros de Propietario
+            </h4>
+            <button class="btn btn-warning" (click)="openNewModal()">
+                <i class="bi bi-plus-lg me-1"></i>
+                Nuevo Retiro
+            </button>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-body">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label small text-muted">Desde</label>
+                    <input type="date" class="form-control" [(ngModel)]="fromDate">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small text-muted">Hasta</label>
+                    <input type="date" class="form-control" [(ngModel)]="toDate">
+                </div>
+                <div class="col-md-4">
+                    <button class="btn btn-primary w-100" (click)="load()" [disabled]="isLoading">
+                        @if (isLoading) {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        } @else {
+                            <i class="bi bi-search me-1"></i>
+                        }
+                        Buscar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tarjetas resumen -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <small class="text-muted">Total retirado en el período</small>
+                    <h3 class="mt-1 text-warning fw-bold">{{ formatCurrency(totalAmount) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <small class="text-muted">Número de retiros</small>
+                    <h3 class="mt-1 fw-bold">{{ countWithdrawals }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            @if (isLoading) {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-warning"></div>
+                    <p class="mt-2 text-muted">Cargando retiros...</p>
+                </div>
+            } @else if (withdrawals.length === 0) {
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                    No hay retiros registrados en este período.
+                </div>
+            } @else {
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Descripción</th>
+                                <th>Referencia</th>
+                                <th class="text-end">Monto</th>
+                                <th>Registrado por</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (w of withdrawals; track w.id) {
+                                <tr>
+                                    <td>
+                                        <span class="badge bg-light text-dark border">
+                                            {{ formatDate(w.date) }}
+                                        </span>
+                                    </td>
+                                    <td>{{ w.description || '-' }}</td>
+                                    <td><small class="text-muted">{{ w.reference || '-' }}</small></td>
+                                    <td class="text-end fw-semibold text-warning">
+                                        {{ formatCurrency(w.amount) }}
+                                    </td>
+                                    <td><small class="text-muted">{{ w.createdBy || '-' }}</small></td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <td colspan="3" class="fw-semibold">Total</td>
+                                <td class="text-end fw-bold text-warning">{{ formatCurrency(totalAmount) }}</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+</div>
+
+<!-- ===================== Modal nuevo retiro ===================== -->
+@if (showNewModal) {
+<div class="modal d-block" tabindex="-1" style="background:rgba(0,0,0,.5);">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-person-wallet me-2 text-warning"></i>
+                    Registrar Retiro de Propietario
+                </h5>
+                <button type="button" class="btn-close" (click)="closeNewModal()"></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="alert alert-info py-2 mb-3">
+                    <i class="bi bi-info-circle me-1"></i>
+                    <small>Este retiro se registra como egreso en efectivo del día seleccionado y queda visible en el arqueo.</small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Monto <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input type="text" class="form-control"
+                            [value]="amountInput"
+                            (input)="onAmountInput($event)"
+                            placeholder="0">
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Fecha</label>
+                    <input type="date" class="form-control" [(ngModel)]="newWithdrawal.date">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Descripción</label>
+                    <input type="text" class="form-control" [(ngModel)]="newWithdrawal.description"
+                        placeholder="Ej: Retiro semanal">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Referencia</label>
+                    <input type="text" class="form-control" [(ngModel)]="newWithdrawal.reference"
+                        placeholder="Opcional">
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" (click)="closeNewModal()">Cancelar</button>
+                <button class="btn btn-warning" (click)="save()" [disabled]="isSaving">
+                    @if (isSaving) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                    <i class="bi bi-save me-1"></i>Guardar Retiro
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+}

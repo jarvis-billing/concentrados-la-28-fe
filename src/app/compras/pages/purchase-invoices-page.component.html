@@ -199,12 +199,11 @@
         <button type="button" class="btn btn-sm btn-outline-primary" (click)="addItem()">Agregar ítem (F2)</button>
       </div>
       <div class="card-body p-0">
-        <div class="table-responsive">
+        <div class="table-responsive" style="overflow-x: auto; overflow-y: visible;">
           <table class="table table-sm table-hover align-middle m-0">
             <thead class="table-light">
               <tr>
-                <th style="min-width: 240px;">Producto / Presentación</th>
-                <th>Descripción</th>
+                <th style="min-width: 260px;">Producto / Descripción</th>
                 <th class="text-end" style="width: 90px;">Cantidad</th>
                 <th class="text-end" style="width: 120px;">Costo unit.</th>
                 <th class="text-center" style="width: 90px;">IVA %</th>
@@ -219,15 +218,58 @@
             <tbody>
               <tr *ngFor="let it of itemsArray.controls; let i = index" [formGroup]="it">
                 <td>
-                  <div class="input-group">
-                    <input class="form-control" placeholder="Código / presentación" formControlName="presentationId" readonly>
-                    <button type="button" class="btn btn-outline-secondary" (click)="openProductsModalForRow(i)">
-                      Buscar producto (F3)
-                    </button>
+                  <div class="position-relative">
+                    <div class="input-group input-group-sm">
+                      <input type="text"
+                             class="form-control"
+                             [value]="productSearchTexts[i] ?? ''"
+                             (input)="onProductSearchInput(i, $any($event.target).value)"
+                             (keydown)="onProductKeydown($event, i)"
+                             (focus)="onRowSearchFocus(i)"
+                             (blur)="hideProductDropdownDelayed()"
+                             [placeholder]="it.get('description')?.value ? 'Cambiar producto...' : 'Buscar producto...'"
+                             autocomplete="off">
+                      <button type="button" class="btn btn-outline-secondary"
+                              (click)="openProductsModalForRow(i)"
+                              title="Catálogo completo (F3)">
+                        <i class="bi bi-grid-3x3-gap"></i>
+                      </button>
+                    </div>
+                    @if (it.get('description')?.value) {
+                      <div class="mt-1 small fw-semibold text-dark lh-sm">
+                        {{ it.get('description')?.value }}
+                      </div>
+                      <small class="text-muted"><code>{{ it.get('presentationId')?.value }}</code></small>
+                    }
+                    @if (showProductDropdown && activeRowIndex === i && productSuggestions.length > 0) {
+                      <div class="position-absolute bg-white border rounded shadow purchase-autocomplete-dropdown"
+                           style="z-index: 1055; max-height: 280px; overflow-y: auto; min-width: 320px; top: 100%; left: 0;">
+                        @for (s of productSuggestions; track s.barcode; let si = $index) {
+                          <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom purchase-suggestion-item"
+                               [class.bg-primary]="productActiveIndex === si"
+                               [class.text-white]="productActiveIndex === si"
+                               style="cursor: pointer;"
+                               (mousedown)="selectProductSuggestion(s, i)">
+                            <div class="flex-grow-1 overflow-hidden me-2">
+                              <div class="fw-semibold text-truncate small">{{ s.displayName }}</div>
+                              <div [class.text-white-50]="productActiveIndex === si"
+                                   [class.text-muted]="productActiveIndex !== si"
+                                   style="font-size: 0.75rem;">
+                                {{ s.barcode }}
+                                @if (s.brand) { <span class="ms-1">· {{ s.brand }}</span> }
+                              </div>
+                            </div>
+                            <span class="badge flex-shrink-0"
+                                  [class.bg-light]="productActiveIndex === si"
+                                  [class.text-dark]="productActiveIndex === si"
+                                  [class.bg-primary]="productActiveIndex !== si">
+                              $ {{ s.costPrice | number:'1.0-0' }}
+                            </span>
+                          </div>
+                        }
+                      </div>
+                    }
                   </div>
-                </td>
-                <td>
-                  <input class="form-control" placeholder="Descripción" formControlName="description" readonly>
                 </td>
                 <td class="text-end" style="max-width: 120px;">
                   <input class="form-control text-end" type="number" min="0.01" step="0.01" formControlName="quantity">
@@ -300,12 +342,12 @@
               </tr>
               @if (itemsArray.controls.length) {
                 <tr class="table-light border-top">
-                  <td colspan="9" class="text-end text-muted small py-1">Subtotal (sin IVA ni flete):</td>
+                  <td colspan="8" class="text-end text-muted small py-1">Subtotal (sin IVA ni flete):</td>
                   <td class="text-end fw-semibold">{{ itemsTotal | number:'1.0-0' }}</td>
                   <td></td>
                 </tr>
                 <tr class="table-light">
-                  <td colspan="5" class="text-end text-success small py-1">+ Total IVA:</td>
+                  <td colspan="4" class="text-end text-success small py-1">+ Total IVA:</td>
                   <td class="text-end text-success fw-semibold">{{ itemsVatTotal | number:'1.0-0' }}</td>
                   <td colspan="3"></td>
                   <td class="text-end text-success fw-semibold">{{ itemsVatTotal | number:'1.0-0' }}</td>
@@ -313,7 +355,7 @@
                 </tr>
                 @if (freightCost > 0) {
                   <tr class="table-light">
-                    <td colspan="6" class="text-end text-warning small py-1">+ Flete total:</td>
+                    <td colspan="5" class="text-end text-warning small py-1">+ Flete total:</td>
                     <td></td>
                     <td class="text-end text-warning fw-semibold">{{ freightCost | number:'1.0-0' }}</td>
                     <td colspan="2" class="text-end text-warning fw-semibold">{{ freightCost | number:'1.0-0' }}</td>
@@ -321,7 +363,7 @@
                   </tr>
                 }
                 <tr class="table-primary fw-bold">
-                  <td colspan="9" class="text-end py-2">TOTAL COMPRA:</td>
+                  <td colspan="8" class="text-end py-2">TOTAL COMPRA:</td>
                   <td class="text-end fs-6">{{ grandTotalWithVatAndFreight | number:'1.0-0' }}</td>
                   <td></td>
                 </tr>

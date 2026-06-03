@@ -128,6 +128,16 @@ export class ProductoService {
   }
 
   /**
+   * Actualiza cualquier campo de una presentación identificada por su UUID.
+   * Permite cambiar el barcode sin duplicar la presentación.
+   */
+  updatePresentation(productId: string, presentationId: string, patch: Partial<import('./producto').Presentation>): Observable<Product> {
+    return this.http.patch<Product>(`${this.url}/${productId}/presentations/${presentationId}`, patch).pipe(
+      tap(() => { this.fetchAll(); this.notifyExternalChange(); })
+    );
+  }
+
+  /**
    * Actualiza masivamente precios de venta y/o costos a nivel de presentación.
    * El backend debe aplicar los cambios de forma atómica por producto.
    */

@@ -10,7 +10,7 @@ import { toast } from 'ngx-sonner';
 import { ExpensesFabComponent } from '../../expenses/expenses-fab.component';
 import { CurrencyFormatDirective } from '../../directive/currency-format.directive';
 import { ProductsSearchModalComponent } from '../../producto/components/products-search-modal/products-search-modal.component';
-import { Product } from '../../producto/producto';
+import { Presentation, Product } from '../../producto/producto';
 import { BatchService } from '../../lotes/services/batch.service';
 import { BATCH_REQUIRED_CATEGORY, CreateBatchRequest } from '../../lotes/models/batch';
 import { BatchExpirationAlertComponent } from '../../lotes/components/batch-expiration-alert/batch-expiration-alert.component';
@@ -18,6 +18,15 @@ import { Subscription, debounceTime } from 'rxjs';
 import { PurchaseLastCostInfo } from '../models/purchase-cost-history';
 import { ProductoService } from '../../producto/producto.service';
 import { BulkPresentationPriceUpdateRequest, PresentationPriceUpdate } from '../../producto/models/bulk-price-update.model';
+
+interface ProductSuggestion {
+  product: Product;
+  presentation: Presentation;
+  displayName: string;
+  barcode: string;
+  costPrice: number;
+  brand: string;
+}
 
 @Component({
   selector: 'app-purchase-invoices-page',
@@ -42,6 +51,14 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
   showSupplierDropdown: boolean = false;
   selectedSupplier: Supplier | null = null;
   private selectedItemIndexForProductSearch: number | null = null;
+
+  // Product inline autocomplete state
+  allProducts: Product[] = [];
+  productSuggestions: ProductSuggestion[] = [];
+  showProductDropdown = false;
+  activeRowIndex = -1;
+  productActiveIndex = -1;
+  productSearchTexts: string[] = [];
   selectedFile: File | null = null;
   uploadedFileUrl: string | null = null;
 
@@ -110,6 +127,10 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
     if (!this.isEditMode) {
       this.setupAutoSave();
     }
+
+    this.productService.productos$.subscribe(products => {
+      this.allProducts = products || [];
+    });
 
     // Recalcular flete cuando cambie la tarifa de flete en el encabezado
     this.form.get('freightRate')?.valueChanges.subscribe(() => this.recalcFreight());
@@ -186,10 +207,12 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
     });
     g.valueChanges.subscribe(() => this.recalcItem(g));
     this.itemsArray.push(g);
+    this.productSearchTexts.push('');
   }
 
   removeItem(index: number) {
     this.itemsArray.removeAt(index);
+    this.productSearchTexts.splice(index, 1);
   }
 
   openProductsModalForRow(index: number) {
@@ -197,44 +220,179 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
     this.productsSearchModalComp?.openModal();
   }
 
+  onRowSearchFocus(index: number): void {
+    this.activeRowIndex = index;
+    const query = (this.productSearchTexts[index] || '').trim().toLowerCase();
+    if (query.length >= 2) {
+      this.filterProductSuggestions(query);
+    }
+  }
+
+  onProductSearchInput(index: number, value: string): void {
+    this.productSearchTexts[index] = value;
+    this.activeRowIndex = index;
+    this.productActiveIndex = -1;
+    const query = value.trim().toLowerCase();
+    if (query.length < 2) {
+      this.productSuggestions = [];
+      this.showProductDropdown = false;
+      return;
+    }
+    this.filterProductSuggestions(query);
+  }
+
+  private filterProductSuggestions(query: string): void {
+    const suggestions: ProductSuggestion[] = [];
+    for (const prod of this.allProducts) {
+      for (const pres of (prod.presentations || [])) {
+        const barcode = (pres.barcode || '').toLowerCase();
+        const rootDesc = (prod.description || '').toLowerCase();
+        const label = (pres.label || '').toLowerCase();
+        const productCode = (prod.productCode || '').toLowerCase();
+        const combined = `${rootDesc} ${label}`.trim();
+        if (barcode.includes(query) || combined.includes(query) || productCode.includes(query)) {
+          const labelPart = (pres.label || '').trim();
+          const rootPart = (prod.description || '').trim();
+          suggestions.push({
+            product: prod,
+            presentation: pres,
+            displayName: labelPart ? `${rootPart} - ${labelPart}` : rootPart,
+            barcode: pres.barcode || '',
+            costPrice: pres.costPrice || 0,
+            brand: prod.brand || ''
+          });
+        }
+        if (suggestions.length >= 10) break;
+      }
+      if (suggestions.length >= 10) break;
+    }
+    this.productSuggestions = suggestions.slice(0, 10);
+    this.showProductDropdown = this.productSuggestions.length > 0;
+  }
+
+  selectProductSuggestion(s: ProductSuggestion, rowIndex: number): void {
+    this.productSearchTexts[rowIndex] = '';
+    this.showProductDropdown = false;
+    this.productSuggestions = [];
+    this.productActiveIndex = -1;
+    this.applyProductToRow(s.product, s.presentation, rowIndex);
+  }
+
+  private scrollActiveSuggestion(): void {
+    setTimeout(() => {
+      const container = document.querySelector('.purchase-autocomplete-dropdown');
+      if (!container) return;
+      const items = container.querySelectorAll('.purchase-suggestion-item');
+      const target = items[this.productActiveIndex] as HTMLElement | undefined;
+      target?.scrollIntoView({ block: 'nearest' });
+    }, 0);
+  }
+
+  onProductKeydown(event: KeyboardEvent, rowIndex: number): void {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      if (!this.showProductDropdown) {
+        this.filterProductSuggestions((this.productSearchTexts[rowIndex] || '').trim().toLowerCase());
+        return;
+      }
+      this.productActiveIndex = Math.min(this.productActiveIndex + 1, this.productSuggestions.length - 1);
+      this.scrollActiveSuggestion();
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      this.productActiveIndex = Math.max(this.productActiveIndex - 1, -1);
+      this.scrollActiveSuggestion();
+    } else if (event.key === 'Enter') {
+      if (this.productActiveIndex >= 0) {
+        event.preventDefault();
+        this.selectProductSuggestion(this.productSuggestions[this.productActiveIndex], rowIndex);
+      } else {
+        const query = this.productSearchTexts[rowIndex] || '';
+        const found = this.findPresentationByBarcode(query);
+        if (found) {
+          event.preventDefault();
+          this.applyProductToRow(found.product, found.presentation, rowIndex);
+          this.productSearchTexts[rowIndex] = '';
+          this.showProductDropdown = false;
+        } else if (this.productSuggestions.length === 1) {
+          event.preventDefault();
+          this.selectProductSuggestion(this.productSuggestions[0], rowIndex);
+        }
+      }
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      this.showProductDropdown = false;
+      this.productActiveIndex = -1;
+    }
+  }
+
+  hideProductDropdownDelayed(): void {
+    setTimeout(() => {
+      this.showProductDropdown = false;
+      this.productActiveIndex = -1;
+    }, 200);
+  }
+
+  private findPresentationByBarcode(barcode: string): { product: Product; presentation: Presentation } | null {
+    if (!barcode) return null;
+    for (const prod of this.allProducts) {
+      for (const pres of (prod.presentations || [])) {
+        if (pres.barcode === barcode) {
+          return { product: prod, presentation: pres };
+        }
+      }
+    }
+    return null;
+  }
+
+  private applyProductToRow(product: Product, presentation: Presentation, index: number): void {
+    const group = this.itemsArray.at(index) as FormGroup | undefined;
+    if (!group) return;
+    const description = (presentation.label || '').trim()
+      ? `${product.description} - ${presentation.label}`
+      : product.description;
+    group.patchValue({
+      productId: product.id,
+      presentationId: presentation.barcode,
+      presentationBarcode: presentation.barcode,
+      description: description,
+      category: product.category || '',
+      unitCost: presentation.costPrice || 0
+    });
+    this.currentSalePriceByPresentation.set(presentation.barcode, presentation.salePrice || 0);
+    this.fetchLastCostForPresentation(presentation.barcode, description);
+  }
+
   onPresentationSelected(mappedProduct: Product) {
     const index = this.selectedItemIndexForProductSearch ?? (this.itemsArray.length > 0 ? this.itemsArray.length - 1 : null);
     if (index === null || index < 0) {
       this.addItem();
       const lastIndex = this.itemsArray.length - 1;
-      const g = this.itemsArray.at(lastIndex) as FormGroup;
-      g.patchValue({
+      const presentation = mappedProduct.presentations?.find(p => p.barcode === mappedProduct.barcode);
+      if (presentation) {
+        this.applyProductToRow(mappedProduct, presentation, lastIndex);
+      }
+      this.selectedItemIndexForProductSearch = null;
+      return;
+    }
+
+    const group = this.itemsArray.at(index) as FormGroup | undefined;
+    if (!group) return;
+
+    const presentation = mappedProduct.presentations?.find(p => p.barcode === mappedProduct.barcode);
+    if (presentation) {
+      this.applyProductToRow(mappedProduct, presentation, index);
+    } else {
+      // Fallback: modal may have already mapped the description
+      group.patchValue({
         productId: mappedProduct.id,
         presentationId: mappedProduct.barcode,
         presentationBarcode: mappedProduct.barcode,
         description: mappedProduct.description,
         category: mappedProduct.category || ''
       });
-      this.selectedItemIndexForProductSearch = null;
-      return;
+      this.fetchLastCostForPresentation(mappedProduct.barcode, mappedProduct.description);
     }
-
-    const group = this.itemsArray.at(index) as FormGroup | undefined;
-    if (!group) {
-      return;
-    }
-
-    group.patchValue({
-      productId: mappedProduct.id,
-      presentationId: mappedProduct.barcode,
-      presentationBarcode: mappedProduct.barcode,
-      description: mappedProduct.description,
-      category: mappedProduct.category || ''
-    });
-
     this.selectedItemIndexForProductSearch = null;
-    // Guardar precio de venta actual de la presentación para ajuste rápido
-    const selectedPres = mappedProduct.presentations?.find(p => p.barcode === mappedProduct.barcode);
-    if (selectedPres) {
-      this.currentSalePriceByPresentation.set(mappedProduct.barcode, selectedPres.salePrice || 0);
-    }
-    // Consultar el último costo registrado para esta presentación y mostrar tendencia
-    this.fetchLastCostForPresentation(mappedProduct.barcode, mappedProduct.description);
   }
 
   /**
@@ -585,6 +743,21 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
     return this.pendingSalePriceUpdates.has(presentationId);
   }
 
+  private updateProductCostPrices(mappedItems: any[]): void {
+    const updates: PresentationPriceUpdate[] = mappedItems
+      .filter(it => it.productId && it.presentationBarcode && it.unitCost > 0)
+      .map(it => ({
+        productId: it.productId,
+        barcode: it.presentationBarcode,
+        costPrice: it.unitCost
+      }));
+    if (updates.length === 0) return;
+    this.productService.bulkUpdatePresentationPrices({ updates }).subscribe({
+      next: () => {},
+      error: () => {}
+    });
+  }
+
   private executeSave(raw: any, selectedSupplier: any, mappedItems: any[], validItems: any[]): void {
     if (this.isEditMode && this.editingInvoiceId) {
       // Modo edición: agregar nuevos items a factura existente
@@ -621,6 +794,7 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
     this.purchasesService.create(payload).subscribe({
       next: (response) => {
         toast.success('Compra registrada');
+        this.updateProductCostPrices(mappedItems);
         this.clearDraft();
         
         // Detectar productos de ANIMALES VIVOS para crear lotes
@@ -651,6 +825,7 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
     this.purchasesService.addItems(this.editingInvoiceId!, mappedItems).subscribe({
       next: (response) => {
         toast.success(`${mappedItems.length} producto(s) agregado(s) a la factura`);
+        this.updateProductCostPrices(mappedItems);
         
         // Detectar productos de ANIMALES VIVOS para crear lotes
         const batchItems = validItems.filter((it: any) => 
@@ -751,6 +926,8 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
     this.existingItems = [];
     this.isEditMode = false;
     this.editingInvoiceId = null;
+    this.productSearchTexts = [];
+    this.showProductDropdown = false;
     this.clearDraft();
     this.addItem();
   }
@@ -894,6 +1071,7 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
       
       // Restaurar items
       this.form.setControl('items', this.fb.array([]));
+      this.productSearchTexts = [];
       if (formData.items && formData.items.length > 0) {
         formData.items.forEach((item: any) => {
           const g = this.fb.group({
@@ -912,9 +1090,10 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
           });
           g.valueChanges.subscribe(() => this.recalcItem(g));
           this.itemsArray.push(g);
+          this.productSearchTexts.push('');
         });
       }
-      
+
       if (this.itemsArray.length === 0) {
         this.addItem();
       }

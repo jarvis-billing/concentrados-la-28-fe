@@ -337,31 +337,92 @@ export class CashCountPageComponent implements OnInit {
         });
     }
 
-    // Cerrar arqueo
+    // ==================== Modal de cierre con fondo fijo ====================
+
+    showCloseModal = false;
+    closingBase: number = 0;
+    closingBaseInput: string = '';
+    isRegisteringExcess = false;
+
+    /** Excedente = físico contado − fondo fijo definido por el operador */
+    get closingExcess(): number {
+        return Math.max(0, this.totalCashCounted - (this.closingBase || 0));
+    }
+
+    /** Hay excedente sin justificar cuando el físico supera el fondo deseado */
+    get hasUnjustifiedExcess(): boolean {
+        return this.closingExcess > 0;
+    }
+
+    /** El físico es menor al fondo deseado */
+    get isUnderBase(): boolean {
+        return (this.closingBase || 0) > this.totalCashCounted && this.totalCashCounted > 0;
+    }
+
+    // Cerrar arqueo — abre el modal de cierre
     closeCount(): void {
         if (!this.existingSession?.id) {
             toast.warning('Primero debe guardar el arqueo');
             return;
         }
+        // Pre-llenar fondo con el closingBase del día anterior si existe
+        this.closingBase = this.suggestedOpeningBalance || 0;
+        this.closingBaseInput = this.formatCurrencyInput(this.closingBase);
+        this.showCloseModal = true;
+    }
 
-        toast.warning('¿Está seguro de cerrar este arqueo?', {
-            description: 'Una vez cerrado no podrá modificarse.',
-            duration: 10000,
-            action: {
-                label: 'Sí, cerrar',
-                onClick: () => this.confirmCloseCount()
+    onClosingBaseInput(event: Event): void {
+        const input = event.target as HTMLInputElement;
+        const raw = input.value.replace(/\D/g, '');
+        this.closingBase = raw ? parseInt(raw, 10) : 0;
+        input.value = this.formatCurrencyInput(this.closingBase);
+    }
+
+    cancelCloseModal(): void {
+        this.showCloseModal = false;
+    }
+
+    /** Botón "Traslado a banco": registra un InternalTransfer por el excedente */
+    registerBankTransfer(): void {
+        if (!this.closingExcess) return;
+        this.isRegisteringExcess = true;
+        // Navegar al módulo de traslados con el monto pre-cargado
+        // (reutilizamos el flujo existente de traslados)
+        this.router.navigate(['/main/arqueo-caja/traslados'], {
+            queryParams: { amount: this.closingExcess, returnTo: 'arqueo' }
+        });
+        this.showCloseModal = false;
+        this.isRegisteringExcess = false;
+    }
+
+    /** Botón "Retiro propietario": registra un Expense RETIRO_PROPIETARIO por el excedente */
+    registerOwnerWithdrawal(): void {
+        if (!this.closingExcess) return;
+        this.isRegisteringExcess = true;
+        this.cashService.registerOwnerWithdrawal({
+            amount: this.closingExcess,
+            date: this.sessionDate,
+            description: 'Retiro propietario - cierre de caja'
+        }).subscribe({
+            next: () => {
+                toast.success(`Retiro de ${this.formatCurrency(this.closingExcess)} registrado correctamente`);
+                // Recargar el resumen para que el egreso aparezca y actualice la diferencia
+                this.loadDailySummary();
+                this.isRegisteringExcess = false;
             },
-            cancel: {
-                label: 'Cancelar',
-                onClick: () => {}
+            error: (err) => {
+                toast.error('Error al registrar el retiro: ' + (err.error?.error || 'Intente nuevamente'));
+                this.isRegisteringExcess = false;
             }
         });
     }
 
-    private confirmCloseCount(): void {
-        this.cashService.closeSession(this.existingSession!.id!, this.notes).subscribe({
+    /** Confirmación final del cierre */
+    confirmCloseCount(): void {
+        this.cashService.closeSession(this.existingSession!.id!, this.notes, this.closingBase || undefined).subscribe({
             next: (session) => {
                 this.existingSession = session;
+                this.showCloseModal = false;
                 toast.success('Arqueo cerrado correctamente');
             },
             error: (err) => {
@@ -454,7 +515,8 @@ export class CashCountPageComponent implements OnInit {
             'GASTO': 'Gasto',
             'PAGO_PROVEEDOR': 'Pago a Proveedor',
             'AJUSTE': 'Ajuste',
-            'TRASLADO_BANCO': 'Consignación a Banco'
+            'TRASLADO_BANCO': 'Consignación a Banco',
+            'RETIRO_PROPIETARIO': 'Retiro Propietario'
         };
         return labels[category] || category;
     }
@@ -476,7 +538,8 @@ export class CashCountPageComponent implements OnInit {
             'GASTO': 'bg-danger',
             'PAGO_PROVEEDOR': 'bg-warning text-dark',
             'AJUSTE': 'bg-secondary',
-            'TRASLADO_BANCO': 'bg-dark'
+            'TRASLADO_BANCO': 'bg-dark',
+            'RETIRO_PROPIETARIO': 'bg-warning text-dark'
         };
         return classes[category] || 'bg-secondary';
     }

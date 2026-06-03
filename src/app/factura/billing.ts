@@ -26,6 +26,8 @@ export class Billing {
     payments?: PaymentEntry[]; // Detalle de pagos por método (opcional)
     isReportInvoice: boolean = false;
     saleType: saleType = saleType.CONTADO;
+    preSaleIds?: string[];    // IDs de las preventas que componen esta factura
+    preSaleNumber?: string;   // números legibles concatenados (calculado por el backend)
 }
 
 // Detalle de pago por método (opcional en el payload)
@@ -45,6 +47,7 @@ export class BillingReportFilter {
     product: string = '';
     saleType: string = '';
     paymentMethod: string = '';
+    hasPreSale?: boolean | null; // null = todas, true = con preventa, false = sin preventa
 }
 
 export class BillingReportFilterPaged {

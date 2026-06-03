@@ -46,7 +46,8 @@ export enum TransactionCategory {
     GASTO = 'GASTO',
     PAGO_PROVEEDOR = 'PAGO_PROVEEDOR',
     AJUSTE = 'AJUSTE',
-    TRASLADO_BANCO = 'TRASLADO_BANCO'
+    TRASLADO_BANCO = 'TRASLADO_BANCO',
+    RETIRO_PROPIETARIO = 'RETIRO_PROPIETARIO'
 }
 
 /**
@@ -81,11 +82,36 @@ export interface CashCountSession {
     totalExpense: number;          // Total egresos del día
     netCashFlow: number;           // Flujo neto (ingresos - egresos)
     
+    // Fondo fijo al cierre
+    closingBase?: number;
+
     // Metadata
     status: CashCountStatus;
     notes?: string;
     auditTrail: AuditTrailEntry[];
     snapshots: SessionSnapshot[];
+}
+
+/**
+ * Request para registrar retiro de propietario
+ */
+export interface RegisterOwnerWithdrawalRequest {
+    amount: number;
+    date?: string;
+    description?: string;
+    reference?: string;
+}
+
+/**
+ * Retiro de propietario (para la página de historial)
+ */
+export interface OwnerWithdrawal {
+    id: string;
+    amount: number;
+    description: string;
+    reference?: string;
+    date: string;
+    createdBy?: string;
 }
 
 export enum CashCountStatus {

@@ -34,6 +34,7 @@ export interface PreSaleDto {
   finalizedAt?: string;
   billedAt?: string;
   billingId?: string;
+  billNumber?: string;  // número legible de la factura que facturó esta preventa
   billedBy?: string;
   cancelledAt?: string;
   cancelledBy?: string;

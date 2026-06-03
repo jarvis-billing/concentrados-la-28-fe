@@ -26,8 +26,8 @@ export class PreSaleService {
     return this.http.patch<PreSaleDto>(`${this.url}/${id}/cancel`, {});
   }
 
-  markAsBilled(id: string, billingId: string): Observable<PreSaleDto> {
-    return this.http.patch<PreSaleDto>(`${this.url}/${id}/billed`, { billingId });
+  markAsBilled(id: string, billingId: string, billNumber?: string): Observable<PreSaleDto> {
+    return this.http.patch<PreSaleDto>(`${this.url}/${id}/billed`, { billingId, billNumber });
   }
 
   resendNotification(id: string): Observable<PreSaleDto> {

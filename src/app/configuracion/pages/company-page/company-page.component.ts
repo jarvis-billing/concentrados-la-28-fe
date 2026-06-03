@@ -4,6 +4,7 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { toast } from 'ngx-sonner';
 import { CompanyService } from '../../services/company.service';
 import { Company } from '../../../factura/company';
+import { LoginUserService } from '../../../auth/login/loginUser.service';
 
 const PAYMENT_METHODS = ['EFECTIVO', 'TRANSFERENCIA', 'CHEQUE', 'TARJETA_CREDITO', 'TARJETA_DEBITO', 'NEQUI', 'DAVIPLATA'] as const;
 const TAX_REGIMES = ['GENERAL', 'SIMPLE', 'ESPECIAL'] as const;
@@ -21,6 +22,12 @@ export type PageMode = 'view' | 'edit' | 'new';
 export class CompanyPageComponent implements OnInit {
 
   private companyService = inject(CompanyService);
+  private loginUserService = inject(LoginUserService);
+
+  private get isAdmin(): boolean {
+    const user = this.loginUserService.getUserFromToken();
+    return (user?.rol || '').includes('ADMIN');
+  }
 
   companies: Company[] = [];
   isLoading = false;
@@ -67,25 +74,32 @@ export class CompanyPageComponent implements OnInit {
 
   loadAll(): void {
     this.isLoading = true;
-    this.companyService.list().subscribe({
-      next: (list) => {
-        this.companies = list;
+    if (this.isAdmin) {
+      this.companyService.list().subscribe({
+        next: (list) => {
+          this.companies = list;
+          this.isLoading = false;
+          this.mode = 'view';
+        },
+        error: () => {
+          this.loadSingle();
+        },
+      });
+    } else {
+      this.loadSingle();
+    }
+  }
+
+  private loadSingle(): void {
+    this.companyService.get().subscribe({
+      next: (c) => {
+        this.companies = [c];
         this.isLoading = false;
         this.mode = 'view';
       },
       error: () => {
-        // Fallback: single-company endpoint
-        this.companyService.get().subscribe({
-          next: (c) => {
-            this.companies = [c];
-            this.isLoading = false;
-            this.mode = 'view';
-          },
-          error: () => {
-            toast.error('Error al cargar datos de la empresa');
-            this.isLoading = false;
-          },
-        });
+        toast.error('Error al cargar datos de la empresa');
+        this.isLoading = false;
       },
     });
   }

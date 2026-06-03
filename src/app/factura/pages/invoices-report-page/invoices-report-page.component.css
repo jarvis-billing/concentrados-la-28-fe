@@ -1,0 +1,16 @@
+.presale-row td { background-color: #f3eeff !important; }
+.badge-presale   { background: #6f42c1; color: #fff; }
+.cursor-pointer  { cursor: pointer; }
+.filter-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 14px; border-radius: 20px; font-size: .82rem;
+    font-weight: 600; cursor: pointer; border: 2px solid transparent;
+    transition: all .15s ease;
+}
+.filter-chip.active-all     { background:#e9ecef; border-color:#6c757d; color:#343a40; }
+.filter-chip.active-with    { background:#ede9ff; border-color:#6f42c1; color:#6f42c1; }
+.filter-chip.active-without { background:#e8f5e9; border-color:#198754; color:#198754; }
+.filter-chip:not(.active-all):not(.active-with):not(.active-without) {
+    background:#fff; border-color:#dee2e6; color:#6c757d;
+}
+.filter-chip:hover { opacity:.85; }

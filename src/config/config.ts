@@ -2,7 +2,7 @@ export const urlConfig = {
     
     //For local server use (desktop browser):
     
-   // baseUrl: 'http://localhost:8080',
+   //baseUrl: 'http://localhost:8080',
     
     //For local network (mobile / same WiFi):
     

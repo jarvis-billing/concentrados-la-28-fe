@@ -1132,13 +1132,18 @@ export class FacturaComponent implements OnInit, AfterViewInit, OnDestroy {
   confirmSaveBilling() {
     // Ejecutar guardado real
     this.closeConfirmSaveModal();
+    // Incluir los IDs de preventas en el payload del billing antes de guardar
+    if (this.importedPreSaleIds.length > 0) {
+      this.factura.preSaleIds = [...this.importedPreSaleIds];
+    }
+
     this.facturaService.save(this.factura).subscribe({
       next: (factura) => {
         if (factura.id) {
-          // Vincular preventas importadas a esta factura
+          // Marcar cada preventa como facturada con el número legible de la factura
           const billedPreSaleIds = [...this.importedPreSaleIds];
           billedPreSaleIds.forEach(preSaleId => {
-            this.preSaleService.markAsBilled(preSaleId, factura.id).subscribe();
+            this.preSaleService.markAsBilled(preSaleId, factura.id, factura.billNumber).subscribe();
           });
 
           // Limpiar tracking ANTES de onInitBilling para que no restaure las notificaciones

@@ -28,6 +28,7 @@ export class Product {
 }
 
 export class Presentation {
+    id?: string;          // UUID generado por el backend — clave estable para updates
     barcode: string = "";
     productCode: string = "";
     label: string = "";

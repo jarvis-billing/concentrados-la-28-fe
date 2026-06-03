@@ -2,13 +2,15 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { urlConfig } from '../../../config/config';
-import { 
-    CashCountSession, 
-    CashCountFilter, 
+import {
+    CashCountSession,
+    CashCountFilter,
     CreateCashCountRequest,
     DailyCashSummary,
     CashTransaction,
-    PaymentMethodSummary
+    PaymentMethodSummary,
+    RegisterOwnerWithdrawalRequest,
+    OwnerWithdrawal
 } from '../models/cash-register';
 
 @Injectable({
@@ -63,9 +65,10 @@ export class CashRegisterService {
 
     /**
      * Cierra un arqueo de caja
+     * @param closingBase Fondo fijo que quedará en caja (opcional, configurable por el operador)
      */
-    closeSession(id: string, notes?: string): Observable<CashCountSession> {
-        return this.http.post<CashCountSession>(`${this.url}/${id}/close`, { notes });
+    closeSession(id: string, notes?: string, closingBase?: number): Observable<CashCountSession> {
+        return this.http.post<CashCountSession>(`${this.url}/${id}/close`, { notes, closingBase });
     }
 
     /**
@@ -99,6 +102,25 @@ export class CashRegisterService {
      */
     reopenSession(id: string, reason?: string): Observable<CashCountSession> {
         return this.http.post<CashCountSession>(`${this.url}/${id}/reopen`, { reason });
+    }
+
+    /**
+     * Registra un retiro de propietario como egreso en efectivo.
+     * Corresponde al botón "Retiro propietario" al momento del cierre.
+     */
+    registerOwnerWithdrawal(request: RegisterOwnerWithdrawalRequest): Observable<{ id: string; message: string }> {
+        return this.http.post<{ id: string; message: string }>(`${this.url}/owner-withdrawal`, request);
+    }
+
+    /**
+     * Lista los retiros de propietario registrados, con filtros opcionales por fecha.
+     * Reutiliza el daily-summary filtrando por categoría RETIRO_PROPIETARIO.
+     */
+    getOwnerWithdrawals(fromDate?: string, toDate?: string): Observable<OwnerWithdrawal[]> {
+        let params = new HttpParams();
+        if (fromDate) params = params.set('fromDate', fromDate);
+        if (toDate) params = params.set('toDate', toDate);
+        return this.http.get<OwnerWithdrawal[]>(`${this.url}/owner-withdrawals`, { params });
     }
 
     /**
