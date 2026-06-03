@@ -138,8 +138,7 @@
                  [id]="'search-result-' + i"
                  [class.active]="activeSearchIndex === i"
                  (mouseenter)="activeSearchIndex = i"
-                 (click)="selectSearchResult(r)"
-                 (touchstart)="selectSearchResult(r)">
+                 (click)="selectSearchResult(r)">
               <div class="search-result-desc">{{ r.product.description }}{{ r.presentation.label ? ' - ' + r.presentation.label : '' }}</div>
               <div class="search-result-meta">
                 <span class="search-result-barcode">{{ r.presentation.barcode }}</span>

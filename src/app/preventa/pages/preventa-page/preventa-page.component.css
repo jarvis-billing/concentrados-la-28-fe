@@ -205,17 +205,22 @@
   border: 1px solid #dee2e6;
   border-top: none;
   border-radius: 0 0 8px 8px;
-  max-height: 280px;
+  max-height: 300px;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch; /* scroll suave en iOS */
+  overscroll-behavior: contain;      /* evita que el scroll se propague a la página */
   z-index: 1050;
   box-shadow: 0 4px 12px rgba(0,0,0,0.12);
 }
 
 .search-result-item {
-  padding: 10px 14px;
+  padding: 14px 14px;               /* más alto → área de tap más grande en móvil */
   border-bottom: 1px solid #f1f3f5;
   cursor: pointer;
   transition: background 0.12s;
+  touch-action: manipulation;        /* tap inmediato sin 300ms de delay, scroll libre */
+  -webkit-tap-highlight-color: transparent; /* elimina el flash gris de iOS al tocar */
+  user-select: none;
 }
 
 .search-result-item:last-child {
