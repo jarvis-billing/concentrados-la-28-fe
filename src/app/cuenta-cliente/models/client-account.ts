@@ -57,6 +57,21 @@ export class AccountReportFilter {
 }
 
 /**
+ * Pago con saldo antes/después — para el historial detallado
+ */
+export interface PaymentWithBalance {
+    id: string;
+    amount: number;
+    paymentMethod?: string;
+    reference?: string;
+    notes?: string;
+    paymentDate: string;
+    createdBy?: string;
+    balanceBefore: number;   // saldo ANTES de este pago
+    balanceAfter:  number;   // saldo DESPUÉS de este pago
+}
+
+/**
  * Resumen de cuenta para reportes
  */
 export class AccountSummary {
@@ -68,6 +83,7 @@ export class AccountSummary {
     currentBalance: number = 0;
     lastPaymentDate?: string;
     daysSinceLastPayment?: number;
+    payments?: PaymentWithBalance[];  // historial con saldo previo por pago
 }
 
 /**
