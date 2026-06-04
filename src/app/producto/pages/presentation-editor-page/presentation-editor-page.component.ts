@@ -9,16 +9,19 @@ import {
     Product, Presentation, ESaleType, UnitMeasure,
     UnitMeasureLabels, SaleTypeLabels
 } from '../../producto';
-
-export type SaleMode = 'NORMAL' | 'BULK' | 'FIXED_FULL' | 'FIXED_HALF';
+import {
+    PackageTypeConfig, SaleMode,
+    getPackageTypes, findPackageType, buildPackageLabel
+} from '../../package-type.config';
 
 export interface EditablePresentation extends Omit<Presentation, 'fixedAmount'> {
     fixedAmount?: number | null;  // extendemos para permitir null en UI
-    _id: string;          // key UI para trackBy (= presentation.id si existe, o temporal)
-    _dirty: boolean;      // tiene cambios sin guardar
-    _isNew: boolean;      // fue añadida en esta sesión (sin id de MongoDB todavía)
-    _saleMode: SaleMode;  // modo de venta en la UI
-    _packSize: number | null; // tamaño del bulto para cálculos
+    _id: string;             // key UI para trackBy (= presentation.id si existe, o temporal)
+    _dirty: boolean;         // tiene cambios sin guardar
+    _isNew: boolean;         // fue añadida en esta sesión (sin id de MongoDB todavía)
+    _saleMode: SaleMode;     // modo de venta derivado del embalaje
+    _packSize: number | null;// tamaño/cantidad del embalaje
+    _packageKey: string | null; // key del embalaje seleccionado
 }
 
 @Component({
@@ -51,6 +54,45 @@ export class PresentationEditorPageComponent implements OnInit, OnDestroy {
     unitMeasureLabels = UnitMeasureLabels;
     saleTypeLabels    = SaleTypeLabels;
     unitMeasures      = Object.values(UnitMeasure);
+
+    // ─── Embalajes ───────────────────────────────────────────────
+    /** Devuelve los tipos de embalaje disponibles para el producto seleccionado */
+    get availablePackageTypes(): PackageTypeConfig[] {
+        if (!this.selectedProduct) return [];
+        return getPackageTypes(this.selectedProduct.saleType);
+    }
+
+    /** Obtiene la config del embalaje actual de una presentación */
+    getPackageConfig(pres: EditablePresentation): PackageTypeConfig | undefined {
+        if (!this.selectedProduct || !pres._packageKey) return undefined;
+        return findPackageType(this.selectedProduct.saleType, pres._packageKey);
+    }
+
+    /** Verifica si el embalaje BULK (granel) ya está en uso por otra presentación */
+    isBulkPackageUsed(pres: EditablePresentation): boolean {
+        return this.presentations.some(p =>
+            p._id !== pres._id && p._saleMode === 'BULK'
+        );
+    }
+
+    /** Maneja la selección de un tipo de embalaje */
+    onPackageTypeChange(pres: EditablePresentation, pkg: PackageTypeConfig): void {
+        // Bloquear si es BULK y ya hay otra presentación con granel
+        if (pkg.saleMode === 'BULK' && this.isBulkPackageUsed(pres)) {
+            toast.warning('Ya existe una presentación de tipo Granel para este producto.');
+            return;
+        }
+        const clearSize = pkg.saleMode === 'NORMAL' || pkg.saleMode === 'BULK';
+        this.updatePres(pres, {
+            _packageKey:   pkg.key,
+            _saleMode:     pkg.saleMode,
+            packageType:   pkg.key,
+            isBulk:        pkg.saleMode === 'BULK',
+            isFixedAmount: pkg.saleMode === 'FIXED_FULL' || pkg.saleMode === 'FIXED_HALF',
+            fixedAmount:   clearSize ? null : pres.fixedAmount,
+            _packSize:     clearSize ? null : pres._packSize,
+        });
+    }
 
     // ─── Lifecycle ───────────────────────────────────────────────
 
@@ -146,6 +188,9 @@ export class PresentationEditorPageComponent implements OnInit, OnDestroy {
             : p.isFixedAmount ? 'FIXED_FULL'
             : 'NORMAL';
 
+        // Intentar recuperar el _packageKey desde packageType guardado o inferir por saleMode
+        const packageKey = p.packageType ?? this.inferPackageKey(saleMode);
+
         return {
             ...p,
             id:           p.id,
@@ -158,12 +203,14 @@ export class PresentationEditorPageComponent implements OnInit, OnDestroy {
             isBulk:       p.isBulk       ?? false,
             isFixedAmount: p.isFixedAmount ?? false,
             fixedAmount:  p.fixedAmount  ?? null,
+            packageType:  packageKey ?? undefined,
             // _id usa el UUID de MongoDB si existe, o un key temporal para nuevas
-            _id:        p.id ?? `new_${index}_${Date.now()}`,
-            _dirty:     false,
-            _isNew:     !p.id,
-            _saleMode:  saleMode,
-            _packSize:  p.fixedAmount ?? null,
+            _id:          p.id ?? `new_${index}_${Date.now()}`,
+            _dirty:       false,
+            _isNew:       !p.id,
+            _saleMode:    saleMode,
+            _packSize:    p.fixedAmount ?? null,
+            _packageKey:  packageKey,
         };
     }
 
@@ -174,6 +221,8 @@ export class PresentationEditorPageComponent implements OnInit, OnDestroy {
     // ─── CRUD de presentaciones ───────────────────────────────────
 
     addPresentation(): void {
+        // Pre-seleccionar el primer embalaje disponible para el tipo de venta
+        const firstPkg = this.availablePackageTypes[0];
         const newP: EditablePresentation = {
             barcode: '',
             productCode: this.selectedProduct?.productCode ?? '',
@@ -181,14 +230,16 @@ export class PresentationEditorPageComponent implements OnInit, OnDestroy {
             salePrice: 0,
             costPrice: 0,
             unitMeasure: this.defaultUnit(),
-            isBulk: false,
-            isFixedAmount: false,
+            isBulk: firstPkg?.saleMode === 'BULK',
+            isFixedAmount: firstPkg?.saleMode === 'FIXED_FULL' || firstPkg?.saleMode === 'FIXED_HALF',
             fixedAmount: null,
+            packageType: firstPkg?.key,
             _id: `new_${Date.now()}`,
             _dirty: true,
             _isNew: true,
-            _saleMode: 'NORMAL',
+            _saleMode: firstPkg?.saleMode ?? 'NORMAL',
             _packSize: null,
+            _packageKey: firstPkg?.key ?? null,
         };
         this.presentations = [...this.presentations, newP];
     }
@@ -265,23 +316,44 @@ export class PresentationEditorPageComponent implements OnInit, OnDestroy {
         this.updatePres(pres, { [field]: raw ? parseInt(raw, 10) : 0 });
     }
 
-    /** Genera etiqueta automática sobre el objeto ya patcheado (inmutable-safe) */
+    /**
+     * Genera etiqueta automática sobre el objeto ya patcheado.
+     * Si hay packageType configurado usa su plantilla; si no, fallback al comportamiento anterior.
+     */
     private autoLabelOn(pres: EditablePresentation): void {
         const desc = this.selectedProduct?.description ?? '';
         const unit = UnitMeasureLabels[pres.unitMeasure] ?? pres.unitMeasure;
+
+        // Usar plantilla del embalaje si está seleccionado
+        if (pres._packageKey && this.selectedProduct) {
+            const cfg = findPackageType(this.selectedProduct.saleType, pres._packageKey);
+            if (cfg) {
+                // Para FIXED_HALF el tamaño mostrado es la mitad
+                const displaySize = cfg.saleMode === 'FIXED_HALF' && pres._packSize
+                    ? pres._packSize / 2 : pres._packSize;
+                const label = buildPackageLabel(cfg.labelTemplate, desc, displaySize, unit);
+                if (label) { pres.label = label; }
+                return;
+            }
+        }
+
+        // Fallback para presentaciones sin packageType (productos migrados)
         switch (pres._saleMode) {
             case 'BULK':
-                pres.label = `${desc} - GRANEL ${unit}`.trim();
-                break;
+                pres.label = `${desc} - GRANEL ${unit}`.trim(); break;
             case 'FIXED_FULL':
-                if (pres._packSize) pres.label = `${desc} - BULTO ${pres._packSize} ${unit}`.trim();
-                break;
+                if (pres._packSize) pres.label = `${desc} - BULTO ${pres._packSize} ${unit}`.trim(); break;
             case 'FIXED_HALF':
-                if (pres._packSize) pres.label = `${desc} - MEDIO BULTO ${(pres._packSize / 2)} ${unit}`.trim();
-                break;
-            default:
-                break;
+                if (pres._packSize) pres.label = `${desc} - MEDIO BULTO ${pres._packSize / 2} ${unit}`.trim(); break;
         }
+    }
+
+    /** Infiere el packageKey más probable según el saleMode para presentaciones sin packageType */
+    private inferPackageKey(saleMode: SaleMode): string | null {
+        if (!this.selectedProduct) return null;
+        const types = getPackageTypes(this.selectedProduct.saleType);
+        const match = types.find(t => t.saleMode === saleMode);
+        return match?.key ?? null;
     }
 
     // ─── Guardar ──────────────────────────────────────────────────
@@ -390,7 +462,7 @@ export class PresentationEditorPageComponent implements OnInit, OnDestroy {
 
     private toPayload(p: EditablePresentation): Presentation {
         return {
-            id:            p.id,           // UUID de MongoDB — clave estable
+            id:            p.id,
             barcode:       p.barcode,
             productCode:   p.productCode,
             label:         p.label,
@@ -400,6 +472,7 @@ export class PresentationEditorPageComponent implements OnInit, OnDestroy {
             isBulk:        p.isBulk,
             isFixedAmount: p.isFixedAmount,
             fixedAmount:   p.fixedAmount ?? undefined,
+            packageType:   p._packageKey ?? p.packageType,  // siempre guardar el embalaje
         };
     }
 

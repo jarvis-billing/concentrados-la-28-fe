@@ -109,51 +109,53 @@
                     <!-- Cuerpo editable -->
                     <div class="card-body-inner">
 
-                        <!-- Chips de modo de venta -->
-                        @if (showModeSelector()) {
-                            <div class="mode-chips">
-                                @for (mode of ['NORMAL','BULK','FIXED_FULL','FIXED_HALF']; track mode) {
+                        <!-- Chips de embalaje (específicos por tipo de venta) -->
+                        @if (availablePackageTypes.length > 0) {
+                            <div class="pkg-chips">
+                                @for (pkg of availablePackageTypes; track pkg.key) {
                                     <button
                                         type="button"
-                                        class="mode-chip"
-                                        [class.active-normal]="pres._saleMode === 'NORMAL' && mode === 'NORMAL'"
-                                        [class.active-bulk]="pres._saleMode === 'BULK' && mode === 'BULK'"
-                                        [class.active-full]="pres._saleMode === 'FIXED_FULL' && mode === 'FIXED_FULL'"
-                                        [class.active-half]="pres._saleMode === 'FIXED_HALF' && mode === 'FIXED_HALF'"
-                                        [class.disabled-chip]="!isModeAvailable($any(mode), pres) && pres._saleMode !== mode"
-                                        [disabled]="!isModeAvailable($any(mode), pres) && pres._saleMode !== mode"
-                                        (click)="onSaleModeChange(pres, $any(mode))"
-                                        [title]="!isModeAvailable($any(mode), pres) && pres._saleMode !== mode ? 'Ya existe una presentación con este modo' : ''"
+                                        class="pkg-chip"
+                                        [ngClass]="pkg.chipClass"
+                                        [class.active]="pres._packageKey === pkg.key"
+                                        [class.pkg-disabled]="pkg.saleMode === 'BULK' && isBulkPackageUsed(pres) && pres._packageKey !== pkg.key"
+                                        [disabled]="pkg.saleMode === 'BULK' && isBulkPackageUsed(pres) && pres._packageKey !== pkg.key"
+                                        [title]="pkg.saleMode === 'BULK' && isBulkPackageUsed(pres) && pres._packageKey !== pkg.key ? 'Ya existe una presentación granel' : pkg.label"
+                                        (click)="onPackageTypeChange(pres, pkg)"
                                     >
-                                        {{ modeLabel($any(mode)) }}
+                                        <i class="bi" [ngClass]="pkg.icon"></i>
+                                        {{ pkg.label }}
                                     </button>
                                 }
                             </div>
                         }
 
-                        <!-- Pack size (Bulto / Medio Bulto) -->
-                        @if (pres._saleMode === 'FIXED_FULL' || pres._saleMode === 'FIXED_HALF') {
+                        <!-- Tamaño del embalaje (solo para tipos que lo requieren) -->
+                        @if (getPackageConfig(pres)?.needsSize) {
                             <div class="pack-row">
                                 <div>
-                                    <label class="field-label">Tamaño del bulto</label>
+                                    <label class="field-label">
+                                        Tamaño / Cantidad
+                                        @if (getPackageConfig(pres)?.label) {
+                                            <span class="text-muted">({{ getPackageConfig(pres)!.label }})</span>
+                                        }
+                                    </label>
                                     <input
                                         type="number"
                                         class="field-input"
                                         [value]="pres._packSize ?? ''"
                                         (input)="onPackSizeChange(pres, +$any($event.target).value)"
                                         min="0.01" step="0.01"
-                                        placeholder="ej: 40"
+                                        placeholder="ej: 100"
                                     />
                                 </div>
                                 <div>
-                                    <label class="field-label">Cantidad fija</label>
+                                    <label class="field-label">Contenido</label>
                                     <div class="computed-label">
                                         @if (pres._packSize) {
                                             {{ pres._saleMode === 'FIXED_HALF' ? (pres._packSize / 2) : pres._packSize }}
                                             {{ unitMeasureLabels[pres.unitMeasure] }}
-                                        } @else {
-                                            —
-                                        }
+                                        } @else { — }
                                     </div>
                                 </div>
                             </div>

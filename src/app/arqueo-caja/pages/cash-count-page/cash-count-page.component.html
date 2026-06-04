@@ -295,10 +295,10 @@
                                     </div>
                                 </div>
                                 <div class="col-md-3 mb-3 mb-md-0">
-                                    <div class="border rounded p-3">
+                                    <div class="border rounded p-3" [ngClass]="expectedCashAmount < 0 ? 'bg-danger-subtle' : ''">
                                         <small class="text-muted d-block">Movimiento Neto</small>
-                                        <h4 class="mb-0 text-info">{{ formatCurrency(expectedCashAmount) }}</h4>
-                                        <small class="text-muted">Ingresos - Egresos</small>
+                                        <h4 class="mb-0" [ngClass]="movementClass">{{ formatCurrency(expectedCashAmount) }}</h4>
+                                        <small class="text-muted">{{ movementLabel }}</small>
                                     </div>
                                 </div>
                                 <div class="col-md-3 mb-3 mb-md-0">
@@ -349,11 +349,19 @@
                                         <div class="card-body text-center py-4">
                                             <h5 class="mb-2">Diferencia (Contado vs Esperado)</h5>
                                             <h2 class="mb-1" [ngClass]="differenceClass">
-                                                {{ formatCurrency(Math.abs(cashDifference)) }}
+                                                {{ cashDifference > 0 ? '+' : '' }}{{ formatCurrency(cashDifference) }}
                                             </h2>
                                             <span class="badge fs-6" [ngClass]="cashDifference === 0 ? 'bg-success' : (cashDifference > 0 ? 'bg-info' : 'bg-danger')">
                                                 {{ differenceLabel }}
                                             </span>
+                                            @if (cashDifference !== 0) {
+                                                <div class="mt-2">
+                                                    <small class="text-muted">
+                                                        Contado: {{ formatCurrency(totalCashCounted) }} &nbsp;·&nbsp;
+                                                        Esperado: {{ formatCurrency(expectedTotalCash) }}
+                                                    </small>
+                                                </div>
+                                            }
                                         </div>
                                     </div>
                                 </div>
@@ -429,10 +437,10 @@
                                 <thead class="table-light">
                                     <tr>
                                         <th>Categoría</th>
-                                        <th class="text-end">Ingresos</th>
-                                        <th class="text-end">Egresos</th>
+                                        <th class="text-end text-success">Ingresos</th>
+                                        <th class="text-end text-danger">Egresos</th>
                                         <th class="text-end">Neto</th>
-                                        <th class="text-center">Movimientos</th>
+                                        <th class="text-center">Mvtos.</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -470,9 +478,14 @@
                                 <tfoot class="table-light fw-bold">
                                     <tr>
                                         <td>TOTAL</td>
-                                        <td class="text-end text-success">{{ formatCurrency(openingBalance + totalCashIncome) }}</td>
+                                        <!-- Ingresos: base + ingresos del día (la fila Base de Caja ya está incluida arriba) -->
+                                        <td class="text-end text-success" title="Base de caja + ingresos del día">
+                                            {{ formatCurrency(openingBalance + totalCashIncome) }}
+                                        </td>
                                         <td class="text-end text-danger">{{ formatCurrency(totalCashExpense) }}</td>
-                                        <td class="text-end" [ngClass]="expectedTotalCash >= 0 ? 'text-success' : 'text-danger'">
+                                        <!-- Saldo esperado = base + ingresos − egresos -->
+                                        <td class="text-end" [ngClass]="expectedTotalCash >= 0 ? 'text-success' : 'text-danger'"
+                                            title="Saldo final esperado en caja">
                                             {{ formatCurrency(expectedTotalCash) }}
                                         </td>
                                         <td class="text-center">

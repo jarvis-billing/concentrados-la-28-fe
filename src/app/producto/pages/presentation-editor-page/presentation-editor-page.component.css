@@ -194,26 +194,32 @@
 
 .price-row { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
 
-/* ─── Chips de modo de venta ───────────────────────── */
-.mode-chips { display: flex; flex-wrap: wrap; gap: .45rem; margin-bottom: .75rem; }
-.mode-chip {
+/* ─── Chips de embalaje ─────────────────────────────── */
+.pkg-chips { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .75rem; }
+
+.pkg-chip {
+    display: inline-flex; align-items: center; gap: .3rem;
     border: 1.5px solid #e5e7eb;
     background: #fff;
     color: #374151;
     border-radius: 20px;
-    padding: .28rem .75rem;
-    font-size: .78rem;
+    padding: .3rem .8rem;
+    font-size: .76rem;
     font-weight: 600;
     cursor: pointer;
     transition: all var(--trans);
     user-select: none;
 }
-.mode-chip:hover:not(.disabled-chip) { border-color: var(--accent); color: var(--accent); }
-.mode-chip.active-normal { background: #f3f4f6; border-color: #9ca3af; color: #374151; }
-.mode-chip.active-bulk   { background: #fef9c3; border-color: #ca8a04; color: #78350f; }
-.mode-chip.active-full   { background: #dcfce7; border-color: #16a34a; color: #14532d; }
-.mode-chip.active-half   { background: #dbeafe; border-color: #2563eb; color: #1e3a8a; }
-.disabled-chip { opacity: .4; cursor: not-allowed; }
+.pkg-chip i { font-size: .82rem; }
+.pkg-chip:hover:not(.pkg-disabled) { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+/* Activo: según tipo de embalaje */
+.pkg-chip.pkg-normal.active { background: #f3f4f6; border-color: #6b7280; color: #374151; }
+.pkg-chip.pkg-bulk.active   { background: #fef9c3; border-color: #ca8a04; color: #78350f; }
+.pkg-chip.pkg-fixed.active  { background: #dcfce7; border-color: #16a34a; color: #14532d; }
+.pkg-chip.pkg-half.active   { background: #dbeafe; border-color: #2563eb; color: #1e3a8a; }
+
+.pkg-disabled { opacity: .35; cursor: not-allowed; }
 
 /* ─── Acciones de tarjeta ──────────────────────────── */
 .card-actions {

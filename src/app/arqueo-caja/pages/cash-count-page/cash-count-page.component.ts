@@ -222,13 +222,16 @@ export class CashCountPageComponent implements OnInit {
     }
 
     get expectedTotalCash(): number {
-        return this.expectedCashTotal ?? (this.openingBalance + this.expectedCashAmount);
+        // Siempre recalcula con el openingBalance del UI para que refleje
+        // inmediatamente cualquier cambio que haga el operador antes de guardar.
+        return this.openingBalance + this.expectedCashAmount;
     }
 
     get cashDifference(): number {
         return this.totalCashCounted - this.expectedTotalCash;
     }
 
+    /** Clase de color para la diferencia final */
     get differenceClass(): string {
         if (this.cashDifference === 0) return 'text-success';
         if (this.cashDifference > 0) return 'text-info';
@@ -236,9 +239,22 @@ export class CashCountPageComponent implements OnInit {
     }
 
     get differenceLabel(): string {
-        if (this.cashDifference === 0) return 'Cuadrado';
+        if (this.cashDifference === 0) return 'Cuadrado ✓';
         if (this.cashDifference > 0) return 'Sobrante';
         return 'Faltante';
+    }
+
+    /** Clase de color para el movimiento neto (puede ser negativo) */
+    get movementClass(): string {
+        if (this.expectedCashAmount === 0) return 'text-secondary';
+        return this.expectedCashAmount > 0 ? 'text-success' : 'text-danger';
+    }
+
+    /** Etiqueta descriptiva del movimiento neto */
+    get movementLabel(): string {
+        if (this.expectedCashAmount > 0) return 'Ingresos > Egresos';
+        if (this.expectedCashAmount < 0) return 'Egresos > Ingresos';
+        return 'Sin movimiento';
     }
 
     // Filtrar transacciones por método de pago

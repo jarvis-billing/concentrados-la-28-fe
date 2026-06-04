@@ -39,6 +39,7 @@ export class Presentation {
     isBulk?: boolean;            // true when this presentation is sold in bulk (granel)
     isFixedAmount?: boolean;     // true when this presentation has a fixed amount (e.g., bulto)
     fixedAmount?: number;        // the fixed amount (e.g., 40 kg for bulto, 20 kg for medio bulto)
+    packageType?: string;        // tipo de embalaje físico (ROLLO, BULTO, CAJA, GALON, etc.)
 }
 
 export class Stock {
