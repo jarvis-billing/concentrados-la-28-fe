@@ -1,5 +1,7 @@
 .presale-row td { background-color: #f3eeff !important; }
-.badge-presale   { background: #6f42c1; color: #fff; }
+.badge-presale        { background: #6f42c1; color: #fff; }
+.badge-transferencia  { background-color: #0d6efd !important; color: #fff !important; }
+.border-transferencia { border-color: #0d6efd !important; }
 .cursor-pointer  { cursor: pointer; }
 .filter-chip {
     display: inline-flex; align-items: center; gap: 6px;

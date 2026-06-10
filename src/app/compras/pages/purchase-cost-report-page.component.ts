@@ -25,6 +25,7 @@ interface ReportRow {
   fixedAmount: number | null;
   lastUnitTotalCost: number | null;
   lastInvoiceDate: string | null;
+  lastSupplierName: string | null;
   newSalePrice: number | null;
 }
 
@@ -256,6 +257,7 @@ export class PurchaseCostReportPageComponent implements OnInit {
           fixedAmount: pres.fixedAmount ?? null,
           lastUnitTotalCost: null,
           lastInvoiceDate: null,
+          lastSupplierName: null,
           newSalePrice: null
         });
       });
@@ -296,6 +298,7 @@ export class PurchaseCostReportPageComponent implements OnInit {
               const computedTotal = baseUnitCost + vatPerUnit + freightPerUnit;
               row.lastUnitTotalCost = info.lastUnitTotalCost || computedTotal;
               row.lastInvoiceDate = info.lastInvoiceDate ? info.lastInvoiceDate.split('T')[0] : null;
+              row.lastSupplierName = info.lastSupplierName || null;
             }
           });
           processBatch();

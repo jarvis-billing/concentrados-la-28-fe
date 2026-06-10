@@ -358,17 +358,6 @@ export class CashCountPageComponent implements OnInit {
     showCloseModal = false;
     closingBase: number = 0;
     closingBaseInput: string = '';
-    isRegisteringExcess = false;
-
-    /** Excedente = físico contado − fondo fijo definido por el operador */
-    get closingExcess(): number {
-        return Math.max(0, this.totalCashCounted - (this.closingBase || 0));
-    }
-
-    /** Hay excedente sin justificar cuando el físico supera el fondo deseado */
-    get hasUnjustifiedExcess(): boolean {
-        return this.closingExcess > 0;
-    }
 
     /** El físico es menor al fondo deseado */
     get isUnderBase(): boolean {
@@ -396,41 +385,6 @@ export class CashCountPageComponent implements OnInit {
 
     cancelCloseModal(): void {
         this.showCloseModal = false;
-    }
-
-    /** Botón "Traslado a banco": registra un InternalTransfer por el excedente */
-    registerBankTransfer(): void {
-        if (!this.closingExcess) return;
-        this.isRegisteringExcess = true;
-        // Navegar al módulo de traslados con el monto pre-cargado
-        // (reutilizamos el flujo existente de traslados)
-        this.router.navigate(['/main/arqueo-caja/traslados'], {
-            queryParams: { amount: this.closingExcess, returnTo: 'arqueo' }
-        });
-        this.showCloseModal = false;
-        this.isRegisteringExcess = false;
-    }
-
-    /** Botón "Retiro propietario": registra un Expense RETIRO_PROPIETARIO por el excedente */
-    registerOwnerWithdrawal(): void {
-        if (!this.closingExcess) return;
-        this.isRegisteringExcess = true;
-        this.cashService.registerOwnerWithdrawal({
-            amount: this.closingExcess,
-            date: this.sessionDate,
-            description: 'Retiro propietario - cierre de caja'
-        }).subscribe({
-            next: () => {
-                toast.success(`Retiro de ${this.formatCurrency(this.closingExcess)} registrado correctamente`);
-                // Recargar el resumen para que el egreso aparezca y actualice la diferencia
-                this.loadDailySummary();
-                this.isRegisteringExcess = false;
-            },
-            error: (err) => {
-                toast.error('Error al registrar el retiro: ' + (err.error?.error || 'Intente nuevamente'));
-                this.isRegisteringExcess = false;
-            }
-        });
     }
 
     /** Confirmación final del cierre */
@@ -663,6 +617,73 @@ export class CashCountPageComponent implements OnInit {
             hour: '2-digit',
             minute: '2-digit'
         }).format(date);
+    }
+
+    // ---------------- Exportación CSV por sección ----------------
+
+    /**
+     * Construye el contenido CSV para un arreglo de transacciones.
+     */
+    private buildCSV(txs: CashTransaction[]): string {
+        const headers = ['Fecha', 'Tipo', 'Categoría', 'Descripción', 'Método de Pago', 'Banco/Cuenta', 'Referencia', 'Monto'];
+        const rows = txs.map(t => [
+            t.transactionDate,
+            t.type === 'INGRESO' ? 'Ingreso' : 'Egreso',
+            this.getCategoryLabel(t.category, t.description),
+            `"${(t.description || '').replace(/"/g, '""')}"`,
+            t.paymentMethod,
+            t.bankAccountName || '',
+            t.reference || '',
+            t.amount
+        ]);
+        return [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    }
+
+    private downloadCSV(content: string, filename: string): void {
+        const bom = '﻿'; // UTF-8 BOM para que Excel lo abra correctamente
+        const blob = new Blob([bom + content], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        link.click();
+        URL.revokeObjectURL(link.href);
+    }
+
+    /**
+     * Exporta las transacciones de una categoría específica como CSV.
+     */
+    exportSectionCSV(category: string): void {
+        const txs = this.transactions.filter(t => t.category === category);
+        if (txs.length === 0) {
+            toast.warning('No hay movimientos en esta sección');
+            return;
+        }
+        const label = this.getCategoryLabel(category).replace(/\s+/g, '_').toLowerCase();
+        this.downloadCSV(this.buildCSV(txs), `arqueo_${this.sessionDate}_${label}.csv`);
+        toast.success(`Sección "${this.getCategoryLabel(category)}" exportada`);
+    }
+
+    /**
+     * Exporta todas las secciones con movimientos como archivos CSV individuales.
+     */
+    exportAllSectionsCSV(): void {
+        if (this.transactions.length === 0) {
+            toast.warning('No hay movimientos para exportar');
+            return;
+        }
+        // Agrupar por categoría
+        const categories = [...new Set(this.transactions.map(t => t.category))];
+        let exported = 0;
+        categories.forEach((cat, i) => {
+            const txs = this.transactions.filter(t => t.category === cat);
+            const label = this.getCategoryLabel(cat).replace(/\s+/g, '_').toLowerCase();
+            // Pequeño delay para que el navegador no bloquee múltiples descargas simultáneas
+            setTimeout(() => {
+                this.downloadCSV(this.buildCSV(txs), `arqueo_${this.sessionDate}_${label}.csv`);
+            }, i * 300);
+            exported++;
+        });
+        toast.success(`${exported} archivo(s) CSV exportados`);
     }
 
     // ---------------- Audit Trail label helpers ----------------

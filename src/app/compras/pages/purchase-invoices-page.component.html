@@ -325,10 +325,16 @@
                     </div>
                     @if (getLastCostForRow(it); as lc) {
                       @if (lc.lastUnitTotalCost) {
-                        <small class="text-muted" style="font-size: 0.7rem;"
-                          [title]="'Última: ' + (lc.lastInvoiceNumber || '') + ' (' + (lc.lastSupplierName || '') + ')'">
+                        <small class="text-muted d-block" style="font-size: 0.7rem;"
+                          [title]="'Factura: ' + (lc.lastInvoiceNumber || '') + ' — ' + (lc.lastInvoiceDate || '')">
                           ant: {{ lc.lastUnitTotalCost | number:'1.0-0' }}
                         </small>
+                        @if (lc.lastSupplierName) {
+                          <small class="text-info d-block" style="font-size: 0.68rem;"
+                            [title]="'Última compra de: ' + lc.lastSupplierName">
+                            <i class="bi bi-shop me-1"></i>{{ lc.lastSupplierName }}
+                          </small>
+                        }
                       }
                     }
                   </div>
