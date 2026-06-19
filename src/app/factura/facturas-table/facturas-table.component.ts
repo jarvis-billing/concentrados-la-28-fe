@@ -61,6 +61,9 @@ export class FacturasTableComponent implements OnInit {
   salesTotals: SalesTotals | null = null;
   isLoadingTotals: boolean = false;
 
+  // Filtro local por devoluciones: null = todas, true = con devolución, false = sin devolución
+  hasReturnFilter: boolean | null = null;
+
   filterForm: FormGroup = this.fb.group({
     startDate: [''],
     endDate: [''],
@@ -150,7 +153,14 @@ export class FacturasTableComponent implements OnInit {
   }
 
   private paginateResults(): void {
-    const data = this.allServerResults;
+    let data = this.allServerResults;
+    if (this.hasReturnFilter === true) {
+      data = data.filter(b => b.hasReturn === true);
+    } else if (this.hasReturnFilter === false) {
+      data = data.filter(b => !b.hasReturn);
+    }
+    this.computeTotals(data);
+    this.totalElements = data.length;
     this.totalPages = Math.ceil(data.length / this.pageSize);
     if (this.currentPage >= this.totalPages && this.totalPages > 0) {
       this.currentPage = this.totalPages - 1;
@@ -160,6 +170,12 @@ export class FacturasTableComponent implements OnInit {
     this.filteredBilling = data.slice(start, end);
     this.isFirstPage = this.currentPage === 0;
     this.isLastPage = this.currentPage >= this.totalPages - 1;
+  }
+
+  toggleReturnFilter(value: boolean | null): void {
+    this.hasReturnFilter = this.hasReturnFilter === value ? null : value;
+    this.currentPage = 0;
+    this.paginateResults();
   }
 
   private computeTotals(billings: Billing[]): void {
@@ -326,6 +342,7 @@ export class FacturasTableComponent implements OnInit {
     this.selectedProduct = null;
     this.clientSearchText = '';
     this.filteredClientsForFilter = this.clients;
+    this.hasReturnFilter = null;
     this.filterForm.reset({
       startDate: this.today,
       endDate: this.today,

@@ -482,6 +482,8 @@ export class CashCountPageComponent implements OnInit {
             'VENTA': 'Venta',
             'PAGO_CREDITO': 'Pago de Crédito',
             'DEPOSITO_ANTICIPO': 'Depósito/Anticipo',
+            'DEVOLUCION_ANTICIPO': 'Devolución Anticipo',
+            'DEVOLUCION_VENTA': 'Devolución de Venta',
             'GASTO': 'Gasto',
             'PAGO_PROVEEDOR': 'Pago a Proveedor',
             'AJUSTE': 'Ajuste',
@@ -505,6 +507,8 @@ export class CashCountPageComponent implements OnInit {
             'VENTA': 'bg-success',
             'PAGO_CREDITO': 'bg-info',
             'DEPOSITO_ANTICIPO': 'bg-primary',
+            'DEVOLUCION_ANTICIPO': 'bg-secondary',
+            'DEVOLUCION_VENTA': 'bg-danger',
             'GASTO': 'bg-danger',
             'PAGO_PROVEEDOR': 'bg-warning text-dark',
             'AJUSTE': 'bg-secondary',
@@ -549,6 +553,10 @@ export class CashCountPageComponent implements OnInit {
 
     get totalTrasladosBanco(): number {
         return this.getTotalByCategory('TRASLADO_BANCO');
+    }
+
+    get totalDevolucionesVenta(): number {
+        return this.getTotalByCategory('DEVOLUCION_VENTA');
     }
 
     // ---------------- Reapertura ----------------

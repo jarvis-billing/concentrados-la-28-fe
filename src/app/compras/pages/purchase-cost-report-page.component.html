@@ -30,6 +30,23 @@
         <span *ngIf="isGeneratingPdf" class="spinner-border spinner-border-sm me-1" role="status"></span>
         <i *ngIf="!isGeneratingPdf" class="bi bi-file-earmark-pdf me-1"></i>Descargar PDF
       </button>
+      <!-- Magic button: sugiere el último costo de compra para productos sin costo entidad -->
+      <button class="btn btn-outline-warning" (click)="applyMagicCosts()"
+              [disabled]="isLoading || magicCandidateCount === 0"
+              title="Asigna el último costo de compra a los productos sin costo registrado">
+        <i class="bi bi-stars me-1"></i>
+        Llenar costos sin precio
+        <span *ngIf="magicCandidateCount > 0" class="badge bg-warning text-dark ms-1">{{ magicCandidateCount }}</span>
+      </button>
+      <!-- Confirmar / descartar costos sugeridos -->
+      <ng-container *ngIf="pendingCostCount > 0">
+        <button class="btn btn-success" (click)="savePendingCosts()">
+          <i class="bi bi-check-circle me-1"></i>Confirmar costos ({{ pendingCostCount }})
+        </button>
+        <button class="btn btn-outline-secondary" (click)="clearPendingCosts()" title="Descartar sugerencias">
+          <i class="bi bi-x-circle me-1"></i>Descartar
+        </button>
+      </ng-container>
       <button class="btn btn-primary" (click)="savePrices()" [disabled]="!hasPendingChanges">
         <i class="bi bi-save me-1"></i>Guardar precios ({{ pendingChangeCount }})
       </button>
@@ -89,6 +106,21 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- Banner costos sugeridos pendientes -->
+  <div *ngIf="pendingCostCount > 0" class="alert alert-warning d-flex align-items-center gap-3 mb-3 py-2">
+    <i class="bi bi-stars fs-5"></i>
+    <div class="flex-grow-1">
+      <strong>{{ pendingCostCount }} costo(s) sugerido(s)</strong> desde la última compra.
+      Edita individualmente en la columna <em>Costo entidad</em> si necesitas ajustar, luego confirma.
+    </div>
+    <button class="btn btn-success btn-sm" (click)="savePendingCosts()">
+      <i class="bi bi-check-circle me-1"></i>Confirmar todos
+    </button>
+    <button class="btn btn-outline-secondary btn-sm" (click)="clearPendingCosts()">
+      <i class="bi bi-x"></i>
+    </button>
   </div>
 
   <!-- Tabla -->
@@ -157,8 +189,29 @@
                   <span class="text-muted small">Sin datos</span>
                 </ng-template>
               </td>
-              <td *ngIf="isColumnVisible('entityCost')" class="text-end text-muted small">
-                {{ row.presentationCostPrice > 0 ? formatCurrency(row.presentationCostPrice) : '-' }}
+              <td *ngIf="isColumnVisible('entityCost')" class="text-end small">
+                <ng-container *ngIf="row.pendingCostPrice !== null; else staticCost">
+                  <div class="input-group input-group-sm justify-content-end" style="max-width:140px; margin-left:auto">
+                    <span class="input-group-text bg-warning border-warning text-dark py-0 px-1">
+                      <i class="bi bi-stars" style="font-size:0.7rem"></i>
+                    </span>
+                    <input type="number" class="form-control form-control-sm text-end border-warning"
+                           [(ngModel)]="row.pendingCostPrice" min="0" step="1"
+                           title="Costo sugerido. Edita si necesitas ajustar.">
+                    <button class="btn btn-sm btn-outline-warning py-0 px-1"
+                            (click)="row.pendingCostPrice = null" title="Cancelar sugerencia">
+                      <i class="bi bi-x" style="font-size:0.8rem"></i>
+                    </button>
+                  </div>
+                  <small class="text-muted" style="font-size:0.68rem">
+                    anterior: {{ row.presentationCostPrice > 0 ? formatCurrency(row.presentationCostPrice) : '—' }}
+                  </small>
+                </ng-container>
+                <ng-template #staticCost>
+                  <span class="text-muted">
+                    {{ row.presentationCostPrice > 0 ? formatCurrency(row.presentationCostPrice) : '-' }}
+                  </span>
+                </ng-template>
               </td>
               <td *ngIf="isColumnVisible('newSalePrice')" class="text-end">
                 <div class="input-group input-group-sm justify-content-end" style="max-width:140px">

@@ -28,6 +28,8 @@ export class Billing {
     saleType: saleType = saleType.CONTADO;
     preSaleIds?: string[];    // IDs de las preventas que componen esta factura
     preSaleNumber?: string;   // números legibles concatenados (calculado por el backend)
+    hasReturn?: boolean;      // true si tiene al menos una devolución registrada
+    returnIds?: string[];     // IDs de las devoluciones asociadas
 }
 
 // Detalle de pago por método (opcional en el payload)

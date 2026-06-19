@@ -118,12 +118,28 @@
         
         <!-- BOTONES -->
         <div class="row g-3 mt-2">
-          <div class="col-12 d-flex flex-wrap gap-2">
+          <div class="col-12 d-flex flex-wrap gap-2 align-items-center">
             <button class="btn btn-primary" type="button" (click)="applyFilters()">
               <i class="bi bi-funnel"></i> Aplicar filtros
             </button>
             <button class="btn btn-outline-secondary" type="button" (click)="clearFilters()">
               <i class="bi bi-x-circle"></i> Limpiar
+            </button>
+            <div class="vr d-none d-md-block"></div>
+            <!-- Filtro rápido: devoluciones -->
+            <button class="btn btn-sm"
+                    [ngClass]="hasReturnFilter === true ? 'btn-warning' : 'btn-outline-warning'"
+                    type="button"
+                    (click)="toggleReturnFilter(true)"
+                    title="Mostrar solo facturas con devolución">
+              <i class="bi bi-arrow-return-left me-1"></i>Con devolución
+            </button>
+            <button class="btn btn-sm"
+                    [ngClass]="hasReturnFilter === false ? 'btn-secondary' : 'btn-outline-secondary'"
+                    type="button"
+                    (click)="toggleReturnFilter(false)"
+                    title="Mostrar solo facturas sin devolución">
+              <i class="bi bi-check-circle me-1"></i>Sin devolución
             </button>
             <div class="vr d-none d-md-block"></div>
             <div class="btn-group">
@@ -172,6 +188,12 @@
               <td style="text-align: center;">
                 <i class="bi" [ngClass]="expandedBillingId === billing.id ? 'bi-chevron-down' : 'bi-chevron-right'"></i>
                 <span class="ms-2">{{billing.billNumber}}</span>
+                @if (billing.hasReturn) {
+                  <span class="badge bg-warning text-dark ms-1"
+                        title="Esta factura tiene devolución(es) registrada(s)">
+                    <i class="bi bi-arrow-return-left me-1"></i>Dev.
+                  </span>
+                }
               </td>
 
               <td style="text-align: center;">

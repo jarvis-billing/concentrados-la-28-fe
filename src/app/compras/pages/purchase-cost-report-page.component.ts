@@ -27,6 +27,7 @@ interface ReportRow {
   lastInvoiceDate: string | null;
   lastSupplierName: string | null;
   newSalePrice: number | null;
+  pendingCostPrice: number | null;  // costo sugerido pendiente de confirmar (magic button)
 }
 
 type ColumnKey = 'category' | 'brand' | 'product' | 'presentation' | 'salePrice' | 'cost' | 'entityCost' | 'newSalePrice';
@@ -258,7 +259,8 @@ export class PurchaseCostReportPageComponent implements OnInit {
           lastUnitTotalCost: null,
           lastInvoiceDate: null,
           lastSupplierName: null,
-          newSalePrice: null
+          newSalePrice: null,
+          pendingCostPrice: null
         });
       });
     });
@@ -383,6 +385,72 @@ export class PurchaseCostReportPageComponent implements OnInit {
 
   get pendingChangeCount(): number {
     return this.rows.filter(r => r.newSalePrice != null && r.newSalePrice !== r.salePrice).length;
+  }
+
+  // -------- Magic button: sincronizar costo entidad desde última compra --------
+
+  /** Cuántos productos sin costo entidad tienen historial de compra disponible */
+  get magicCandidateCount(): number {
+    return this.rows.filter(r => r.presentationCostPrice === 0 && r.lastUnitTotalCost !== null).length;
+  }
+
+  /** Cuántos tienen un costo sugerido pendiente de confirmar */
+  get pendingCostCount(): number {
+    return this.rows.filter(r => r.pendingCostPrice !== null).length;
+  }
+
+  /**
+   * Propone el último costo de compra como nuevo costPrice para todos los productos
+   * que no tienen costo registrado en la entidad pero sí tienen historial de compra.
+   */
+  applyMagicCosts(): void {
+    let count = 0;
+    this.rows.forEach(r => {
+      if (r.presentationCostPrice === 0 && r.lastUnitTotalCost !== null) {
+        r.pendingCostPrice = r.lastUnitTotalCost;
+        count++;
+      }
+    });
+    if (count === 0) {
+      toast.info('Todos los productos ya tienen costo registrado, o no tienen historial de compra.');
+      return;
+    }
+    toast.info(`${count} costo(s) sugerido(s). Revisa y confirma antes de guardar.`);
+  }
+
+  /** Cancela todos los costos sugeridos pendientes */
+  clearPendingCosts(): void {
+    this.rows.forEach(r => r.pendingCostPrice = null);
+  }
+
+  /** Guarda los costos sugeridos (pendingCostPrice) vía bulk update */
+  savePendingCosts(): void {
+    const updates: PresentationPriceUpdate[] = this.rows
+      .filter(r => r.pendingCostPrice !== null && r.pendingCostPrice! > 0)
+      .map(r => ({
+        productId: r.productId,
+        barcode: r.barcode,
+        costPrice: r.pendingCostPrice!
+      }));
+
+    if (updates.length === 0) {
+      toast.warning('No hay costos pendientes para guardar');
+      return;
+    }
+
+    const payload: BulkPresentationPriceUpdateRequest = { updates };
+    this.productService.bulkUpdatePresentationPrices(payload).subscribe({
+      next: (res) => {
+        if (res.failed > 0) {
+          toast.warning(`${res.updated} actualizado(s), ${res.failed} fallido(s)`);
+          console.warn('Errores:', res.errors);
+        } else {
+          toast.success(`${res.updated} costo(s) de entidad actualizado(s)`);
+        }
+        this.loadProducts();
+      },
+      error: () => toast.error('Error al actualizar costos')
+    });
   }
 
   onNewPriceChange(row: ReportRow, value: number): void {
