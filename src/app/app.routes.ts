@@ -52,6 +52,7 @@ import { ReportsDashboardComponent } from './reportes/pages/reports-dashboard/re
 import { ProfitReportComponent } from './reportes/pages/profit-report/profit-report.component';
 import { ProductMovementsReportComponent } from './reportes/pages/product-movements-report/product-movements-report.component';
 import { CashFlowReportComponent } from './reportes/pages/cash-flow-report/cash-flow-report.component';
+import { SalesMonthlyReportComponent } from './reportes/pages/sales-monthly-report/sales-monthly-report.component';
 import { ReturnsListPageComponent } from './devoluciones/pages/returns-list-page/returns-list-page.component';
 import { SaleReturnFormComponent } from './devoluciones/pages/sale-return-form/sale-return-form.component';
 import { PurchaseReturnFormComponent } from './devoluciones/pages/purchase-return-form/purchase-return-form.component';
@@ -233,6 +234,9 @@ export const routes: Routes = [
         },
         {
             path: 'reportes/flujo-caja', component: CashFlowReportComponent
+        },
+        {
+            path: 'reportes/ventas-mes', component: SalesMonthlyReportComponent
         },
         {
             path: 'devoluciones', component: ReturnsListPageComponent

@@ -24,6 +24,7 @@ import {
   CreatePreSaleRequest,
   PreSaleDto,
   PreSaleItemDto,
+  PreventaDraft,
 } from '../../models/pre-sale';
 
 @Component({
@@ -52,6 +53,15 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
   totalAmount = 0;
   isSaving = false;
   savedPreSale: PreSaleDto | null = null;
+
+  // ── Multi-preventa ────────────────────────────────────────────────────────
+  drafts: PreventaDraft[] = [];
+  activeDraftId = '';
+  activeClientName = '';
+  showClientNameInput = false;
+  clientNameInput = '';
+  /** ID del draft que se está renombrando (puede ser cualquier tab, no solo la activa) */
+  renamingDraftId = '';
 
   barcodeInputValue = '';
   scannerActive = true;
@@ -127,11 +137,138 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private restoreDraft(): void {
-    const draft = this.offlineQueue.loadDraft();
-    if (!draft || draft.items.length === 0) return;
-    this.items = draft.items;
-    this.totalAmount = draft.totalAmount;
-    toast.info('Preventa en progreso restaurada.');
+    const activeDraft = this.offlineQueue.initDrafts();
+    this.activeDraftId = activeDraft.id;
+    this.activeClientName = activeDraft.clientName || '';
+    this.items = activeDraft.items || [];
+    this.totalAmount = activeDraft.totalAmount || 0;
+    this.drafts = this.offlineQueue.listDrafts();
+    if (this.items.length > 0) {
+      toast.info('Preventa en progreso restaurada.');
+    }
+  }
+
+  // ── Multi-preventa: gestión de tabs ───────────────────────────────────────
+
+  /** Guarda el draft activo antes de hacer cualquier cambio de tab */
+  private flushActiveDraft(): void {
+    if (this.activeDraftId) {
+      this.offlineQueue.updateDraft(this.activeDraftId, this.items, this.totalAmount, this.activeClientName);
+    }
+  }
+
+  switchToDraft(id: string): void {
+    if (this.isSaving) return;
+    if (id === this.activeDraftId) {
+      // Ya está activa: abrir rename
+      this.openRename(id);
+      return;
+    }
+    this.flushActiveDraft();
+    const draft = this.offlineQueue.getDraftById(id);
+    if (!draft) return;
+    this.offlineQueue.setActiveDraftId(id);
+    this.activeDraftId = id;
+    this.activeClientName = draft.clientName || '';
+    this.items = draft.items || [];
+    this.totalAmount = draft.totalAmount || 0;
+    this.savedPreSale = null;
+    this.showSearchResults = false;
+    this.drafts = this.offlineQueue.listDrafts();
+  }
+
+  /** Abre el modal de nombre para cualquier draft (rename) */
+  openRename(draftId: string): void {
+    const draft = this.offlineQueue.getDraftById(draftId);
+    if (!draft) return;
+    this.renamingDraftId = draftId;
+    this.clientNameInput = draft.clientName || '';
+    this.showClientNameInput = true;
+  }
+
+  addNewTab(): void {
+    this.flushActiveDraft();
+    const draft = this.offlineQueue.createDraft();
+    this.activeDraftId = draft.id;
+    this.activeClientName = '';
+    this.items = [];
+    this.totalAmount = 0;
+    this.savedPreSale = null;
+    this.drafts = this.offlineQueue.listDrafts();
+    this.renamingDraftId = draft.id;
+    this.clientNameInput = '';
+    this.showClientNameInput = true;
+    setTimeout(() => this.focusBarcodeInput(), 200);
+  }
+
+  closeTab(id: string, event: MouseEvent): void {
+    event.stopPropagation();
+    const draft = this.offlineQueue.getDraftById(id);
+    const hasItems = (draft?.items.length ?? 0) > 0;
+
+    const doClose = () => {
+      if (id === this.activeDraftId) this.flushActiveDraft();
+      const next = this.offlineQueue.removeDraft(id);
+      this.drafts = this.offlineQueue.listDrafts();
+
+      if (this.drafts.length === 0) {
+        // Crear uno nuevo vacío
+        const fresh = this.offlineQueue.createDraft();
+        this.activeDraftId = fresh.id;
+        this.activeClientName = '';
+        this.items = [];
+        this.totalAmount = 0;
+        this.drafts = this.offlineQueue.listDrafts();
+      } else if (id === this.activeDraftId && next) {
+        this.activeDraftId = next.id;
+        this.activeClientName = next.clientName || '';
+        this.items = next.items || [];
+        this.totalAmount = next.totalAmount || 0;
+      }
+      this.savedPreSale = null;
+    };
+
+    if (hasItems) {
+      toast.warning('¿Cerrar esta preventa?', {
+        description: 'Se perderán los ítems agregados.',
+        action: { label: 'Sí, cerrar', onClick: doClose },
+      });
+    } else {
+      doClose();
+    }
+  }
+
+  confirmClientName(): void {
+    const newName = this.clientNameInput.trim();
+    this.showClientNameInput = false;
+
+    // Actualiza el draft que se estaba renombrando (activo u otro)
+    const targetId = this.renamingDraftId || this.activeDraftId;
+    if (targetId) {
+      const draft = this.offlineQueue.getDraftById(targetId);
+      if (draft) {
+        this.offlineQueue.updateDraft(targetId, draft.items, draft.totalAmount, newName);
+      }
+    }
+
+    // Si era la tab activa, actualiza el estado local
+    if (targetId === this.activeDraftId) {
+      this.activeClientName = newName;
+    }
+
+    this.renamingDraftId = '';
+    this.drafts = this.offlineQueue.listDrafts();
+    setTimeout(() => this.focusBarcodeInput(), 100);
+  }
+
+  skipClientName(): void {
+    this.showClientNameInput = false;
+    this.renamingDraftId = '';
+    setTimeout(() => this.focusBarcodeInput(), 100);
+  }
+
+  tabLabel(draft: PreventaDraft): string {
+    return draft.clientName ? draft.clientName : `#${draft.tabIndex + 1}`;
   }
 
   private loadProducts(): void {
@@ -398,10 +535,13 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
   finalizePreventa(): void {
     if (this.items.length === 0 || this.isSaving) return;
 
+    const clientNote = this.activeClientName ? `Cliente: ${this.activeClientName}` : undefined;
     const request: CreatePreSaleRequest = {
       sellerName: this.sellerName,
       items: this.items,
       totalAmount: this.totalAmount,
+      clientName: this.activeClientName || undefined,
+      notes: clientNote,
     };
 
     if (!navigator.onLine) {
@@ -417,9 +557,9 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
         totalAmount: this.totalAmount,
         createdAt: queued.queuedAt,
       } as PreSaleDto;
-      this.items = [];
-      this.totalAmount = 0;
-      this.offlineQueue.clearDraft();
+      // Limpiar draft activo (fue finalizado)
+      this.offlineQueue.removeDraft(this.activeDraftId);
+      this._afterFinalize();
       toast.warning('Sin conexión: preventa guardada localmente. Se enviará al reconectar.');
       return;
     }
@@ -430,10 +570,10 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
       next: (preSale) => {
         this.isSaving = false;
         this.savedPreSale = preSale;
-        this.offlineQueue.clearDraft();
+        // Limpiar draft activo (fue finalizado)
+        this.offlineQueue.removeDraft(this.activeDraftId);
+        this._afterFinalize();
         toast.success(`Preventa ${preSale.preSaleNumber} enviada al facturador`);
-        this.items = [];
-        this.totalAmount = 0;
         this.loadPendingPreSales();
       },
       error: () => {
@@ -441,6 +581,25 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
         toast.error('Error al enviar la preventa. Verifique la conexión.');
       },
     });
+  }
+
+  /** Actualiza el estado local después de finalizar/queued */
+  private _afterFinalize(): void {
+    this.drafts = this.offlineQueue.listDrafts();
+    if (this.drafts.length > 0) {
+      const next = this.drafts[0];
+      this.activeDraftId = next.id;
+      this.activeClientName = next.clientName || '';
+      this.items = next.items || [];
+      this.totalAmount = next.totalAmount || 0;
+    } else {
+      const fresh = this.offlineQueue.createDraft();
+      this.activeDraftId = fresh.id;
+      this.activeClientName = '';
+      this.items = [];
+      this.totalAmount = 0;
+      this.drafts = this.offlineQueue.listDrafts();
+    }
   }
 
   private onReconnect(): void {
@@ -494,7 +653,10 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
           this.items = [];
           this.totalAmount = 0;
           this.savedPreSale = null;
-          this.offlineQueue.clearDraft();
+          if (this.activeDraftId) {
+            this.offlineQueue.updateDraft(this.activeDraftId, [], 0, this.activeClientName);
+            this.drafts = this.offlineQueue.listDrafts();
+          }
         },
       },
     });
@@ -503,9 +665,14 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
   newPreventa(): void {
     this.savedPreSale = null;
     this.isQueuedOffline = false;
+    // Limpiar el draft activo y empezar fresco (no crear tab nuevo)
     this.items = [];
     this.totalAmount = 0;
-    this.offlineQueue.clearDraft();
+    this.activeClientName = '';
+    if (this.activeDraftId) {
+      this.offlineQueue.updateDraft(this.activeDraftId, [], 0, '');
+      this.drafts = this.offlineQueue.listDrafts();
+    }
     this.focusBarcodeInput();
   }
 
@@ -534,7 +701,10 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private recalcTotal(): void {
     this.totalAmount = this.items.reduce((s, i) => s + i.subTotal, 0);
-    this.offlineQueue.saveDraft(this.items, this.totalAmount);
+    if (this.activeDraftId) {
+      this.offlineQueue.updateDraft(this.activeDraftId, this.items, this.totalAmount, this.activeClientName);
+      this.drafts = this.offlineQueue.listDrafts();
+    }
   }
 
   onSearchInput(): void {

@@ -19,6 +19,17 @@ export interface CreatePreSaleRequest {
   items: PreSaleItemDto[];
   totalAmount: number;
   notes?: string;
+  clientName?: string;   // nombre del cliente para identificar la preventa
+}
+
+/** Draft de una preventa activa en local (multi-preventa) */
+export interface PreventaDraft {
+  id: string;            // UUID local, ej. 'draft-1716000000000'
+  clientName: string;    // 'Cliente A' o '' si no se ingresó
+  items: PreSaleItemDto[];
+  totalAmount: number;
+  savedAt: string;       // ISO timestamp
+  tabIndex: number;      // orden de creación (para mostrar #1, #2…)
 }
 
 export interface PreSaleDto {

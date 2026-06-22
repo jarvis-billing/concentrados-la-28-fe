@@ -59,6 +59,68 @@
     </div>
   </div>
 
+  <!-- ====== BARRA DE TABS (multi-preventa) ====== -->
+  <div class="draft-tabs-bar">
+    @for (draft of drafts; track draft.id) {
+      <button
+        class="draft-tab"
+        [class.active]="draft.id === activeDraftId"
+        (click)="switchToDraft(draft.id)"
+        [title]="draft.id === activeDraftId ? 'Toca para editar nombre' : (draft.clientName || 'Preventa #' + (draft.tabIndex + 1))">
+        <span class="draft-tab-label">
+          @if (draft.clientName) {
+            <i class="bi bi-person-fill me-1"></i>{{ draft.clientName }}
+          } @else {
+            <i class="bi bi-cart3 me-1"></i>#{{ draft.tabIndex + 1 }}
+          }
+          @if (draft.id === activeDraftId) {
+            <i class="bi bi-pencil-fill draft-tab-edit-icon ms-1"></i>
+          }
+        </span>
+        @if (draft.totalAmount > 0) {
+          <span class="draft-tab-total">{{ draft.totalAmount | currency:'$':'symbol':'.0-0' }}</span>
+        }
+        <span class="draft-tab-close" (click)="closeTab(draft.id, $event)" title="Cerrar">
+          <i class="bi bi-x"></i>
+        </span>
+      </button>
+    }
+    <button class="draft-tab-add" (click)="addNewTab()" title="Nueva preventa simultánea">
+      <i class="bi bi-plus-lg"></i>
+    </button>
+  </div>
+
+  <!-- Modal: nombre del cliente (nuevo tab o renombrar) -->
+  @if (showClientNameInput) {
+    <div class="client-name-overlay" (click)="skipClientName()">
+      <div class="client-name-modal" (click)="$event.stopPropagation()">
+        <div class="cnm-header">
+          <i class="bi bi-person-badge me-2 text-primary"></i>
+          <span class="fw-semibold">
+            {{ clientNameInput ? 'Editar nombre' : '¿Nombre del cliente?' }}
+          </span>
+        </div>
+        <input
+          class="form-control form-control-lg cnm-input"
+          type="text"
+          placeholder="Ej: Juan García (opcional)"
+          [(ngModel)]="clientNameInput"
+          (keyup.enter)="confirmClientName()"
+          (keyup.escape)="skipClientName()"
+          autofocus>
+        <div class="cnm-actions">
+          <button class="btn btn-outline-secondary btn-sm" (click)="skipClientName()">
+            Omitir
+          </button>
+          <button class="btn btn-primary btn-sm" (click)="confirmClientName()">
+            <i class="bi bi-check-lg me-1"></i>Guardar
+          </button>
+        </div>
+        <small class="text-muted mt-1 d-block text-center">Enter para guardar · Esc para omitir</small>
+      </div>
+    </div>
+  }
+
   <!-- ====== VISTA: CONFIRMACIÓN ====== -->
   @if (savedPreSale) {
     <div class="success-screen">
@@ -158,7 +220,16 @@
 
       @if (items.length > 0) {
         <div class="items-sort-bar">
-          <span class="items-count">{{ items.length }} ítem{{ items.length !== 1 ? 's' : '' }}</span>
+          <span class="items-count">
+            @if (activeClientName) {
+              <i class="bi bi-person-fill me-1 text-primary"></i>
+              <strong>{{ activeClientName }}</strong>
+              <span class="ms-2 text-muted">·</span>
+              <span class="ms-2">{{ items.length }} ítem{{ items.length !== 1 ? 's' : '' }}</span>
+            } @else {
+              {{ items.length }} ítem{{ items.length !== 1 ? 's' : '' }}
+            }
+          </span>
           <button class="sort-toggle-btn" (click)="toggleItemsSort()"
             [title]="itemsSortOrder === 'desc' ? 'Más reciente primero' : 'Más antiguo primero'">
             <i class="bi" [class.bi-sort-down]="itemsSortOrder === 'desc'" [class.bi-sort-up]="itemsSortOrder === 'asc'"></i>

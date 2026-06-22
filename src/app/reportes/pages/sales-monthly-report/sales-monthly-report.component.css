@@ -1,0 +1,160 @@
+/* ── Summary Cards ────────────────────────────────────────────────── */
+.summary-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 14px 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+  border-left: 4px solid #dee2e6;
+}
+.summary-card-blue  { border-left-color: #0d6efd; }
+.summary-card-green { border-left-color: #198754; }
+.summary-card-red   { border-left-color: #dc3545; }
+.summary-card-yellow{ border-left-color: #ffc107; }
+.summary-card-gray  { border-left-color: #6c757d; }
+
+.sc-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: #6c757d;
+  margin-bottom: 4px;
+}
+.sc-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #212529;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Table ───────────────────────────────────────────────────────── */
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.sortable:hover { background: #f8f9fa; }
+
+/* ── Progress bar inside table ───────────────────────────────────── */
+.month-bar-track {
+  height: 6px;
+  background: #e9ecef;
+  border-radius: 4px;
+  overflow: hidden;
+  min-width: 80px;
+}
+.month-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0d6efd, #6ea8fe);
+  border-radius: 4px;
+  transition: width .4s ease;
+}
+
+/* ── Barra: porcentaje textual ───────────────────────────────────── */
+.bar-pct-label {
+  font-size: 10px;
+  color: #6c757d;
+  display: block;
+  text-align: right;
+  line-height: 1.2;
+  margin-top: 2px;
+}
+
+/* ── Panel informativo ───────────────────────────────────────────── */
+.info-panel {
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.info-toggle {
+  width: 100%;
+  background: #f8f9fa;
+  border: none;
+  padding: 10px 16px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  color: #212529;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: background .15s;
+}
+.info-toggle:hover { background: #e9ecef; }
+.info-body {
+  padding: 12px 16px 16px;
+  background: #fff;
+}
+.info-card {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 12px 14px;
+  height: 100%;
+}
+.info-card-title {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: #212529;
+}
+.info-card-text {
+  font-size: 12px;
+  color: #495057;
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+.info-formula {
+  display: block;
+  font-size: 11px;
+  background: #e9ecef;
+  border-radius: 4px;
+  padding: 4px 8px;
+  color: #0d6efd;
+}
+
+/* ── Dropdown de columnas ────────────────────────────────────────── */
+.col-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.12);
+  padding: 10px 14px;
+  z-index: 1050;
+  min-width: 160px;
+}
+.col-menu-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: #6c757d;
+  margin-bottom: 8px;
+}
+.col-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 3px 0;
+  color: #212529;
+}
+.col-menu-item input[type="checkbox"] {
+  cursor: pointer;
+}
+.col-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1040;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────── */
+@media (max-width: 576px) {
+  .sc-value { font-size: 14px; }
+  .sc-label { font-size: 10px; }
+}

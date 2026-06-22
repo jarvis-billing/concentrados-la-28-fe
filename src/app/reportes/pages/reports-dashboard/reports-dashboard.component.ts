@@ -44,6 +44,14 @@ export class ReportsDashboardComponent {
       route: '/main/reportes/flujo-caja',
       color: 'warning',
       tags: ['Contable', 'Ingresos', 'Egresos']
+    },
+    {
+      title: 'Ventas por Mes',
+      description: 'Resumen mensual de ventas y utilidad. Filtra por período mes/año, cliente, producto, categoría y método de pago. Incluye gráficos de tendencia.',
+      icon: 'bi-calendar3',
+      route: '/main/reportes/ventas-mes',
+      color: 'primary',
+      tags: ['Ventas', 'Mensual', 'Utilidad']
     }
   ];
 }

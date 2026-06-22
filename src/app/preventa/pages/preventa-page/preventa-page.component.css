@@ -17,6 +17,142 @@
   box-sizing: border-box;
 }
 
+/* ====== DRAFT TABS (multi-preventa) ====== */
+.draft-tabs-bar {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  background: #1558d6;
+  padding: 4px 8px 0;
+  overflow-x: auto;
+  flex-shrink: 0;
+  scrollbar-width: none;
+}
+.draft-tabs-bar::-webkit-scrollbar { display: none; }
+
+.draft-tab {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px 6px;
+  border: none;
+  border-radius: 6px 6px 0 0;
+  background: rgba(255,255,255,0.18);
+  color: rgba(255,255,255,0.85);
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background .15s;
+  max-width: 160px;
+  position: relative;
+}
+.draft-tab:hover { background: rgba(255,255,255,0.28); }
+.draft-tab.active {
+  background: #f4f6f9;
+  color: #1558d6;
+  font-weight: 700;
+}
+
+.draft-tab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
+  font-size: 0.78rem;
+}
+
+.draft-tab-total {
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: rgba(255,255,255,0.25);
+  border-radius: 8px;
+  padding: 1px 5px;
+  flex-shrink: 0;
+}
+.draft-tab.active .draft-tab-total {
+  background: #e8eeff;
+  color: #1558d6;
+}
+
+.draft-tab-edit-icon {
+  font-size: 9px;
+  opacity: 0.5;
+  vertical-align: middle;
+}
+.draft-tab.active .draft-tab-edit-icon { opacity: 0.7; }
+
+.draft-tab-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  font-size: 12px;
+  line-height: 1;
+  opacity: 0.6;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.draft-tab-close:hover { opacity: 1; background: rgba(0,0,0,0.1); }
+.draft-tab.active .draft-tab-close:hover { background: rgba(21,88,214,0.12); }
+
+.draft-tab-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.8);
+  font-size: 1rem;
+  cursor: pointer;
+  border-radius: 6px 6px 0 0;
+  flex-shrink: 0;
+  margin-left: 2px;
+  transition: background .15s;
+}
+.draft-tab-add:hover { background: rgba(255,255,255,0.2); color: #fff; }
+
+/* ====== MODAL NOMBRE CLIENTE ====== */
+.client-name-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.client-name-modal {
+  background: #fff;
+  border-radius: 14px;
+  padding: 20px;
+  width: 100%;
+  max-width: 340px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cnm-header {
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+}
+.cnm-input {
+  font-size: 1rem;
+  border-radius: 8px;
+}
+.cnm-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 /* ====== HEADER ====== */
 .preventa-header {
   display: flex;

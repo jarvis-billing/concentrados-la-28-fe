@@ -32,7 +32,8 @@ interface ProductSuggestion {
   selector: 'app-purchase-invoices-page',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, FormsModule, ExpensesFabComponent, CurrencyFormatDirective, ProductsSearchModalComponent, BatchExpirationAlertComponent],
-  templateUrl: './purchase-invoices-page.component.html'
+  templateUrl: './purchase-invoices-page.component.html',
+  styleUrls: ['./purchase-invoices-page.component.css']
 })
 export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
   private fb = inject(FormBuilder);
@@ -66,6 +67,46 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
   isEditMode = false;
   editingInvoiceId: string | null = null;
   existingItems: any[] = []; // Items originales de la factura (solo lectura)
+
+  // Apariencia
+  isDarkMode = false;
+
+  // Filtro y orden de items
+  itemSortOrder: 'newest' | 'az' | 'za' = 'newest';
+  itemFilterText = '';
+
+  /** Devuelve pares {idx, ctrl} en el orden visual (newest-first por defecto). */
+  get displayedItems(): { idx: number; ctrl: FormGroup }[] {
+    const controls = this.itemsArray.controls;
+    let pairs = controls.map((ctrl, i) => ({ idx: i, ctrl: ctrl as FormGroup }));
+
+    // Filtrar por descripción (ítems vacíos siempre aparecen)
+    const q = this.itemFilterText.trim().toLowerCase();
+    if (q) {
+      pairs = pairs.filter(p => {
+        const desc = (p.ctrl.get('description')?.value || '').toLowerCase();
+        return !desc || desc.includes(q);
+      });
+    }
+
+    // Ordenar
+    if (this.itemSortOrder === 'newest') {
+      return [...pairs].reverse();
+    } else if (this.itemSortOrder === 'az') {
+      return [...pairs].sort((a, b) =>
+        (a.ctrl.get('description')?.value || '').localeCompare(b.ctrl.get('description')?.value || '', 'es')
+      );
+    } else {
+      return [...pairs].sort((a, b) =>
+        (b.ctrl.get('description')?.value || '').localeCompare(a.ctrl.get('description')?.value || '', 'es')
+      );
+    }
+  }
+
+  toggleDarkMode(): void {
+    this.isDarkMode = !this.isDarkMode;
+    try { localStorage.setItem('pi_dark_mode', this.isDarkMode ? '1' : '0'); } catch {}
+  }
 
   // Autoguardado
   private readonly AUTOSAVE_KEY = 'purchase_invoice_draft';
@@ -103,12 +144,14 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
     emissionDate: [this.todayIso(), [Validators.required]],
     paymentType: ['CONTADO', [Validators.required]],
     freightRate: [0],
+    globalVatRate: [null as number | null],  // IVA % fijo para todos los ítems (null = sin fijar)
     items: this.fb.array([]),
     notes: [''],
     supportDocument: ['']
   });
 
   ngOnInit() {
+    try { this.isDarkMode = localStorage.getItem('pi_dark_mode') === '1'; } catch {}
     this.loadSuppliers();
     
     // Verificar si estamos en modo edición
@@ -134,6 +177,9 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
 
     // Recalcular flete cuando cambie la tarifa de flete en el encabezado
     this.form.get('freightRate')?.valueChanges.subscribe(() => this.recalcFreight());
+
+    // Cuando cambia el IVA global, aplicarlo a todos los ítems existentes
+    this.form.get('globalVatRate')?.valueChanges.subscribe(() => this.applyGlobalVatToAll());
   }
 
   ngOnDestroy() {
@@ -190,7 +236,16 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
   }
 
   addItem() {
-    const defaultVat = this.selectedSupplier?.defaultVatRate ?? 0;
+    // IVA: usa el global fijado en el encabezado, si no el del proveedor, si no 0
+    const globalVat = this.form.get('globalVatRate')?.value;
+    const defaultVat = (globalVat !== null && globalVat !== undefined && globalVat !== '')
+      ? Number(globalVat)
+      : (this.selectedSupplier?.defaultVatRate ?? 0);
+
+    // Flete: si hay tarifa de flete establecida, marcar el check por defecto
+    const freightRate = this.normalizeToNumber(this.form.get('freightRate')?.value) || 0;
+    const applyFreightDefault = freightRate > 0;
+
     const g = this.fb.group({
       productId: [''],
       presentationId: ['', [Validators.required]],
@@ -201,13 +256,14 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
       vatRate: [defaultVat],
       vatAmount: [{ value: 0, disabled: true }],
       totalCost: [{ value: 0, disabled: true }],
-      applyFreight: [false],
+      applyFreight: [applyFreightDefault],
       freightAmount: [{ value: 0, disabled: true }],
       category: ['']
     });
     g.valueChanges.subscribe(() => this.recalcItem(g));
     this.itemsArray.push(g);
     this.productSearchTexts.push('');
+    if (applyFreightDefault) this.recalcFreight();
   }
 
   removeItem(index: number) {
@@ -445,7 +501,9 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Tendencia del costo unitario total respecto a la última compra.
+   * Tendencia del costo BASE respecto a la última compra.
+   * Compara unitCost (base ingresado) vs lastUnitCost (base anterior) para no
+   * contaminar la señal con variaciones de IVA o flete que son configurables.
    * 'up' = subió, 'down' = bajó, 'same' = igual, 'first' = primera vez, 'none' = aún no consultado.
    */
   getCostTrend(g: FormGroup): 'up' | 'down' | 'same' | 'first' | 'none' {
@@ -453,23 +511,24 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
     if (!id) return 'none';
     if (!this.lastCostByPresentation.has(id)) return 'none';
     const info = this.lastCostByPresentation.get(id);
-    if (!info || info.lastUnitTotalCost == null) return 'first';
-    const current = this.getUnitTotal(g);
-    if (current <= 0) return 'none';
-    const diff = current - info.lastUnitTotalCost;
-    if (Math.abs(diff) < 0.01) return 'same';
+    if (!info || info.lastUnitCost == null) return 'first';
+    const currentBase = this.normalizeToNumber(g.get('unitCost')?.value);
+    if (currentBase <= 0) return 'none';
+    const diff = currentBase - info.lastUnitCost;
+    if (Math.abs(diff) < 0.5) return 'same';   // tolerancia de $0.5 para redondeos
     return diff > 0 ? 'up' : 'down';
   }
 
   /**
-   * Diferencia porcentual respecto a la última compra (positivo = subió, negativo = bajó).
+   * Diferencia porcentual del costo BASE (positivo = subió, negativo = bajó).
+   * Devuelve valor absoluto — el signo lo indica la flecha del badge.
    */
   getCostDeltaPercent(g: FormGroup): number | null {
     const info = this.getLastCostForRow(g);
-    if (!info || !info.lastUnitTotalCost) return null;
-    const current = this.getUnitTotal(g);
-    if (current <= 0) return null;
-    return ((current - info.lastUnitTotalCost) / info.lastUnitTotalCost) * 100;
+    if (!info || !info.lastUnitCost) return null;
+    const currentBase = this.normalizeToNumber(g.get('unitCost')?.value);
+    if (currentBase <= 0) return null;
+    return Math.abs(((currentBase - info.lastUnitCost) / info.lastUnitCost) * 100);
   }
 
   recalcItem(g: FormGroup) {
@@ -499,6 +558,22 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
       const qty = Number(g.get('quantity')?.value || 0);
       const freightAmount = (applies && freightRate > 0) ? freightRate * qty : 0;
       g.get('freightAmount')?.setValue(Math.round(freightAmount), { emitEvent: false });
+    });
+  }
+
+  /**
+   * Aplica el IVA % global a todos los ítems de la tabla.
+   * El usuario puede seguir sobreescribiendo por fila.
+   */
+  applyGlobalVatToAll(): void {
+    const raw = this.form.get('globalVatRate')?.value;
+    if (raw === null || raw === undefined || raw === '') return;
+    const vatRate = Number(raw);
+    if (isNaN(vatRate)) return;
+    this.itemsArray.controls.forEach(ctrl => {
+      const g = ctrl as FormGroup;
+      g.get('vatRate')?.setValue(vatRate, { emitEvent: false });
+      this.recalcItem(g);
     });
   }
 
@@ -532,13 +607,17 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
     this.supplierSearchText = `${supplier.name} (${supplier.documentType} ${supplier.idNumber})`;
     this.form.patchValue({ supplierId: supplier.id });
     this.showSupplierDropdown = false;
-    // Auto-aplicar IVA por defecto del proveedor a todos los ítems existentes
-    const defaultVat = supplier.defaultVatRate ?? 0;
-    this.itemsArray.controls.forEach(ctrl => {
-      const g = ctrl as FormGroup;
-      g.get('vatRate')?.setValue(defaultVat, { emitEvent: false });
-      this.recalcItem(g);
-    });
+
+    // Pre-rellenar IVA global con el del proveedor (solo si no hay uno fijado ya)
+    const currentGlobal = this.form.get('globalVatRate')?.value;
+    if (currentGlobal === null || currentGlobal === undefined || currentGlobal === '') {
+      const defaultVat = supplier.defaultVatRate ?? 0;
+      this.form.get('globalVatRate')?.setValue(defaultVat, { emitEvent: true });
+      // applyGlobalVatToAll() se llama via valueChanges, no duplicar aquí
+    } else {
+      // Ya hay un IVA global fijado: aplicarlo a los ítems que se acaban de agregar
+      this.applyGlobalVatToAll();
+    }
   }
 
   clearSupplierSelection() {
@@ -745,11 +824,11 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
 
   private updateProductCostPrices(mappedItems: any[]): void {
     const updates: PresentationPriceUpdate[] = mappedItems
-      .filter(it => it.productId && it.presentationBarcode && it.unitCost > 0)
+      .filter(it => it.productId && it.presentationBarcode && it.unitTotalCost > 0)
       .map(it => ({
         productId: it.productId,
         barcode: it.presentationBarcode,
-        costPrice: it.unitCost
+        costPrice: it.unitTotalCost   // costo total/u = base + IVA/u + flete/u (por producto)
       }));
     if (updates.length === 0) return;
     this.productService.bulkUpdatePresentationPrices({ updates }).subscribe({
@@ -914,6 +993,7 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
       emissionDate: this.todayIso(),
       paymentType: 'CONTADO',
       freightRate: 0,
+      globalVatRate: null,
       notes: '',
       supportDocument: ''
     });

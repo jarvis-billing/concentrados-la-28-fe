@@ -1,419 +1,550 @@
-<div class="container py-3">
-  <!-- Alerta de lotes de animales vivos expirados/próximos a expirar -->
-  <app-batch-expiration-alert></app-batch-expiration-alert>
-  
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="m-0">
-      @if (isEditMode) {
-        <i class="bi bi-pencil-square me-2"></i>Editar Factura de Compra
-      } @else {
-        Facturas de compra
-      }
-    </h4>
-    <div class="d-flex gap-2 align-items-center">
-      <!-- Indicador de autoguardado -->
+<app-batch-expiration-alert></app-batch-expiration-alert>
+
+<div class="pi-page" [class.dark]="isDarkMode">
+
+  <!-- TOP BAR -->
+  <div class="pi-topbar">
+    <div>
+      <div style="font-size: 14px; font-weight: 500; color: var(--text);">
+        @if (isEditMode) {
+          <i class="bi bi-pencil-square me-1"></i>Editar factura de compra
+        } @else {
+          Nueva factura de compra
+        }
+      </div>
+      <div style="font-size: 10px; color: var(--text-hint); margin-top: 1px;">F2 ítem · F4 guardar · Esc cancelar</div>
+    </div>
+    <div class="d-flex align-items-center gap-2">
       @if (!isEditMode && lastAutoSaveTime) {
-        <span class="badge bg-success-subtle text-success">
-          <i class="bi bi-cloud-check me-1"></i>
-          Guardado {{ lastAutoSaveTime | date:'HH:mm' }}
+        <span style="font-size: 12px; color: var(--success); display: flex; align-items: center; gap: 3px;">
+          <i class="bi bi-cloud-check"></i> {{ lastAutoSaveTime | date:'HH:mm' }}
         </span>
       }
-      <div class="text-muted small">Atajos: F2 Nuevo ítem · F4 Guardar · Esc Cancelar</div>
-      <button type="button" class="btn btn-sm btn-outline-primary" (click)="goToList()">
-        Ver listado
+      <!-- Dark / light toggle -->
+      <button type="button" class="btn-icon" (click)="toggleDarkMode()" [title]="isDarkMode ? 'Modo claro' : 'Modo oscuro'">
+        @if (isDarkMode) { <i class="bi bi-sun"></i> } @else { <i class="bi bi-moon"></i> }
       </button>
+      <button type="button" class="btn-pi-cancel" (click)="goToList()">Listado</button>
     </div>
   </div>
-  
-  <!-- Alerta de modo edición -->
-  @if (isEditMode) {
-    <div class="alert alert-info mb-3">
-      <i class="bi bi-info-circle me-2"></i>
-      <strong>Modo edición:</strong> Los productos existentes no se pueden modificar. 
-      Solo puede agregar nuevos productos a esta factura.
-    </div>
-  }
 
-  <form [formGroup]="form" (ngSubmit)="saveInvoice()" class="d-flex flex-column gap-3">
-    <div class="card">
-      <div class="card-header">Encabezado</div>
-      <div class="card-body">
-        <div class="row g-3">
-          <div class="col-12 col-md-6">
-            <label class="form-label">Proveedor</label>
-            <div class="position-relative">
-              <div class="input-group">
-                <input 
-                  type="text" 
-                  class="form-control" 
-                  [(ngModel)]="supplierSearchText"
-                  [ngModelOptions]="{standalone: true}"
-                  (input)="filterSuppliers(supplierSearchText)"
-                  (focus)="showSupplierDropdown = true"
-                  placeholder="Buscar por nombre o documento..."
-                  autocomplete="off">
-                <button 
-                  type="button" 
-                  class="btn btn-outline-danger" 
-                  *ngIf="selectedSupplier"
-                  (click)="clearSupplierSelection()">
-                  <i class="bi bi-x"></i>
-                </button>
-              </div>
-              <div 
-                *ngIf="showSupplierDropdown && filteredSuppliers.length > 0" 
-                class="position-absolute w-100 bg-white border rounded shadow-sm mt-1"
-                style="max-height: 300px; overflow-y: auto; z-index: 1000;">
-                <div 
-                  *ngFor="let supplier of filteredSuppliers"
-                  class="p-2 border-bottom cursor-pointer hover-bg-light"
-                  (click)="selectSupplier(supplier)"
-                  style="cursor: pointer;"
-                  (mouseenter)="$event.target.style.backgroundColor='#f8f9fa'"
-                  (mouseleave)="$event.target.style.backgroundColor='white'">
-                  <div class="fw-bold">{{ supplier.name }}</div>
-                  <small class="text-muted">{{ supplier.documentType }} {{ supplier.idNumber }}</small>
+  <!-- SCROLLABLE CONTENT -->
+  <div class="pi-content">
+    <form [formGroup]="form" (ngSubmit)="saveInvoice()">
+
+      <!-- EDIT MODE ALERT -->
+      @if (isEditMode) {
+        <div class="alert alert-info mb-0" style="border-radius: 10px; font-size: 13px;">
+          <i class="bi bi-info-circle me-2"></i>
+          <strong>Modo edición:</strong> los productos existentes no se pueden modificar. Solo puede agregar nuevos productos.
+        </div>
+      }
+
+      <!-- DRAFT RESTORED BANNER -->
+      @if (hasRestoredDraft) {
+        <div style="display: flex; align-items: center; gap: 8px; padding: 7px 12px; background: var(--accent-light); border: 1px solid var(--accent-border); border-radius: 8px; font-size: 12px; color: var(--accent-text);">
+          <i class="bi bi-clock-history"></i>
+          <span>Borrador restaurado</span>
+          <button type="button" class="btn-icon ms-auto" style="font-size: 11px; color: var(--danger);" (click)="discardDraft()">
+            <i class="bi bi-trash me-1"></i>Descartar
+          </button>
+        </div>
+      }
+
+      <!-- ENCABEZADO -->
+      <div class="pi-card">
+        <div class="pi-card-hd">
+          <span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em;">Encabezado</span>
+        </div>
+        <div class="pi-card-bd">
+          <div class="row g-3">
+
+            <!-- Proveedor -->
+            <div class="col-12 col-md-6">
+              <div class="pi-lbl">Proveedor</div>
+              @if (!selectedSupplier) {
+                <div class="position-relative">
+                  <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-transparent"><i class="bi bi-search text-muted"></i></span>
+                    <input type="text" class="form-control"
+                      [(ngModel)]="supplierSearchText"
+                      [ngModelOptions]="{standalone: true}"
+                      (input)="filterSuppliers(supplierSearchText)"
+                      (focus)="showSupplierDropdown = true"
+                      placeholder="Buscar por nombre o documento..."
+                      autocomplete="off">
+                  </div>
+                  @if (showSupplierDropdown && filteredSuppliers.length > 0) {
+                    <div class="position-absolute w-100 border rounded shadow-sm mt-1" style="z-index: 1000; max-height: 260px; overflow-y: auto; background: var(--surface); border-color: var(--border) !important;">
+                      @for (supplier of filteredSuppliers; track supplier.id) {
+                        <div style="padding: 7px 12px; border-bottom: 1px solid var(--border); cursor: pointer;"
+                          (click)="selectSupplier(supplier)"
+                          (mouseenter)="$any($event.currentTarget).style.background='var(--surface2)'"
+                          (mouseleave)="$any($event.currentTarget).style.background='var(--surface)'">
+                          <div style="font-size: 12px; font-weight: 500; color: var(--text);">{{ supplier.name }}</div>
+                          <div style="font-size: 12px; color: var(--text-muted);">{{ supplier.documentType }} {{ supplier.idNumber }}</div>
+                        </div>
+                      }
+                    </div>
+                  }
                 </div>
+              } @else {
+                <div class="prov-chip">
+                  <div class="prov-av">{{ selectedSupplier.name.substring(0,2).toUpperCase() }}</div>
+                  <div>
+                    <div style="font-size: 12px; font-weight: 500; color: var(--text);">{{ selectedSupplier.name }}</div>
+                    <div style="font-size: 12px; color: var(--text-muted);">{{ selectedSupplier.documentType }} {{ selectedSupplier.idNumber }}</div>
+                  </div>
+                  <button type="button" class="btn-icon ms-auto" style="padding: 2px 5px;" (click)="clearSupplierSelection()">
+                    <i class="bi bi-x-lg" style="font-size: 11px;"></i>
+                  </button>
+                </div>
+              }
+            </div>
+
+            <!-- Número factura + Fecha -->
+            <div class="col-12 col-md-3">
+              <div class="pi-lbl">Número factura</div>
+              <input class="form-control form-control-sm" formControlName="invoiceNumber" placeholder="FAC-2026-00123">
+            </div>
+            <div class="col-12 col-md-3">
+              <div class="pi-lbl">Fecha de emisión</div>
+              <input class="form-control form-control-sm" type="date" formControlName="emissionDate">
+            </div>
+
+            <!-- Tipo de pago -->
+            <div class="col-12 col-md-3">
+              <div class="pi-lbl">Tipo de pago</div>
+              <div class="pi-pill-row">
+                <div class="pi-pill" [class.active]="form.get('paymentType')?.value === 'CONTADO'"
+                  (click)="form.get('paymentType')?.setValue('CONTADO')">Contado</div>
+                <div class="pi-pill" [class.active]="form.get('paymentType')?.value === 'CREDITO'"
+                  (click)="form.get('paymentType')?.setValue('CREDITO')">Crédito</div>
               </div>
             </div>
-          </div>
-          <div class="col-12 col-md-3">
-            <label class="form-label">Número factura</label>
-            <input class="form-control" formControlName="invoiceNumber" placeholder="Ej: FAC-2025-00123">
-          </div>
-          <div class="col-12 col-md-3">
-            <label class="form-label">Fecha de emisión</label>
-            <input class="form-control" type="date" formControlName="emissionDate">
-          </div>
-          <div class="col-12 col-md-3">
-            <label class="form-label">Tipo de pago</label>
-            <select class="form-select" formControlName="paymentType">
-              <option value="CONTADO">CONTADO</option>
-              <option value="CREDITO">CREDITO</option>
-            </select>
-          </div>
-          <div class="col-12 col-md-3">
-            <label class="form-label">Tarifa de flete por unidad <small class="text-muted">(Opcional)</small></label>
-            <div class="input-group">
-              <span class="input-group-text">$</span>
-              <input class="form-control" type="text" formControlName="freightRate" appCurrencyFormat placeholder="0">
+
+            <!-- Flete -->
+            <div class="col-12 col-md-3">
+              <div class="pi-lbl">Flete/u <span style="color: var(--text-hint); font-size: 10px;">(opc.)</span></div>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text">$</span>
+                <input class="form-control text-end" type="text" formControlName="freightRate" appCurrencyFormat placeholder="0">
+              </div>
+              @if ((form.get('freightRate')?.value ?? 0) > 0) {
+                <div style="font-size: 12px; color: var(--warn); margin-top: 2px;">
+                  <i class="bi bi-info-circle me-1"></i>Nuevas filas heredarán flete
+                </div>
+              }
             </div>
-          </div>
-          <div class="col-12 col-md-3">
-            <label class="form-label">Notas</label>
-            <input class="form-control" formControlName="notes" placeholder="Opcional">
-          </div>
-          <div class="col-12 col-md-6">
-            <label class="form-label">Documento soporte <small class="text-muted">(Opcional)</small></label>
-            <div class="input-group">
-              <input type="file" class="form-control" (change)="onFileSelected($event)" accept=".pdf,.jpg,.jpeg,.png">
-              <button type="button" class="btn btn-outline-danger" *ngIf="selectedFile" (click)="removeFile()">
-                <i class="bi bi-x"></i>
-              </button>
+
+            <!-- IVA Global -->
+            <div class="col-12 col-md-3">
+              <div class="pi-lbl" style="display: flex; align-items: center; gap: 5px;">
+                IVA % global
+                @if (form.get('globalVatRate')?.value !== null && form.get('globalVatRate')?.value !== '') {
+                  <span style="font-size: 11px; padding: 2px 7px; border-radius: 8px; background: var(--accent-light); border: 1px solid var(--accent-border); color: var(--accent-text); font-weight: 600;">
+                    {{ form.get('globalVatRate')?.value }}% · activo
+                  </span>
+                }
+              </div>
+              <div class="input-group input-group-sm"
+                [class.iva-input-active]="form.get('globalVatRate')?.value !== null && form.get('globalVatRate')?.value !== ''">
+                <span class="input-group-text"><i class="bi bi-percent"></i></span>
+                <input class="form-control" type="number" min="0" max="100" step="0.01"
+                  formControlName="globalVatRate" placeholder="Ej: 19">
+                @if (form.get('globalVatRate')?.value !== null && form.get('globalVatRate')?.value !== '') {
+                  <button type="button" class="btn-icon" style="border: 1px solid var(--border); border-left: none; border-radius: 0 7px 7px 0; padding: 0 8px;"
+                    title="Limpiar IVA global" (click)="form.get('globalVatRate')?.setValue(null)">
+                    <i class="bi bi-x"></i>
+                  </button>
+                }
+              </div>
+              <div style="font-size: 11px; margin-top: 3px;"
+                [style.color]="(form.get('globalVatRate')?.value !== null && form.get('globalVatRate')?.value !== '') ? 'var(--accent-text)' : 'var(--text-hint)'">
+                @if (form.get('globalVatRate')?.value !== null && form.get('globalVatRate')?.value !== '') {
+                  <i class="bi bi-check-circle me-1"></i>Aplica a todos los ítems automáticamente
+                } @else {
+                  IVA del proveedor o configura por ítem
+                }
+              </div>
             </div>
-            <small class="text-muted" *ngIf="selectedFile">Archivo: {{ selectedFile.name }}</small>
+
+            <!-- Notas -->
+            <div class="col-12 col-md-3">
+              <div class="pi-lbl">Notas <span style="color: var(--text-hint); font-size: 10px;">(opc.)</span></div>
+              <input class="form-control form-control-sm" formControlName="notes" placeholder="Opcional">
+            </div>
+
+            <!-- Documento soporte -->
+            <div class="col-12 col-md-6">
+              <div class="pi-lbl">Documento soporte <span style="color: var(--text-hint); font-size: 10px;">(opc.)</span></div>
+              <div class="input-group input-group-sm">
+                <input type="file" class="form-control" (change)="onFileSelected($event)" accept=".pdf,.jpg,.jpeg,.png">
+                @if (selectedFile) {
+                  <button type="button" class="btn btn-outline-danger btn-sm" (click)="removeFile()"><i class="bi bi-x"></i></button>
+                }
+              </div>
+              @if (selectedFile) {
+                <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;"><i class="bi bi-paperclip me-1"></i>{{ selectedFile.name }}</div>
+              }
+            </div>
+
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Items existentes (solo lectura en modo edición) -->
-    @if (isEditMode && existingItems.length > 0) {
-      <div class="card border-secondary">
-        <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
-          <span><i class="bi bi-lock me-2"></i>Productos Registrados (Solo lectura)</span>
-          <span class="badge bg-light text-dark">{{ existingItems.length }} producto(s)</span>
-        </div>
-        <div class="card-body p-0">
-          <div class="table-responsive">
-            <table class="table table-sm table-hover align-middle m-0">
-              <thead class="table-light">
+      <!-- ITEMS EXISTENTES (solo lectura en modo edición) -->
+      @if (isEditMode && existingItems.length > 0) {
+        <div class="pi-card" style="border-color: var(--border);">
+          <div class="pi-card-hd">
+            <span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em;">
+              <i class="bi bi-lock me-1"></i>Productos registrados
+            </span>
+            <span style="font-size: 10px; color: var(--text-hint);">{{ existingItems.length }} ítem(s) · {{ existingItemsTotal | number:'1.0-0' }}</span>
+          </div>
+          <div style="padding: 0;">
+            <table class="table table-sm align-middle m-0">
+              <thead>
                 <tr>
-                  <th>Código</th>
-                  <th>Descripción</th>
-                  <th class="text-end">Cantidad</th>
-                  <th class="text-end">Costo unit.</th>
-                  <th class="text-end">Total</th>
+                  <th style="font-size: 12px; font-weight: 500; padding: 6px 12px; color: var(--text-muted); background: var(--surface2); border-color: var(--border);">Producto</th>
+                  <th class="text-end" style="font-size: 12px; font-weight: 500; padding: 6px 12px; color: var(--text-muted); background: var(--surface2); border-color: var(--border);">Cant.</th>
+                  <th class="text-end" style="font-size: 12px; font-weight: 500; padding: 6px 12px; color: var(--text-muted); background: var(--surface2); border-color: var(--border);">Costo/u</th>
+                  <th class="text-end" style="font-size: 12px; font-weight: 500; padding: 6px 12px; color: var(--text-muted); background: var(--surface2); border-color: var(--border);">Total</th>
                 </tr>
               </thead>
               <tbody>
                 @for (item of existingItems; track item.presentationId) {
-                  <tr class="table-secondary">
-                    <td><code>{{ item.presentationBarcode || item.presentationId }}</code></td>
-                    <td>{{ item.description }}</td>
-                    <td class="text-end">{{ item.quantity }}</td>
-                    <td class="text-end">{{ item.unitCost | number:'1.0-0' }}</td>
-                    <td class="text-end">{{ item.totalCost | number:'1.0-0' }}</td>
+                  <tr style="background: var(--surface);">
+                    <td style="padding: 6px 12px; border-color: var(--border);">
+                      <div style="font-size: 12px; color: var(--text);">{{ item.description }}</div>
+                      <div style="font-size: 10px; color: var(--text-hint); font-family: monospace;">{{ item.presentationBarcode || item.presentationId }}</div>
+                    </td>
+                    <td class="text-end" style="font-size: 12px; padding: 6px 12px; color: var(--text); border-color: var(--border);">{{ item.quantity }}</td>
+                    <td class="text-end" style="font-size: 12px; padding: 6px 12px; color: var(--text); border-color: var(--border);">{{ item.unitCost | number:'1.0-0' }}</td>
+                    <td class="text-end" style="font-size: 12px; font-weight: 600; padding: 6px 12px; color: var(--text); border-color: var(--border);">{{ item.totalCost | number:'1.0-0' }}</td>
                   </tr>
                 }
-                <tr class="table-dark fw-bold">
-                  <td colspan="3"></td>
-                  <td class="text-end">Subtotal existente:</td>
-                  <td class="text-end">{{ existingItemsTotal | number:'1.0-0' }}</td>
-                </tr>
               </tbody>
             </table>
           </div>
         </div>
-      </div>
-    }
+      }
 
-    <!-- Banner resumen de tendencias de costos -->
-    @if (hasAnyCostTrend) {
-      <div class="card mb-3 border-0">
-        <div class="card-body d-flex flex-wrap gap-2 align-items-center p-2">
-          <span class="text-muted small me-1">Resumen de costos:</span>
+      <!-- BANNER TENDENCIAS DE COSTO -->
+      @if (hasAnyCostTrend) {
+        <div class="d-flex flex-wrap gap-2 align-items-center px-1">
+          <span style="font-size: 10px; color: var(--text-hint);">Tendencias:</span>
           @if (trendUpCount > 0) {
-            <span class="badge bg-danger-subtle text-danger border border-danger">
-              <i class="bi bi-arrow-up me-1"></i>{{ trendUpCount }} subieron de precio
-            </span>
+            <span class="trend-badge-up"><i class="bi bi-arrow-up me-1"></i>{{ trendUpCount }} subieron</span>
           }
           @if (trendDownCount > 0) {
-            <span class="badge bg-success-subtle text-success border border-success">
-              <i class="bi bi-arrow-down me-1"></i>{{ trendDownCount }} bajaron de precio
-            </span>
+            <span class="trend-badge-dn"><i class="bi bi-arrow-down me-1"></i>{{ trendDownCount }} bajaron</span>
           }
           @if (trendSameCount > 0) {
-            <span class="badge bg-secondary-subtle text-secondary border border-secondary">
-              <i class="bi bi-dash-circle-fill me-1"></i>{{ trendSameCount }} sin cambio
-            </span>
+            <span class="trend-badge-eq"><i class="bi bi-dash me-1"></i>{{ trendSameCount }} sin cambio</span>
           }
           @if (trendFirstCount > 0) {
-            <span class="badge bg-warning-subtle text-warning border border-warning">
-              <i class="bi bi-star-fill me-1"></i>{{ trendFirstCount }} primera compra
-            </span>
+            <span class="trend-badge-new"><i class="bi bi-star me-1"></i>{{ trendFirstCount }} primera compra</span>
           }
         </div>
-      </div>
-    }
+      }
 
-    <div class="card">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <span>
-          @if (isEditMode) {
-            <i class="bi bi-plus-circle me-2"></i>Agregar Nuevos Productos
-          } @else {
-            Ítems
-          }
-        </span>
-        <button type="button" class="btn btn-sm btn-outline-primary" (click)="addItem()">Agregar ítem (F2)</button>
-      </div>
-      <div class="card-body p-0">
-        <div class="table-responsive" style="overflow-x: auto; overflow-y: visible;">
-          <table class="table table-sm table-hover align-middle m-0">
-            <thead class="table-light">
-              <tr>
-                <th style="min-width: 260px;">Producto / Descripción</th>
-                <th class="text-end" style="width: 90px;">Cantidad</th>
-                <th class="text-end" style="width: 120px;">Costo unit.</th>
-                <th class="text-center" style="width: 90px;">IVA %</th>
-                <th class="text-end" style="width: 100px;">Val. IVA</th>
-                <th class="text-center" style="width: 70px;" title="Marcar para aplicar flete a este producto">Flete</th>
-                <th class="text-end" style="width: 100px;" title="Tarifa × cantidad">Val. Flete</th>
-                <th class="text-end" style="width: 120px;" title="Costo unit. + IVA/u + Flete/u">Costo/u total</th>
-                <th class="text-end" style="width: 120px;">Subtotal</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let it of itemsArray.controls; let i = index" [formGroup]="it">
-                <td>
-                  <div class="position-relative">
-                    <div class="input-group input-group-sm">
-                      <input type="text"
-                             class="form-control"
-                             [value]="productSearchTexts[i] ?? ''"
-                             (input)="onProductSearchInput(i, $any($event.target).value)"
-                             (keydown)="onProductKeydown($event, i)"
-                             (focus)="onRowSearchFocus(i)"
-                             (blur)="hideProductDropdownDelayed()"
-                             [placeholder]="it.get('description')?.value ? 'Cambiar producto...' : 'Buscar producto...'"
-                             autocomplete="off">
-                      <button type="button" class="btn btn-outline-secondary"
-                              (click)="openProductsModalForRow(i)"
-                              title="Catálogo completo (F3)">
-                        <i class="bi bi-grid-3x3-gap"></i>
-                      </button>
+      <!-- ITEMS TOOLBAR: filter + sort -->
+      @if (itemsArray.controls.length > 0) {
+        <div class="items-toolbar">
+          <div class="search-box">
+            <i class="bi bi-search search-icon"></i>
+            <input type="text" [(ngModel)]="itemFilterText" [ngModelOptions]="{standalone: true}"
+              placeholder="Filtrar ítems...">
+          </div>
+          <button class="sort-btn" [class.active]="itemSortOrder === 'newest'"
+            (click)="itemSortOrder = 'newest'" title="Más reciente primero">
+            <i class="bi bi-clock-history me-1"></i>Reciente
+          </button>
+          <button class="sort-btn" [class.active]="itemSortOrder === 'az'"
+            (click)="itemSortOrder = 'az'">A–Z</button>
+          <button class="sort-btn" [class.active]="itemSortOrder === 'za'"
+            (click)="itemSortOrder = 'za'">Z–A</button>
+        </div>
+        <div class="items-hint">
+          <span>{{ itemsArray.controls.length }} ítem(s)@if (isEditMode){ · solo nuevos }</span>
+          <span>
+            @if (form.get('globalVatRate')?.value !== null && form.get('globalVatRate')?.value !== '') {
+              IVA {{ form.get('globalVatRate')?.value }}% ·
+            }
+            @if ((form.get('freightRate')?.value ?? 0) > 0) {
+              flete ${{ form.get('freightRate')?.value | number:'1.0-0' }}/u
+            }
+          </span>
+        </div>
+      }
+
+      <!-- ITEM CARDS (in display order) -->
+      <div formArrayName="items">
+        @for (item of displayedItems; track item.idx) {
+          <div class="item-card"
+            [formGroupName]="item.idx"
+            [class.item-card-new]="!item.ctrl.get('presentationId')?.value">
+
+            <!-- Item header: search + name + trend -->
+            <div class="item-hd" [class.item-hd-new]="!item.ctrl.get('presentationId')?.value">
+              <div class="flex-grow-1 position-relative">
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text" style="background: var(--surface2); border-color: var(--border);">
+                    <i class="bi bi-search" style="color: var(--text-hint); font-size: 11px;"></i>
+                  </span>
+                  <input type="text"
+                    class="form-control"
+                    [value]="productSearchTexts[item.idx] ?? ''"
+                    (input)="onProductSearchInput(item.idx, $any($event.target).value)"
+                    (keydown)="onProductKeydown($event, item.idx)"
+                    (focus)="onRowSearchFocus(item.idx)"
+                    (blur)="hideProductDropdownDelayed()"
+                    [placeholder]="item.ctrl.get('description')?.value ? 'Cambiar producto...' : 'Buscar producto...'"
+                    autocomplete="off">
+                  <button type="button" class="btn btn-sm" style="border: 1px solid var(--border); border-left: none; background: var(--surface2); color: var(--text-muted);"
+                    (click)="openProductsModalForRow(item.idx)" title="Catálogo (F3)">
+                    <i class="bi bi-grid-3x3-gap"></i>
+                  </button>
+                </div>
+                @if (item.ctrl.get('description')?.value) {
+                  <div style="padding: 3px 2px 0;">
+                    <span style="font-size: 12px; font-weight: 500; color: var(--text);">{{ item.ctrl.get('description')?.value }}</span>
+                    <span style="font-size: 10px; color: var(--text-hint); font-family: monospace; margin-left: 6px;">{{ item.ctrl.get('presentationId')?.value }}</span>
+                  </div>
+                  @if (getLastCostForRow(item.ctrl); as lc) {
+                    <div class="last-purchase-info">
+                      <i class="bi bi-clock-history"></i>
+                      Ant: ${{ lc.lastUnitCost | number:'1.0-0' }}/u
+                      @if (lc.lastUnitTotalCost && lc.lastUnitTotalCost !== lc.lastUnitCost) {
+                        <span style="color: var(--text-hint);">(total ${{ lc.lastUnitTotalCost | number:'1.0-0' }})</span>
+                      }
+                      @if (lc.lastSupplierName) {
+                        <span class="lpi-sep">·</span>
+                        <i class="bi bi-truck"></i>
+                        <span class="lpi-supplier">{{ lc.lastSupplierName }}</span>
+                      }
+                      @if (lc.lastInvoiceDate) {
+                        <span class="lpi-sep">·</span>
+                        {{ lc.lastInvoiceDate | date:'dd/MM/yy' }}
+                      }
                     </div>
-                    @if (it.get('description')?.value) {
-                      <div class="mt-1 small fw-semibold text-dark lh-sm">
-                        {{ it.get('description')?.value }}
-                      </div>
-                      <small class="text-muted"><code>{{ it.get('presentationId')?.value }}</code></small>
-                    }
-                    @if (showProductDropdown && activeRowIndex === i && productSuggestions.length > 0) {
-                      <div class="position-absolute bg-white border rounded shadow purchase-autocomplete-dropdown"
-                           style="z-index: 1055; max-height: 280px; overflow-y: auto; min-width: 320px; top: 100%; left: 0;">
-                        @for (s of productSuggestions; track s.barcode; let si = $index) {
-                          <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom purchase-suggestion-item"
-                               [class.bg-primary]="productActiveIndex === si"
-                               [class.text-white]="productActiveIndex === si"
-                               style="cursor: pointer;"
-                               (mousedown)="selectProductSuggestion(s, i)">
-                            <div class="flex-grow-1 overflow-hidden me-2">
-                              <div class="fw-semibold text-truncate small">{{ s.displayName }}</div>
-                              <div [class.text-white-50]="productActiveIndex === si"
-                                   [class.text-muted]="productActiveIndex !== si"
-                                   style="font-size: 0.75rem;">
-                                {{ s.barcode }}
-                                @if (s.brand) { <span class="ms-1">· {{ s.brand }}</span> }
-                              </div>
-                            </div>
-                            <span class="badge flex-shrink-0"
-                                  [class.bg-light]="productActiveIndex === si"
-                                  [class.text-dark]="productActiveIndex === si"
-                                  [class.bg-primary]="productActiveIndex !== si">
-                              $ {{ s.costPrice | number:'1.0-0' }}
-                            </span>
-                          </div>
-                        }
-                      </div>
-                    }
-                  </div>
-                </td>
-                <td class="text-end" style="max-width: 120px;">
-                  <input class="form-control text-end" type="number" min="0.01" step="0.01" formControlName="quantity">
-                </td>
-                <td class="text-end" style="max-width: 140px;">
-                  <input class="form-control text-end" type="text" formControlName="unitCost" appCurrencyFormat>
-                </td>
-                <td class="text-center">
-                  <div class="input-group input-group-sm">
-                    <input class="form-control text-end" type="number" min="0" max="100" step="0.1"
-                      formControlName="vatRate" placeholder="0">
-                    <span class="input-group-text">%</span>
-                  </div>
-                </td>
-                <td class="text-end text-success small">
-                  {{ it.get('vatAmount')?.value | number:'1.0-0' }}
-                </td>
-                <td class="text-center">
-                  <div class="form-check d-flex justify-content-center m-0">
-                    <input class="form-check-input" type="checkbox" formControlName="applyFreight"
-                      title="Aplicar flete a este producto">
-                  </div>
-                </td>
-                <td class="text-end text-warning small">
-                  @if ((it.get('freightAmount')?.value ?? 0) > 0) {
-                    {{ it.get('freightAmount')?.value | number:'1.0-0' }}
-                  } @else {
-                    <span class="text-muted">-</span>
                   }
-                </td>
-                <td class="text-end small fw-semibold">
-                  <div class="d-flex flex-column align-items-end">
-                    <div class="d-flex align-items-center gap-1">
-                      <span class="text-primary">{{ getUnitTotal(it) | number:'1.0-0' }}</span>
-                      @switch (getCostTrend(it)) {
-                        @case ('up') {
-                          <i class="bi bi-arrow-up text-danger"
-                             [title]="'Subió ' + (getCostDeltaPercent(it) | number:'1.1-1') + '% vs última compra'"></i>
-                        }
-                        @case ('down') {
-                          <i class="bi bi-arrow-down text-success"
-                             [title]="'Bajó ' + (getCostDeltaPercent(it) | number:'1.1-1') + '% vs última compra'"></i>
-                        }
-                        @case ('same') {
-                          <i class="bi bi-dash-circle-fill text-secondary"
-                             title="Mismo costo que la última compra"></i>
-                        }
-                        @case ('first') {
-                          <i class="bi bi-star-fill text-warning"
-                             title="Primera compra registrada"></i>
-                        }
-                      }
-                    </div>
-                    @if (getLastCostForRow(it); as lc) {
-                      @if (lc.lastUnitTotalCost) {
-                        <small class="text-muted d-block" style="font-size: 0.7rem;"
-                          [title]="'Factura: ' + (lc.lastInvoiceNumber || '') + ' — ' + (lc.lastInvoiceDate || '')">
-                          ant: {{ lc.lastUnitTotalCost | number:'1.0-0' }}
-                        </small>
-                        @if (lc.lastSupplierName) {
-                          <small class="text-info d-block" style="font-size: 0.68rem;"
-                            [title]="'Última compra de: ' + lc.lastSupplierName">
-                            <i class="bi bi-shop me-1"></i>{{ lc.lastSupplierName }}
-                          </small>
-                        }
-                      }
+                }
+                @if (showProductDropdown && activeRowIndex === item.idx && productSuggestions.length > 0) {
+                  <div class="position-absolute border rounded shadow purchase-autocomplete-dropdown"
+                    style="z-index: 1055; max-height: 260px; overflow-y: auto; min-width: 300px; top: 100%; left: 0; background: var(--surface); border-color: var(--border) !important;">
+                    @for (s of productSuggestions; track s.barcode; let si = $index) {
+                      <div class="purchase-suggestion-item"
+                        [class.bg-primary]="productActiveIndex === si"
+                        [class.text-white]="productActiveIndex === si"
+                        style="display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; border-bottom: 1px solid var(--border); cursor: pointer;"
+                        (mousedown)="selectProductSuggestion(s, item.idx)">
+                        <div style="flex: 1; overflow: hidden; margin-right: 8px;">
+                          <div style="font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ s.displayName }}</div>
+                          <div style="font-size: 12px; opacity: .7;">{{ s.barcode }}@if (s.brand) { · {{ s.brand }} }</div>
+                        </div>
+                        <span style="font-size: 13px; font-weight: 600; flex-shrink: 0;">$ {{ s.costPrice | number:'1.0-0' }}</span>
+                      </div>
                     }
                   </div>
-                </td>
-                <td class="text-end fw-semibold">
-                  {{ it.get('totalCost')?.value | number:'1.0-0' }}
-                </td>
-                <td>
-                  <button type="button" class="btn btn-sm btn-outline-danger" (click)="removeItem(i)">Quitar</button>
-                </td>
-              </tr>
-              @if (itemsArray.controls.length) {
-                <tr class="table-light border-top">
-                  <td colspan="8" class="text-end text-muted small py-1">Subtotal (sin IVA ni flete):</td>
-                  <td class="text-end fw-semibold">{{ itemsTotal | number:'1.0-0' }}</td>
-                  <td></td>
-                </tr>
-                <tr class="table-light">
-                  <td colspan="4" class="text-end text-success small py-1">+ Total IVA:</td>
-                  <td class="text-end text-success fw-semibold">{{ itemsVatTotal | number:'1.0-0' }}</td>
-                  <td colspan="3"></td>
-                  <td class="text-end text-success fw-semibold">{{ itemsVatTotal | number:'1.0-0' }}</td>
-                  <td></td>
-                </tr>
-                @if (freightCost > 0) {
-                  <tr class="table-light">
-                    <td colspan="5" class="text-end text-warning small py-1">+ Flete total:</td>
-                    <td></td>
-                    <td class="text-end text-warning fw-semibold">{{ freightCost | number:'1.0-0' }}</td>
-                    <td colspan="2" class="text-end text-warning fw-semibold">{{ freightCost | number:'1.0-0' }}</td>
-                    <td></td>
-                  </tr>
                 }
-                <tr class="table-primary fw-bold">
-                  <td colspan="8" class="text-end py-2">TOTAL COMPRA:</td>
-                  <td class="text-end fs-6">{{ grandTotalWithVatAndFreight | number:'1.0-0' }}</td>
-                  <td></td>
-                </tr>
+              </div>
+
+              <!-- Trend badge + remove -->
+              <div style="display: flex; align-items: center; gap: 5px; flex-shrink: 0; margin-left: 6px;">
+                @if (!item.ctrl.get('presentationId')?.value) {
+                  <span class="badge-nuevo">
+                    <i class="bi bi-plus-circle me-1"></i>Nuevo ítem #{{ item.idx + 1 }}
+                  </span>
+                }
+                @if (item.ctrl.get('presentationId')?.value) {
+                  @switch (getCostTrend(item.ctrl)) {
+                    @case ('up') {
+                      <span class="trend-badge-up"><i class="bi bi-arrow-up me-1"></i>+{{ getCostDeltaPercent(item.ctrl) | number:'1.0-1' }}% · subió</span>
+                    }
+                    @case ('down') {
+                      <span class="trend-badge-dn"><i class="bi bi-arrow-down me-1"></i>−{{ getCostDeltaPercent(item.ctrl) | number:'1.0-1' }}% · bajó</span>
+                    }
+                    @case ('same') {
+                      <span class="trend-badge-eq"><i class="bi bi-dash me-1"></i>Sin cambio</span>
+                    }
+                    @case ('first') {
+                      <span class="trend-badge-new"><i class="bi bi-star me-1"></i>Primera compra</span>
+                    }
+                  }
+                }
+                <button type="button" class="btn-icon"
+                  (click)="removeItem(item.idx)"
+                  style="padding: 3px 5px; color: var(--text-hint);"
+                  (mouseenter)="$any($event.currentTarget).style.background=isDarkMode?'var(--danger-light)':'#FCEBEB'; $any($event.currentTarget).style.color='var(--danger)'"
+                  (mouseleave)="$any($event.currentTarget).style.background='transparent'; $any($event.currentTarget).style.color='var(--text-hint)'">
+                  <i class="bi bi-x-lg" style="font-size: 12px;"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Item body: controls + computed -->
+            <div class="item-bd">
+              <div class="item-ctrl-grid">
+
+                <!-- Cantidad -->
+                <div>
+                  <div class="item-ctrl-lbl">Cant.</div>
+                  <input class="form-control form-control-sm text-end" type="number" min="0.01" step="0.01" formControlName="quantity">
+                </div>
+
+                <!-- Costo unitario (columna fija 140px) -->
+                <div>
+                  <div class="item-ctrl-lbl">Costo/u</div>
+                  <div class="input-group input-group-sm">
+                    <span class="input-group-text">$</span>
+                    <input class="form-control text-end" type="text" formControlName="unitCost" appCurrencyFormat>
+                  </div>
+                </div>
+
+                <!-- IVA % -->
+                <div>
+                  <div class="item-ctrl-lbl" style="display: flex; align-items: center; gap: 3px;">
+                    IVA %
+                    @if (form.get('globalVatRate')?.value !== null && form.get('globalVatRate')?.value !== '') {
+                      <i class="bi bi-lock-fill" style="font-size: 8px; color: var(--accent-text);" title="IVA global"></i>
+                    }
+                  </div>
+                  <div class="input-group input-group-sm">
+                    <input class="form-control text-end"
+                      [class.iva-active]="form.get('globalVatRate')?.value !== null && form.get('globalVatRate')?.value !== ''"
+                      type="number" min="0" max="100" step="0.1" formControlName="vatRate">
+                    <span class="input-group-text"
+                      [style.background]="(form.get('globalVatRate')?.value !== null && form.get('globalVatRate')?.value !== '') ? 'var(--accent-light)' : ''"
+                      [style.border-color]="(form.get('globalVatRate')?.value !== null && form.get('globalVatRate')?.value !== '') ? 'var(--accent-border)' : ''">%</span>
+                  </div>
+                </div>
+
+                <!-- Subtotal -->
+                <div>
+                  <div class="item-ctrl-lbl">Subtotal</div>
+                  <div class="pi-field text-end">{{ item.ctrl.get('totalCost')?.value | number:'1.0-0' }}</div>
+                </div>
+
+                <!-- Flete toggle -->
+                <div>
+                  <div class="item-ctrl-lbl">Flete</div>
+                  <div class="form-check form-switch mb-0 mt-1">
+                    <input class="form-check-input mt-0" type="checkbox" formControlName="applyFreight"
+                      [title]="(form.get('freightRate')?.value ?? 0) > 0 ? 'Flete: $' + form.get('freightRate')?.value + '/u' : 'Sin tarifa'">
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- Computed strip -->
+              @if (item.ctrl.get('presentationId')?.value) {
+                <div class="item-computed">
+                  <div>
+                    <div class="comp-lbl">Val. IVA</div>
+                    <div class="comp-val" style="color: var(--success);">
+                      @if ((item.ctrl.get('vatAmount')?.value ?? 0) > 0) {
+                        +{{ item.ctrl.get('vatAmount')?.value | number:'1.0-0' }}
+                      } @else { <span style="color: var(--text-hint);">—</span> }
+                    </div>
+                  </div>
+                  <div>
+                    <div class="comp-lbl">Val. flete</div>
+                    <div class="comp-val" style="color: var(--warn);">
+                      @if ((item.ctrl.get('freightAmount')?.value ?? 0) > 0) {
+                        +{{ item.ctrl.get('freightAmount')?.value | number:'1.0-0' }}
+                      } @else { <span style="color: var(--text-hint);">—</span> }
+                    </div>
+                  </div>
+                  <div>
+                    <div class="comp-lbl">Costo/u total</div>
+                    <div class="comp-val" style="color: var(--accent);">{{ getUnitTotal(item.ctrl) | number:'1.0-0' }}</div>
+                  </div>
+                  <div>
+                    <div class="comp-lbl">Total ítem</div>
+                    <div class="comp-val">{{ ((item.ctrl.get('totalCost')?.value ?? 0) + (item.ctrl.get('vatAmount')?.value ?? 0) + (item.ctrl.get('freightAmount')?.value ?? 0)) | number:'1.0-0' }}</div>
+                  </div>
+                </div>
               }
-            </tbody>
-          </table>
+
+            </div>
+          </div>
+        }
+      </div>
+
+    </form>
+  </div>
+
+  <!-- STICKY FOOTER: siempre visible -->
+  <div class="pi-footer">
+
+    <!-- Agregar ítem -->
+    <div class="pi-footer-add" (click)="addItem()" title="Agregar ítem (F2)">
+      <i class="bi bi-plus-circle" style="font-size: 16px; color: var(--accent);"></i>
+      <span style="font-size: 12px; font-weight: 500; color: var(--accent);">Agregar ítem</span>
+      <span style="font-size: 9px; padding: 1px 5px; border: 1px solid var(--border); border-radius: 4px; color: var(--text-hint); background: var(--surface2);">F2</span>
+    </div>
+
+    <!-- Totales -->
+    <div class="pi-footer-totals">
+      <div class="ft-seg">
+        <div class="ft-lbl">Subtotal</div>
+        <div class="ft-val">{{ itemsTotal | number:'1.0-0' }}</div>
+      </div>
+      @if (itemsVatTotal > 0) {
+        <div class="ft-sep">+</div>
+        <div class="ft-seg">
+          <div class="ft-lbl">IVA</div>
+          <div class="ft-val" style="color: var(--success);">{{ itemsVatTotal | number:'1.0-0' }}</div>
         </div>
+      }
+      @if (freightCost > 0) {
+        <div class="ft-sep">+</div>
+        <div class="ft-seg">
+          <div class="ft-lbl">Flete</div>
+          <div class="ft-val" style="color: var(--warn);">{{ freightCost | number:'1.0-0' }}</div>
+        </div>
+      }
+      <div class="ft-sep">=</div>
+      <div class="ft-seg">
+        <div class="ft-lbl">Total compra</div>
+        <div class="ft-grand">{{ grandTotalWithVatAndFreight | number:'1.0-0' }}</div>
       </div>
     </div>
 
-    <div class="d-flex justify-content-end gap-2">
-      <button type="button" class="btn btn-secondary" (click)="resetForm()">Cancelar (Esc)</button>
-      <button type="submit" class="btn btn-primary">Guardar (F4)</button>
+    <!-- Acciones -->
+    <div class="pi-footer-actions">
+      <button type="button" class="btn-pi-cancel" (click)="resetForm()">Cancelar</button>
+      <button type="button" class="btn-pi-save" (click)="saveInvoice()">
+        <i class="bi bi-device-floppy" style="font-size: 14px;"></i>
+        Guardar
+        <span style="font-size: 12px; opacity: .7; margin-left: 2px;">F4</span>
+      </button>
     </div>
-  </form>
+
+  </div>
+
 </div>
 
 <app-products-search-modal (selectPresentation)="onPresentationSelected($event)"></app-products-search-modal>
 
-<app-expenses-fab [source]="'compras'"></app-expenses-fab>
 
-<!-- Modal para definir precio de venta del lote (Animales Vivos) -->
+<!-- Modal lote animales vivos -->
 @if (showBatchPriceModal && currentBatchItem) {
   <div class="modal-backdrop fade show"></div>
   <div class="modal fade show d-block" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
         <div class="modal-header bg-warning">
-          <h5 class="modal-title">
-            <i class="bi bi-box-seam me-2"></i>
-            Crear Lote - Animales Vivos
-          </h5>
+          <h5 class="modal-title"><i class="bi bi-box-seam me-2"></i>Crear lote — animales vivos</h5>
         </div>
         <div class="modal-body">
-          <div class="alert alert-info">
-            <i class="bi bi-info-circle me-2"></i>
-            El producto <strong>{{ currentBatchItem.description }}</strong> requiere crear un lote con precio de venta.
-          </div>
-          
+          <div class="alert alert-info"><i class="bi bi-info-circle me-2"></i>El producto <strong>{{ currentBatchItem.description }}</strong> requiere crear un lote con precio de venta.</div>
           <div class="mb-3">
             <label class="form-label">Producto</label>
             <input type="text" class="form-control" [value]="currentBatchItem.description" readonly>
           </div>
-          
           <div class="mb-3">
             <label class="form-label">Cantidad ingresada</label>
             <div class="input-group">
@@ -421,70 +552,45 @@
               <span class="input-group-text">unidades</span>
             </div>
           </div>
-          
           <div class="mb-3">
-            <label class="form-label fw-bold text-warning">Precio de Venta del Lote *</label>
+            <label class="form-label fw-bold text-warning">Precio de venta del lote *</label>
             <div class="input-group">
               <span class="input-group-text">$</span>
-              <input type="number" class="form-control form-control-lg" 
-                     [(ngModel)]="batchSalePrice" 
-                     [ngModelOptions]="{standalone: true}"
-                     min="1" 
-                     placeholder="Ej: 15000">
+              <input type="number" class="form-control form-control-lg" [(ngModel)]="batchSalePrice" [ngModelOptions]="{standalone: true}" min="1" placeholder="Ej: 15000">
             </div>
           </div>
-          
           <div class="mb-3">
             <label class="form-label fw-bold">Días de validez del precio *</label>
             <div class="input-group">
-              <input type="number" class="form-control" 
-                     [(ngModel)]="batchPriceValidityDays" 
-                     [ngModelOptions]="{standalone: true}"
-                     min="1" 
-                     max="365"
-                     placeholder="Ej: 8">
+              <input type="number" class="form-control" [(ngModel)]="batchPriceValidityDays" [ngModelOptions]="{standalone: true}" min="1" max="365" placeholder="Ej: 8">
               <span class="input-group-text">días</span>
             </div>
             <small class="text-muted">Después de este tiempo se notificará para actualizar el precio</small>
           </div>
-          
           @if (pendingBatchItems.length > 0) {
-            <div class="alert alert-secondary small">
-              <i class="bi bi-hourglass-split me-1"></i>
-              Quedan {{ pendingBatchItems.length }} producto(s) más por configurar.
-            </div>
+            <div class="alert alert-secondary small"><i class="bi bi-hourglass-split me-1"></i>Quedan {{ pendingBatchItems.length }} producto(s) más por configurar.</div>
           }
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary" (click)="skipBatchCreation()">
-            <i class="bi bi-skip-forward me-1"></i> Omitir
-          </button>
-          <button type="button" class="btn btn-warning" 
-                  (click)="confirmBatchPrice()"
-                  [disabled]="batchSalePrice <= 0">
-            <i class="bi bi-check-circle me-1"></i> Crear Lote
-          </button>
+          <button type="button" class="btn btn-outline-secondary" (click)="skipBatchCreation()"><i class="bi bi-skip-forward me-1"></i> Omitir</button>
+          <button type="button" class="btn btn-warning" (click)="confirmBatchPrice()" [disabled]="batchSalePrice <= 0"><i class="bi bi-check-circle me-1"></i> Crear lote</button>
         </div>
       </div>
     </div>
   </div>
 }
 
-<!-- Modal de confirmación de tendencias de costo antes de guardar -->
+<!-- Modal confirmación tendencias de costo -->
 @if (showConfirmSaveModal) {
   <div class="modal-backdrop fade show"></div>
   <div class="modal fade show d-block" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-xl">
       <div class="modal-content">
         <div class="modal-header bg-primary text-white">
-          <h5 class="modal-title">
-            <i class="bi bi-graph-up-arrow me-2"></i>Confirmar compra - Costos y precios de venta
-          </h5>
+          <h5 class="modal-title"><i class="bi bi-graph-up-arrow me-2"></i>Confirmar compra — costos y precios de venta</h5>
         </div>
         <div class="modal-body">
-          <p class="text-muted small mb-2">
-            Revisa la variación de costos y, si deseas, ajusta el precio de venta de cada presentación antes de guardar.
-          </p>
+          <p class="text-muted small mb-2">Revisa la variación de costos y, si deseas, ajusta el precio de venta antes de guardar.</p>
           <div class="table-responsive">
             <table class="table table-sm table-hover align-middle">
               <thead class="table-light">
@@ -505,37 +611,18 @@
                     <td class="text-end text-muted">{{ (item.lastCost || 0) | number:'1.0-0' }}</td>
                     <td class="text-center">
                       @switch (item.trend) {
-                        @case ('up') {
-                          <span class="badge bg-danger">
-                            <i class="bi bi-arrow-up me-1"></i>Subió {{ item.deltaPercent | number:'1.1-1' }}%
-                          </span>
-                        }
-                        @case ('down') {
-                          <span class="badge bg-success">
-                            <i class="bi bi-arrow-down me-1"></i>Bajó {{ item.deltaPercent | number:'1.1-1' }}%
-                          </span>
-                        }
-                        @case ('same') {
-                          <span class="badge bg-secondary">
-                            <i class="bi bi-dash-circle me-1"></i>Igual
-                          </span>
-                        }
-                        @default {
-                          <span class="badge bg-warning text-dark">
-                            <i class="bi bi-star-fill me-1"></i>Primera vez
-                          </span>
-                        }
+                        @case ('up') { <span class="badge bg-danger"><i class="bi bi-arrow-up me-1"></i>Subió {{ item.deltaPercent | number:'1.1-1' }}%</span> }
+                        @case ('down') { <span class="badge bg-success"><i class="bi bi-arrow-down me-1"></i>Bajó {{ item.deltaPercent | number:'1.1-1' }}%</span> }
+                        @case ('same') { <span class="badge bg-secondary"><i class="bi bi-dash-circle me-1"></i>Igual</span> }
+                        @default { <span class="badge bg-warning text-dark"><i class="bi bi-star-fill me-1"></i>Primera vez</span> }
                       }
                     </td>
-                    <td class="text-end text-muted small">
-                      {{ getCurrentSalePrice(item.presentationId) | number:'1.0-0' }}
-                    </td>
+                    <td class="text-end text-muted small">{{ getCurrentSalePrice(item.presentationId) | number:'1.0-0' }}</td>
                     <td class="text-end">
                       <div class="input-group input-group-sm justify-content-end">
                         <span class="input-group-text">$</span>
                         <input type="number" class="form-control text-end" style="max-width:100px"
-                          [value]="getCurrentSalePrice(item.presentationId)"
-                          min="0" step="1"
+                          [value]="getCurrentSalePrice(item.presentationId)" min="0" step="1"
                           (change)="setPendingSalePrice(item.presentationId, $any($event.target).valueAsNumber)">
                       </div>
                       @if (hasPendingSalePriceChange(item.presentationId)) {
@@ -549,12 +636,8 @@
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary" (click)="cancelConfirmSave()">
-            <i class="bi bi-pencil me-1"></i>Volver a revisar
-          </button>
-          <button type="button" class="btn btn-primary" (click)="confirmSave()">
-            <i class="bi bi-check-circle me-1"></i>Confirmar y guardar
-          </button>
+          <button type="button" class="btn btn-outline-secondary" (click)="cancelConfirmSave()">Cancelar</button>
+          <button type="button" class="btn btn-primary" (click)="confirmSave()"><i class="bi bi-check-circle me-1"></i>Confirmar y guardar</button>
         </div>
       </div>
     </div>

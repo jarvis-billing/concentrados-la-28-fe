@@ -1,0 +1,409 @@
+<div class="container-fluid py-4">
+
+  <!-- Header -->
+  <div class="d-flex align-items-center gap-2 mb-4">
+    <a routerLink="/main/reportes" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left"></i>
+    </a>
+    <div>
+      <h3 class="mb-0 fw-bold">
+        <i class="bi bi-calendar3 text-primary me-2"></i>Ventas por Mes
+      </h3>
+      <small class="text-muted">Resumen mensual de ventas y utilidad con filtros por período</small>
+    </div>
+  </div>
+
+  <!-- ── FILTROS ── -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+      <div class="row g-3 align-items-end">
+
+        <!-- Mes inicio -->
+        <div class="col-6 col-md-2">
+          <label class="form-label small fw-semibold">Mes inicio</label>
+          <input type="month" class="form-control form-control-sm" [(ngModel)]="fromMonth">
+        </div>
+
+        <!-- Mes fin -->
+        <div class="col-6 col-md-2">
+          <label class="form-label small fw-semibold">Mes fin</label>
+          <input type="month" class="form-control form-control-sm" [(ngModel)]="toMonth">
+        </div>
+
+        <!-- Cliente -->
+        <div class="col-6 col-md-2">
+          <label class="form-label small fw-semibold">Cliente</label>
+          <input type="text" class="form-control form-control-sm" placeholder="Nombre cliente..."
+            [(ngModel)]="selectedClient">
+        </div>
+
+        <!-- Producto -->
+        <div class="col-6 col-md-2">
+          <label class="form-label small fw-semibold">Producto</label>
+          <input type="text" class="form-control form-control-sm" placeholder="Descripción..."
+            [(ngModel)]="selectedProduct">
+        </div>
+
+        <!-- Tipo venta -->
+        <div class="col-6 col-md-2">
+          <label class="form-label small fw-semibold">Tipo venta</label>
+          <select class="form-select form-select-sm" [(ngModel)]="selectedSaleType">
+            <option value="">Todas</option>
+            <option value="CONTADO">Contado</option>
+            <option value="CREDITO">Crédito</option>
+          </select>
+        </div>
+
+        <!-- Método pago -->
+        <div class="col-6 col-md-2">
+          <label class="form-label small fw-semibold">Pago</label>
+          <select class="form-select form-select-sm" [(ngModel)]="selectedPaymentMethod">
+            <option value="">Todos</option>
+            <option value="EFECTIVO">Efectivo</option>
+            <option value="TRANSFERENCIA">Transferencia</option>
+            <option value="TARJETA">Tarjeta</option>
+          </select>
+        </div>
+
+        <!-- Categoría -->
+        <div class="col-6 col-md-2">
+          <label class="form-label small fw-semibold">Categoría</label>
+          <select class="form-select form-select-sm" [(ngModel)]="selectedCategory" (change)="applyLocalFilters()">
+            <option value="">Todas</option>
+            <option *ngFor="let c of categories" [value]="c">{{ c }}</option>
+          </select>
+        </div>
+
+        <!-- Marca -->
+        <div class="col-6 col-md-2">
+          <label class="form-label small fw-semibold">Marca</label>
+          <select class="form-select form-select-sm" [(ngModel)]="selectedBrand" (change)="applyLocalFilters()">
+            <option value="">Todas</option>
+            <option *ngFor="let b of brands" [value]="b">{{ b }}</option>
+          </select>
+        </div>
+
+        <!-- Búsqueda libre -->
+        <div class="col-12 col-md-4">
+          <label class="form-label small fw-semibold">Búsqueda</label>
+          <div class="input-group input-group-sm">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" class="form-control" placeholder="Producto, cliente, factura..."
+              [(ngModel)]="searchText" (input)="applyLocalFilters()">
+          </div>
+        </div>
+
+        <!-- Botones -->
+        <div class="col-12 col-md-4 d-flex gap-2 align-items-end flex-wrap">
+          <button class="btn btn-primary btn-sm flex-grow-1" (click)="loadReport()" [disabled]="isLoading">
+            @if (isLoading) {
+              <span class="spinner-border spinner-border-sm me-1"></span>
+            } @else {
+              <i class="bi bi-search me-1"></i>
+            }
+            Consultar
+          </button>
+          <button class="btn btn-outline-secondary btn-sm" (click)="clearFilters()" title="Limpiar filtros">
+            <i class="bi bi-x-circle"></i>
+          </button>
+          @if (hasLoaded && !isLoading && monthlyRows.length > 0) {
+            <button class="btn btn-outline-info btn-sm" (click)="openCharts()" title="Ver gráficos">
+              <i class="bi bi-bar-chart-line-fill"></i>
+            </button>
+            <button class="btn btn-outline-danger btn-sm" (click)="generatePdf()" [disabled]="isGeneratingPdf" title="Exportar PDF">
+              @if (isGeneratingPdf) {
+                <span class="spinner-border spinner-border-sm"></span>
+              } @else {
+                <i class="bi bi-file-earmark-pdf"></i>
+              }
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ESTADO DE CARGA ── -->
+  @if (isLoading) {
+    <div class="text-center py-5">
+      <span class="spinner-border text-primary"></span>
+      <p class="text-muted mt-2">Cargando ventas…</p>
+    </div>
+  }
+
+  <!-- ── RESULTADOS ── -->
+  @if (hasLoaded && !isLoading) {
+
+    <!-- Tarjetas de totales -->
+    <div class="row g-3 mb-3">
+      <div class="col-6 col-sm-4 col-md-2">
+        <div class="summary-card summary-card-blue">
+          <div class="sc-label">Total Ventas</div>
+          <div class="sc-value">{{ formatCurrency(totals.sales) }}</div>
+        </div>
+      </div>
+      @if (cols.cost) {
+        <div class="col-6 col-sm-4 col-md-2">
+          <div class="summary-card summary-card-red">
+            <div class="sc-label">Costo Total</div>
+            <div class="sc-value">{{ formatCurrency(totals.cost) }}</div>
+          </div>
+        </div>
+      }
+      @if (cols.profit) {
+        <div class="col-6 col-sm-4 col-md-2">
+          <div class="summary-card summary-card-green">
+            <div class="sc-label">Utilidad Bruta</div>
+            <div class="sc-value">{{ formatCurrency(totals.profit) }}</div>
+          </div>
+        </div>
+      }
+      @if (cols.margin) {
+        <div class="col-6 col-sm-4 col-md-2">
+          <div class="summary-card" [ngClass]="totals.margin >= 20 ? 'summary-card-green' : totals.margin >= 10 ? 'summary-card-yellow' : 'summary-card-red'">
+            <div class="sc-label">Margen Prom.</div>
+            <div class="sc-value">{{ totals.margin | number:'1.1-1' }}%</div>
+          </div>
+        </div>
+      }
+      @if (cols.invoices) {
+        <div class="col-6 col-sm-4 col-md-2">
+          <div class="summary-card summary-card-gray">
+            <div class="sc-label">Facturas</div>
+            <div class="sc-value">{{ totals.invoices }}</div>
+          </div>
+        </div>
+      }
+      <div class="col-6 col-sm-4 col-md-2">
+        <div class="summary-card summary-card-gray">
+          <div class="sc-label">Meses</div>
+          <div class="sc-value">{{ monthlyRows.length }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── INFO EXPLICATIVA ── -->
+    <div class="info-panel mb-3">
+      <button class="info-toggle" (click)="showInfo = !showInfo">
+        <i class="bi bi-info-circle me-1 text-primary"></i>
+        <span>¿Cómo se calculan estos valores?</span>
+        <i class="bi ms-1" [ngClass]="showInfo ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
+      </button>
+      @if (showInfo) {
+        <div class="info-body">
+          <div class="row g-3 mt-1">
+            <div class="col-12 col-md-6 col-lg-4">
+              <div class="info-card">
+                <div class="info-card-title"><i class="bi bi-currency-dollar text-primary me-1"></i>Total Ventas</div>
+                <p class="info-card-text">Suma de los <strong>subtotales</strong> de cada ítem vendido en el período (precio unitario × cantidad, sin descuentos adicionales). Refleja el ingreso bruto por ventas.</p>
+                <code class="info-formula">Ventas = Σ (precio_unitario × cantidad)</code>
+              </div>
+            </div>
+            <div class="col-12 col-md-6 col-lg-4">
+              <div class="info-card">
+                <div class="info-card-title"><i class="bi bi-box-seam text-danger me-1"></i>Costo Total</div>
+                <p class="info-card-text">Suma del <strong>costo de adquisición</strong> de cada ítem (costo unitario × cantidad). El costo unitario viene del campo <em>unitCost</em> registrado en la factura o del costo base del catálogo de productos.</p>
+                <code class="info-formula">Costo = Σ (costo_unitario × cantidad)</code>
+              </div>
+            </div>
+            <div class="col-12 col-md-6 col-lg-4">
+              <div class="info-card">
+                <div class="info-card-title"><i class="bi bi-graph-up-arrow text-success me-1"></i>Utilidad Bruta</div>
+                <p class="info-card-text">Lo que queda después de restar el costo de ventas. <strong>No incluye</strong> gastos operativos (nómina, arriendo, servicios). Es la ganancia "antes de gastos".</p>
+                <code class="info-formula">Utilidad Bruta = Ventas − Costo</code>
+              </div>
+            </div>
+            <div class="col-12 col-md-6 col-lg-4">
+              <div class="info-card">
+                <div class="info-card-title"><i class="bi bi-percent text-warning me-1"></i>Margen %</div>
+                <p class="info-card-text">Porcentaje de cada peso vendido que se convierte en utilidad. Un margen del <strong>25%</strong> significa que por cada $100 vendidos, $25 son ganancia bruta y $75 fue el costo. <span class="text-success fw-semibold">≥25% bueno</span> · <span class="text-warning fw-semibold">10–24% regular</span> · <span class="text-danger fw-semibold">&lt;10% bajo</span>.</p>
+                <code class="info-formula">Margen % = (Utilidad / Ventas) × 100</code>
+              </div>
+            </div>
+            <div class="col-12 col-md-6 col-lg-4">
+              <div class="info-card">
+                <div class="info-card-title"><i class="bi bi-receipt text-secondary me-1"></i>Facturas</div>
+                <p class="info-card-text">Número de <strong>documentos de venta únicos</strong> en el período. Una factura puede contener múltiples ítems; el conteo de ítems es la suma de líneas de detalle.</p>
+                <code class="info-formula">Facturas = documentos únicos por mes</code>
+              </div>
+            </div>
+            <div class="col-12 col-md-6 col-lg-4">
+              <div class="info-card">
+                <div class="info-card-title"><i class="bi bi-bar-chart text-info me-1"></i>Barra de participación</div>
+                <p class="info-card-text">Barra visual que muestra <strong>qué porcentaje del total del período</strong> representa cada mes. Útil para identificar los meses con mayor volumen de ventas de forma rápida.</p>
+                <code class="info-formula">Barra = (Ventas_mes / Ventas_total) × 100</code>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Tabla mensual -->
+    @if (monthlyRows.length === 0) {
+      <div class="text-center py-5 text-muted">
+        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+        Sin ventas en el período seleccionado
+      </div>
+    } @else {
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white d-flex align-items-center justify-content-between py-2 flex-wrap gap-2">
+          <span class="fw-semibold">
+            <i class="bi bi-table me-1 text-primary"></i>
+            Resumen mensual — {{ monthlyRows.length }} mes{{ monthlyRows.length !== 1 ? 'es' : '' }}
+          </span>
+          <div class="d-flex gap-2 align-items-center flex-wrap">
+
+            <!-- Toggle columnas -->
+            <div class="position-relative">
+              <button class="btn btn-sm btn-outline-secondary" (click)="showColMenu = !showColMenu">
+                <i class="bi bi-layout-three-columns me-1"></i>Columnas
+              </button>
+              @if (showColMenu) {
+                <div class="col-menu-dropdown" (click)="$event.stopPropagation()">
+                  <div class="col-menu-title">Mostrar columnas</div>
+                  <label class="col-menu-item">
+                    <input type="checkbox" [(ngModel)]="cols.invoices"> Facturas
+                  </label>
+                  <label class="col-menu-item">
+                    <input type="checkbox" [(ngModel)]="cols.items"> Ítems
+                  </label>
+                  <label class="col-menu-item">
+                    <input type="checkbox" [(ngModel)]="cols.cost"> Costo
+                  </label>
+                  <label class="col-menu-item">
+                    <input type="checkbox" [(ngModel)]="cols.profit"> Utilidad
+                  </label>
+                  <label class="col-menu-item">
+                    <input type="checkbox" [(ngModel)]="cols.margin"> Margen %
+                  </label>
+                  <label class="col-menu-item">
+                    <input type="checkbox" [(ngModel)]="cols.bar"> Barra
+                  </label>
+                  <button class="btn btn-sm btn-link p-0 mt-2 w-100" (click)="showColMenu = false">Cerrar</button>
+                </div>
+              }
+            </div>
+
+            <button class="btn btn-sm btn-outline-info" (click)="openCharts()">
+              <i class="bi bi-bar-chart-line-fill me-1"></i>Gráficos
+            </button>
+            <button class="btn btn-sm btn-outline-danger" (click)="generatePdf()" [disabled]="isGeneratingPdf">
+              @if (isGeneratingPdf) {
+                <span class="spinner-border spinner-border-sm me-1"></span>
+              } @else {
+                <i class="bi bi-file-earmark-pdf me-1"></i>
+              }
+              PDF
+            </button>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover table-sm align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th class="sortable" (click)="toggleSort('monthKey')">
+                  Mes <i class="bi {{ sortIcon('monthKey') }} ms-1 text-muted"></i>
+                </th>
+                @if (cols.invoices) {
+                  <th class="sortable text-end" (click)="toggleSort('invoiceCount')">
+                    Facturas <i class="bi {{ sortIcon('invoiceCount') }} ms-1 text-muted"></i>
+                  </th>
+                }
+                @if (cols.items) {
+                  <th class="sortable text-end" (click)="toggleSort('itemCount')">
+                    Ítems <i class="bi {{ sortIcon('itemCount') }} ms-1 text-muted"></i>
+                  </th>
+                }
+                <th class="sortable text-end" (click)="toggleSort('totalSales')">
+                  Ventas <i class="bi {{ sortIcon('totalSales') }} ms-1 text-muted"></i>
+                </th>
+                @if (cols.cost) {
+                  <th class="sortable text-end" (click)="toggleSort('totalCost')">
+                    Costo <i class="bi {{ sortIcon('totalCost') }} ms-1 text-muted"></i>
+                  </th>
+                }
+                @if (cols.profit) {
+                  <th class="sortable text-end" (click)="toggleSort('grossProfit')">
+                    Utilidad <i class="bi {{ sortIcon('grossProfit') }} ms-1 text-muted"></i>
+                  </th>
+                }
+                @if (cols.margin) {
+                  <th class="sortable text-end" (click)="toggleSort('profitMargin')">
+                    Margen % <i class="bi {{ sortIcon('profitMargin') }} ms-1 text-muted"></i>
+                  </th>
+                }
+                @if (cols.bar) {
+                  <th class="text-end" style="min-width:120px">Participación</th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of monthlyRows; track row.monthKey) {
+                <tr>
+                  <td class="fw-semibold">{{ row.monthLabel }}</td>
+                  @if (cols.invoices) {
+                    <td class="text-end text-muted small">{{ row.invoiceCount }}</td>
+                  }
+                  @if (cols.items) {
+                    <td class="text-end text-muted small">{{ row.itemCount }}</td>
+                  }
+                  <td class="text-end fw-semibold">{{ formatCurrency(row.totalSales) }}</td>
+                  @if (cols.cost) {
+                    <td class="text-end text-danger">{{ formatCurrency(row.totalCost) }}</td>
+                  }
+                  @if (cols.profit) {
+                    <td class="text-end fw-bold text-success">{{ formatCurrency(row.grossProfit) }}</td>
+                  }
+                  @if (cols.margin) {
+                    <td class="text-end">
+                      <span [ngClass]="marginClass(row.profitMargin)">{{ row.profitMargin | number:'1.1-1' }}%</span>
+                    </td>
+                  }
+                  @if (cols.bar) {
+                    <td>
+                      <div class="month-bar-track">
+                        <div class="month-bar-fill"
+                          [style.width.%]="totals.sales > 0 ? (row.totalSales / totals.sales) * 100 : 0"
+                          [title]="(totals.sales > 0 ? (row.totalSales / totals.sales) * 100 : 0 | number:'1.0-0') + '% del total'">
+                        </div>
+                      </div>
+                      <span class="bar-pct-label">
+                        {{ totals.sales > 0 ? ((row.totalSales / totals.sales) * 100 | number:'1.0-0') : 0 }}%
+                      </span>
+                    </td>
+                  }
+                </tr>
+              }
+            </tbody>
+            <tfoot>
+              <tr class="table-dark fw-bold">
+                <td>TOTAL</td>
+                @if (cols.invoices) { <td class="text-end">{{ totals.invoices }}</td> }
+                @if (cols.items)    { <td class="text-end">{{ totals.items }}</td> }
+                <td class="text-end">{{ formatCurrency(totals.sales) }}</td>
+                @if (cols.cost)     { <td class="text-end">{{ formatCurrency(totals.cost) }}</td> }
+                @if (cols.profit)   { <td class="text-end">{{ formatCurrency(totals.profit) }}</td> }
+                @if (cols.margin)   { <td class="text-end">{{ totals.margin | number:'1.1-1' }}%</td> }
+                @if (cols.bar)      { <td></td> }
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    }
+  }
+
+</div>
+
+<!-- Click outside cierra el menú de columnas -->
+@if (showColMenu) {
+  <div class="col-menu-backdrop" (click)="showColMenu = false"></div>
+}
+
+<!-- Modal Gráficos -->
+<app-report-chart-modal
+  [visible]="showChart"
+  [availableCharts]="chartConfigs"
+  (visibleChange)="showChart = $event">
+</app-report-chart-modal>
