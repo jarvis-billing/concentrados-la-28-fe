@@ -37,6 +37,7 @@ export interface PreSaleDto {
   preSaleNumber: string;
   status: PreSaleStatus;
   sellerName: string;
+  clientName?: string;
   items: PreSaleItemDto[];
   totalAmount: number;
   notes?: string;
@@ -55,6 +56,7 @@ export interface PreSaleNotification {
   preSaleId: string;
   preSaleNumber: string;
   sellerName: string;
+  clientName?: string;
   totalAmount: number;
   itemCount: number;
   createdAt: string;

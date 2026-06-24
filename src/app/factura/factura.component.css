@@ -308,10 +308,24 @@ select.form-select-sm {
   color: #198754;
 }
 
+.preventa-client-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #212529;
+  background: #f0f7ff;
+  border-left: 3px solid #0d6efd;
+  border-radius: 4px;
+  padding: 3px 8px;
+  margin-bottom: 0.45rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .preventa-card-meta {
   font-size: 0.8rem;
   color: #6c757d;
-  margin-bottom: 0.7rem;
+  margin-bottom: 0.4rem;
 }
 
 .preventa-card-date {

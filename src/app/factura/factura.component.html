@@ -43,23 +43,37 @@
     }
     @for (n of sortedPreSaleNotifications; track n.preSaleId) {
       <div class="preventa-card">
+        <!-- Número + monto -->
         <div class="preventa-card-top">
           <span class="preventa-num">{{ n.preSaleNumber }}</span>
           <span class="preventa-amount">{{ n.totalAmount | currency:'$ ':'symbol':'.0-0' }}</span>
         </div>
+
+        <!-- Cliente (destacado cuando el vendedor lo capturó) -->
+        @if (n.clientName) {
+          <div class="preventa-client-name">
+            <i class="bi bi-person-fill me-1"></i>{{ n.clientName }}
+          </div>
+        }
+
+        <!-- Vendedor + ítems -->
         <div class="preventa-card-meta">
-          <i class="bi bi-person me-1"></i>{{ n.sellerName }}
+          <i class="bi bi-headset me-1"></i>{{ n.sellerName }}
           <span class="mx-2 text-muted">·</span>
           <i class="bi bi-box-seam me-1"></i>{{ n.itemCount }} ítem(s)
         </div>
+
+        <!-- Hora -->
         <div class="preventa-card-date">
           <i class="bi bi-clock me-1"></i>{{ n.createdAt | date:'dd/MM HH:mm' }}
         </div>
+
+        <!-- Acciones -->
         <div class="preventa-card-actions">
           <button class="btn btn-sm btn-primary w-100" (click)="importPreSale(n); showPreventaPanel = false">
             <i class="bi bi-file-arrow-down me-1"></i>Importar a factura
           </button>
-          <button class="btn btn-sm btn-outline-secondary" (click)="dismissPreSaleNotification(n)" title="Descartar">
+          <button class="btn btn-sm btn-outline-danger" (click)="cancelPreSale(n)" title="Cancelar preventa">
             <i class="bi bi-x-lg"></i>
           </button>
         </div>

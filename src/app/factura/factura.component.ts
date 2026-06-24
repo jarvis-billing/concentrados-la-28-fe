@@ -31,6 +31,7 @@ import { BankAccountSelectComponent } from '../shared/components/bank-account-se
 import { PreSaleWebSocketService } from '../preventa/services/pre-sale-websocket.service';
 import { PreSaleService } from '../preventa/services/pre-sale.service';
 import { PreSaleNotification } from '../preventa/models/pre-sale';
+import { filter } from 'rxjs/operators';
 
 interface ProductSuggestion {
   product: Product;
@@ -180,6 +181,7 @@ export class FacturaComponent implements OnInit, AfterViewInit, OnDestroy {
               preSaleId: ps.id,
               preSaleNumber: ps.preSaleNumber,
               sellerName: ps.sellerName,
+              clientName: ps.clientName,
               totalAmount: ps.totalAmount,
               itemCount: ps.items?.length ?? 0,
               createdAt: ps.createdAt,
@@ -193,18 +195,29 @@ export class FacturaComponent implements OnInit, AfterViewInit, OnDestroy {
     const token = window.localStorage.getItem('authToken');
     if (token) {
       this.preSaleWebSocketService.connect(token);
-      this.wsSubscription = this.preSaleWebSocketService.notifications$.subscribe(
-        (notification) => {
+      this.wsSubscription = this.preSaleWebSocketService.events$.subscribe(event => {
+        const { type, payload } = event;
+
+        if (type === 'PREVENTA_READY') {
+          // Guard: ignorar si esta preventa ya fue importada en la sesión actual
+          // (cubre la race-condition entre save() y markAsBilled())
+          if (this.importedPreSaleIds.includes(payload.preSaleId)) return;
+
           const idx = this.pendingPreSaleNotifications.findIndex(
-            n => n.preSaleId === notification.preSaleId
+            n => n.preSaleId === payload.preSaleId
           );
           if (idx >= 0) {
-            this.pendingPreSaleNotifications[idx] = notification;
+            this.pendingPreSaleNotifications[idx] = payload;
           } else {
-            this.pendingPreSaleNotifications.push(notification);
+            this.pendingPreSaleNotifications.push(payload);
           }
+        } else if (type === 'PREVENTA_BILLED' || type === 'PREVENTA_CANCELLED') {
+          // Quitar del panel sin importar quién la procesó (otro facturador, o la misma sesión)
+          this.pendingPreSaleNotifications = this.pendingPreSaleNotifications.filter(
+            n => n.preSaleId !== payload.preSaleId
+          );
         }
-      );
+      });
     }
   }
 
@@ -1841,6 +1854,32 @@ export class FacturaComponent implements OnInit, AfterViewInit, OnDestroy {
     this.pendingPreSaleNotifications = this.pendingPreSaleNotifications.filter(
       n => n.preSaleId !== notification.preSaleId
     );
+  }
+
+  cancelPreSale(notification: PreSaleNotification): void {
+    const label = notification.clientName
+      ? `${notification.preSaleNumber} · ${notification.clientName}`
+      : notification.preSaleNumber;
+
+    toast.warning(`¿Cancelar ${label}?`, {
+      description: 'Esta acción no se puede deshacer.',
+      action: {
+        label: 'Sí, cancelar',
+        onClick: () => {
+          // Quitar del panel de inmediato para respuesta visual rápida
+          this.dismissPreSaleNotification(notification);
+          // Cancelar en el backend — WS emitirá PREVENTA_CANCELLED a todos los clientes
+          this.preSaleService.cancel(notification.preSaleId).subscribe({
+            next: () => toast.success(`Preventa ${notification.preSaleNumber} cancelada`),
+            error: () => {
+              // Si falla, restaurar al panel
+              this.pendingPreSaleNotifications.unshift(notification);
+              toast.error('Error al cancelar la preventa');
+            },
+          });
+        },
+      },
+    });
   }
 
   get sortedPreSaleNotifications(): PreSaleNotification[] {

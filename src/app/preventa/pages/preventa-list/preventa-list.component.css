@@ -69,9 +69,24 @@
   color: #212529;
 }
 
+.preventa-card-client {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #0d6efd;
+  margin-bottom: 2px;
+}
+
 .preventa-card-seller {
   font-size: 0.82rem;
   color: #6c757d;
+}
+
+/* Celda de cliente en tabla desktop */
+.client-name-cell {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #0d6efd;
+  margin-top: 2px;
 }
 
 .preventa-card-body {

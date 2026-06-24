@@ -1,7 +1,15 @@
 import { Injectable, OnDestroy } from '@angular/core';
 import { Subject } from 'rxjs';
+import { filter, map } from 'rxjs/operators';
 import { urlConfig } from '../../../config/config';
 import { PreSaleNotification } from '../models/pre-sale';
+
+export type WsPreventaType = 'PREVENTA_READY' | 'PREVENTA_BILLED' | 'PREVENTA_CANCELLED';
+
+export interface WsPreventaEvent {
+  type: WsPreventaType;
+  payload: PreSaleNotification;
+}
 
 @Injectable({ providedIn: 'root' })
 export class PreSaleWebSocketService implements OnDestroy {
@@ -10,8 +18,16 @@ export class PreSaleWebSocketService implements OnDestroy {
   private currentToken: string | null = null;
   private destroyed = false;
 
-  private notificationsSubject = new Subject<PreSaleNotification>();
-  readonly notifications$ = this.notificationsSubject.asObservable();
+  private eventsSubject = new Subject<WsPreventaEvent>();
+
+  /** Todos los eventos tipados (READY, BILLED, CANCELLED) */
+  readonly events$ = this.eventsSubject.asObservable();
+
+  /** Compatibilidad: solo emite las notificaciones PREVENTA_READY */
+  readonly notifications$ = this.events$.pipe(
+    filter(e => e.type === 'PREVENTA_READY'),
+    map(e => e.payload)
+  );
 
   connect(token: string): void {
     if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
@@ -35,11 +51,12 @@ export class PreSaleWebSocketService implements OnDestroy {
       this.ws.onmessage = (ev: MessageEvent) => {
         try {
           const msg = JSON.parse(ev.data as string);
-          if (msg?.type === 'PREVENTA_READY') {
-            this.notificationsSubject.next(msg.payload as PreSaleNotification);
+          const type = msg?.type as WsPreventaType;
+          if (type === 'PREVENTA_READY' || type === 'PREVENTA_BILLED' || type === 'PREVENTA_CANCELLED') {
+            this.eventsSubject.next({ type, payload: msg.payload as PreSaleNotification });
           }
         } catch {
-          // malformed message — ignore
+          // mensaje malformado — ignorar
         }
       };
 
@@ -54,7 +71,7 @@ export class PreSaleWebSocketService implements OnDestroy {
         }
       };
     } catch {
-      // WebSocket not available (SSR or blocked)
+      // WebSocket no disponible (SSR o bloqueado)
     }
   }
 
