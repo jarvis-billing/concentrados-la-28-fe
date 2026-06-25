@@ -85,12 +85,21 @@ export class FacturasTableComponent implements OnInit {
 
 
   formatDate(dateInput: string | Date): string {
-    const date = new Date(dateInput);
-    return new Intl.DateTimeFormat('es-ES', {
+    return new Intl.DateTimeFormat('es-CO', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
-    }).format(date);
+      timeZone: 'America/Bogota',
+    }).format(new Date(dateInput));
+  }
+
+  formatTime(dateInput: string | Date): string {
+    return new Intl.DateTimeFormat('es-CO', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: 'America/Bogota',
+    }).format(new Date(dateInput));
   }
 
 

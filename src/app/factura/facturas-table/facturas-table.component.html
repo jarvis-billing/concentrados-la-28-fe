@@ -172,9 +172,9 @@
         <tr class="table-primary">
           <th scope="col">No. Factura</th>
           <th scope="col">Fecha emisión</th>
+          <th scope="col">Hora</th>
           <th scope="col">Cliente</th>
           <th scope="col">Total venta</th>
-          <th scope="col">Total IVA</th>
           <th scope="col">Tipo de venta</th>
           <th scope="col">Medio de pago</th>
           <th scope="col">Vendedor</th>
@@ -201,15 +201,15 @@
               </td>
 
               <td style="text-align: center;">
+                <span>{{formatTime(billing.dateTimeRecord)}}</span>
+              </td>
+
+              <td style="text-align: center;">
                 <span>{{billing.client.fullName}}</span>
               </td>
 
               <td style="text-align: center;">
                 <span>{{billing.subTotalSale | currency:'$ ':'symbol':'.0-0'}}</span>
-              </td>
-
-              <td style="text-align: center;">
-                <span>{{billing.totalIVAT | currency:'$ ':'symbol':'.0-0'}}</span>
               </td>
 
               <td style="text-align: center;">
@@ -318,8 +318,6 @@
                             <th>Código de barras</th>
                             <th class="text-center">Cantidad</th>
                             <th class="text-end">Precio unitario</th>
-                            <th class="text-end">Subtotal</th>
-                            <th class="text-end">IVA</th>
                             <th class="text-end">Total</th>
                           </tr>
                         </thead>
@@ -330,8 +328,6 @@
                               <td>{{ detail.product?.barcode || 'N/A' }}</td>
                               <td class="text-center">{{ detail.amount || 0 }}</td>
                               <td class="text-end">{{ (detail.unitPrice || 0) | currency:'$ ':'symbol':'.0-0' }}</td>
-                              <td class="text-end">{{ (detail.subTotal || 0) | currency:'$ ':'symbol':'.0-0' }}</td>
-                              <td class="text-end">{{ (detail.totalVat || 0) | currency:'$ ':'symbol':'.0-0' }}</td>
                               <td class="text-end fw-bold">{{ ((detail.subTotal || 0) + (detail.totalVat || 0)) | currency:'$ ':'symbol':'.0-0' }}</td>
                             </tr>
                           }
@@ -415,22 +411,6 @@
               <div class="card-header">Total Ventas:</div>
               <div class="card-body">
                 <p class="card-text fw-bold">{{ salesTotals.totalSubtotal | currency:'$ ':'symbol':'.0-0' }}</p>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-3">
-            <div class="card text-white bg-warning">
-              <div class="card-header">Total IVA:</div>
-              <div class="card-body">
-                <p class="card-text fw-bold">{{ salesTotals.totalIva | currency:'$ ':'symbol':'.0-0' }}</p>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-3">
-            <div class="card text-white bg-dark">
-              <div class="card-header">Total General:</div>
-              <div class="card-body">
-                <p class="card-text fw-bold">{{ salesTotals.totalGeneral | currency:'$ ':'symbol':'.0-0' }}</p>
               </div>
             </div>
           </div>

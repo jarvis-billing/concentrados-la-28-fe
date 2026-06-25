@@ -5,18 +5,18 @@
   <!-- TOP BAR -->
   <div class="pi-topbar">
     <div>
-      <div style="font-size: 14px; font-weight: 500; color: var(--text);">
+      <div style="font-size: 16px; font-weight: 500; color: var(--text);">
         @if (isEditMode) {
           <i class="bi bi-pencil-square me-1"></i>Editar factura de compra
         } @else {
           Nueva factura de compra
         }
       </div>
-      <div style="font-size: 10px; color: var(--text-hint); margin-top: 1px;">F2 ítem · F4 guardar · Esc cancelar</div>
+      <div style="font-size: 12px; color: var(--text-hint); margin-top: 1px;">F2 ítem · F4 guardar · Esc cancelar</div>
     </div>
     <div class="d-flex align-items-center gap-2">
       @if (!isEditMode && lastAutoSaveTime) {
-        <span style="font-size: 12px; color: var(--success); display: flex; align-items: center; gap: 3px;">
+        <span style="font-size: 14px; color: var(--success); display: flex; align-items: center; gap: 3px;">
           <i class="bi bi-cloud-check"></i> {{ lastAutoSaveTime | date:'HH:mm' }}
         </span>
       }
@@ -34,7 +34,7 @@
 
       <!-- EDIT MODE ALERT -->
       @if (isEditMode) {
-        <div class="alert alert-info mb-0" style="border-radius: 10px; font-size: 13px;">
+        <div class="alert alert-info mb-0" style="border-radius: 10px; font-size: 15px;">
           <i class="bi bi-info-circle me-2"></i>
           <strong>Modo edición:</strong> los productos existentes no se pueden modificar. Solo puede agregar nuevos productos.
         </div>
@@ -42,10 +42,10 @@
 
       <!-- DRAFT RESTORED BANNER -->
       @if (hasRestoredDraft) {
-        <div style="display: flex; align-items: center; gap: 8px; padding: 7px 12px; background: var(--accent-light); border: 1px solid var(--accent-border); border-radius: 8px; font-size: 12px; color: var(--accent-text);">
+        <div style="display: flex; align-items: center; gap: 8px; padding: 7px 12px; background: var(--accent-light); border: 1px solid var(--accent-border); border-radius: 8px; font-size: 14px; color: var(--accent-text);">
           <i class="bi bi-clock-history"></i>
           <span>Borrador restaurado</span>
-          <button type="button" class="btn-icon ms-auto" style="font-size: 11px; color: var(--danger);" (click)="discardDraft()">
+          <button type="button" class="btn-icon ms-auto" style="font-size: 13px; color: var(--danger);" (click)="discardDraft()">
             <i class="bi bi-trash me-1"></i>Descartar
           </button>
         </div>
@@ -54,7 +54,7 @@
       <!-- ENCABEZADO -->
       <div class="pi-card">
         <div class="pi-card-hd">
-          <span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em;">Encabezado</span>
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em;">Encabezado</span>
         </div>
         <div class="pi-card-bd">
           <div class="row g-3">
@@ -81,8 +81,8 @@
                           (click)="selectSupplier(supplier)"
                           (mouseenter)="$any($event.currentTarget).style.background='var(--surface2)'"
                           (mouseleave)="$any($event.currentTarget).style.background='var(--surface)'">
-                          <div style="font-size: 12px; font-weight: 500; color: var(--text);">{{ supplier.name }}</div>
-                          <div style="font-size: 12px; color: var(--text-muted);">{{ supplier.documentType }} {{ supplier.idNumber }}</div>
+                          <div style="font-size: 14px; font-weight: 500; color: var(--text);">{{ supplier.name }}</div>
+                          <div style="font-size: 14px; color: var(--text-muted);">{{ supplier.documentType }} {{ supplier.idNumber }}</div>
                         </div>
                       }
                     </div>
@@ -92,11 +92,11 @@
                 <div class="prov-chip">
                   <div class="prov-av">{{ selectedSupplier.name.substring(0,2).toUpperCase() }}</div>
                   <div>
-                    <div style="font-size: 12px; font-weight: 500; color: var(--text);">{{ selectedSupplier.name }}</div>
-                    <div style="font-size: 12px; color: var(--text-muted);">{{ selectedSupplier.documentType }} {{ selectedSupplier.idNumber }}</div>
+                    <div style="font-size: 14px; font-weight: 500; color: var(--text);">{{ selectedSupplier.name }}</div>
+                    <div style="font-size: 14px; color: var(--text-muted);">{{ selectedSupplier.documentType }} {{ selectedSupplier.idNumber }}</div>
                   </div>
                   <button type="button" class="btn-icon ms-auto" style="padding: 2px 5px;" (click)="clearSupplierSelection()">
-                    <i class="bi bi-x-lg" style="font-size: 11px;"></i>
+                    <i class="bi bi-x-lg" style="font-size: 13px;"></i>
                   </button>
                 </div>
               }
@@ -125,13 +125,13 @@
 
             <!-- Flete -->
             <div class="col-12 col-md-3">
-              <div class="pi-lbl">Flete/u <span style="color: var(--text-hint); font-size: 10px;">(opc.)</span></div>
+              <div class="pi-lbl">Flete/u <span style="color: var(--text-hint); font-size: 12px;">(opc.)</span></div>
               <div class="input-group input-group-sm">
                 <span class="input-group-text">$</span>
                 <input class="form-control text-end" type="text" formControlName="freightRate" appCurrencyFormat placeholder="0">
               </div>
               @if ((form.get('freightRate')?.value ?? 0) > 0) {
-                <div style="font-size: 12px; color: var(--warn); margin-top: 2px;">
+                <div style="font-size: 14px; color: var(--warn); margin-top: 2px;">
                   <i class="bi bi-info-circle me-1"></i>Nuevas filas heredarán flete
                 </div>
               }
@@ -142,7 +142,7 @@
               <div class="pi-lbl" style="display: flex; align-items: center; gap: 5px;">
                 IVA % global
                 @if (form.get('globalVatRate')?.value !== null && form.get('globalVatRate')?.value !== '') {
-                  <span style="font-size: 11px; padding: 2px 7px; border-radius: 8px; background: var(--accent-light); border: 1px solid var(--accent-border); color: var(--accent-text); font-weight: 600;">
+                  <span style="font-size: 13px; padding: 2px 7px; border-radius: 8px; background: var(--accent-light); border: 1px solid var(--accent-border); color: var(--accent-text); font-weight: 600;">
                     {{ form.get('globalVatRate')?.value }}% · activo
                   </span>
                 }
@@ -159,7 +159,7 @@
                   </button>
                 }
               </div>
-              <div style="font-size: 11px; margin-top: 3px;"
+              <div style="font-size: 13px; margin-top: 3px;"
                 [style.color]="(form.get('globalVatRate')?.value !== null && form.get('globalVatRate')?.value !== '') ? 'var(--accent-text)' : 'var(--text-hint)'">
                 @if (form.get('globalVatRate')?.value !== null && form.get('globalVatRate')?.value !== '') {
                   <i class="bi bi-check-circle me-1"></i>Aplica a todos los ítems automáticamente
@@ -171,13 +171,13 @@
 
             <!-- Notas -->
             <div class="col-12 col-md-3">
-              <div class="pi-lbl">Notas <span style="color: var(--text-hint); font-size: 10px;">(opc.)</span></div>
+              <div class="pi-lbl">Notas <span style="color: var(--text-hint); font-size: 12px;">(opc.)</span></div>
               <input class="form-control form-control-sm" formControlName="notes" placeholder="Opcional">
             </div>
 
             <!-- Documento soporte -->
             <div class="col-12 col-md-6">
-              <div class="pi-lbl">Documento soporte <span style="color: var(--text-hint); font-size: 10px;">(opc.)</span></div>
+              <div class="pi-lbl">Documento soporte <span style="color: var(--text-hint); font-size: 12px;">(opc.)</span></div>
               <div class="input-group input-group-sm">
                 <input type="file" class="form-control" (change)="onFileSelected($event)" accept=".pdf,.jpg,.jpeg,.png">
                 @if (selectedFile) {
@@ -185,7 +185,7 @@
                 }
               </div>
               @if (selectedFile) {
-                <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;"><i class="bi bi-paperclip me-1"></i>{{ selectedFile.name }}</div>
+                <div style="font-size: 14px; color: var(--text-muted); margin-top: 2px;"><i class="bi bi-paperclip me-1"></i>{{ selectedFile.name }}</div>
               }
             </div>
 
@@ -197,31 +197,31 @@
       @if (isEditMode && existingItems.length > 0) {
         <div class="pi-card" style="border-color: var(--border);">
           <div class="pi-card-hd">
-            <span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em;">
+            <span style="font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em;">
               <i class="bi bi-lock me-1"></i>Productos registrados
             </span>
-            <span style="font-size: 10px; color: var(--text-hint);">{{ existingItems.length }} ítem(s) · {{ existingItemsTotal | number:'1.0-0' }}</span>
+            <span style="font-size: 12px; color: var(--text-hint);">{{ existingItems.length }} ítem(s) · {{ existingItemsTotal | number:'1.0-0' }}</span>
           </div>
           <div style="padding: 0;">
             <table class="table table-sm align-middle m-0">
               <thead>
                 <tr>
-                  <th style="font-size: 12px; font-weight: 500; padding: 6px 12px; color: var(--text-muted); background: var(--surface2); border-color: var(--border);">Producto</th>
-                  <th class="text-end" style="font-size: 12px; font-weight: 500; padding: 6px 12px; color: var(--text-muted); background: var(--surface2); border-color: var(--border);">Cant.</th>
-                  <th class="text-end" style="font-size: 12px; font-weight: 500; padding: 6px 12px; color: var(--text-muted); background: var(--surface2); border-color: var(--border);">Costo/u</th>
-                  <th class="text-end" style="font-size: 12px; font-weight: 500; padding: 6px 12px; color: var(--text-muted); background: var(--surface2); border-color: var(--border);">Total</th>
+                  <th style="font-size: 14px; font-weight: 500; padding: 6px 12px; color: var(--text-muted); background: var(--surface2); border-color: var(--border);">Producto</th>
+                  <th class="text-end" style="font-size: 14px; font-weight: 500; padding: 6px 12px; color: var(--text-muted); background: var(--surface2); border-color: var(--border);">Cant.</th>
+                  <th class="text-end" style="font-size: 14px; font-weight: 500; padding: 6px 12px; color: var(--text-muted); background: var(--surface2); border-color: var(--border);">Costo/u</th>
+                  <th class="text-end" style="font-size: 14px; font-weight: 500; padding: 6px 12px; color: var(--text-muted); background: var(--surface2); border-color: var(--border);">Total</th>
                 </tr>
               </thead>
               <tbody>
                 @for (item of existingItems; track item.presentationId) {
                   <tr style="background: var(--surface);">
                     <td style="padding: 6px 12px; border-color: var(--border);">
-                      <div style="font-size: 12px; color: var(--text);">{{ item.description }}</div>
-                      <div style="font-size: 10px; color: var(--text-hint); font-family: monospace;">{{ item.presentationBarcode || item.presentationId }}</div>
+                      <div style="font-size: 14px; color: var(--text);">{{ item.description }}</div>
+                      <div style="font-size: 12px; color: var(--text-hint); font-family: monospace;">{{ item.presentationBarcode || item.presentationId }}</div>
                     </td>
-                    <td class="text-end" style="font-size: 12px; padding: 6px 12px; color: var(--text); border-color: var(--border);">{{ item.quantity }}</td>
-                    <td class="text-end" style="font-size: 12px; padding: 6px 12px; color: var(--text); border-color: var(--border);">{{ item.unitCost | number:'1.0-0' }}</td>
-                    <td class="text-end" style="font-size: 12px; font-weight: 600; padding: 6px 12px; color: var(--text); border-color: var(--border);">{{ item.totalCost | number:'1.0-0' }}</td>
+                    <td class="text-end" style="font-size: 14px; padding: 6px 12px; color: var(--text); border-color: var(--border);">{{ item.quantity }}</td>
+                    <td class="text-end" style="font-size: 14px; padding: 6px 12px; color: var(--text); border-color: var(--border);">{{ item.unitCost | number:'1.0-0' }}</td>
+                    <td class="text-end" style="font-size: 14px; font-weight: 600; padding: 6px 12px; color: var(--text); border-color: var(--border);">{{ item.totalCost | number:'1.0-0' }}</td>
                   </tr>
                 }
               </tbody>
@@ -233,7 +233,7 @@
       <!-- BANNER TENDENCIAS DE COSTO -->
       @if (hasAnyCostTrend) {
         <div class="d-flex flex-wrap gap-2 align-items-center px-1">
-          <span style="font-size: 10px; color: var(--text-hint);">Tendencias:</span>
+          <span style="font-size: 12px; color: var(--text-hint);">Tendencias:</span>
           @if (trendUpCount > 0) {
             <span class="trend-badge-up"><i class="bi bi-arrow-up me-1"></i>{{ trendUpCount }} subieron</span>
           }
@@ -291,7 +291,7 @@
               <div class="flex-grow-1 position-relative">
                 <div class="input-group input-group-sm">
                   <span class="input-group-text" style="background: var(--surface2); border-color: var(--border);">
-                    <i class="bi bi-search" style="color: var(--text-hint); font-size: 11px;"></i>
+                    <i class="bi bi-search" style="color: var(--text-hint); font-size: 13px;"></i>
                   </span>
                   <input type="text"
                     class="form-control"
@@ -309,8 +309,8 @@
                 </div>
                 @if (item.ctrl.get('description')?.value) {
                   <div style="padding: 3px 2px 0;">
-                    <span style="font-size: 12px; font-weight: 500; color: var(--text);">{{ item.ctrl.get('description')?.value }}</span>
-                    <span style="font-size: 10px; color: var(--text-hint); font-family: monospace; margin-left: 6px;">{{ item.ctrl.get('presentationId')?.value }}</span>
+                    <span style="font-size: 14px; font-weight: 500; color: var(--text);">{{ item.ctrl.get('description')?.value }}</span>
+                    <span style="font-size: 12px; color: var(--text-hint); font-family: monospace; margin-left: 6px;">{{ item.ctrl.get('presentationId')?.value }}</span>
                   </div>
                   @if (getLastCostForRow(item.ctrl); as lc) {
                     <div class="last-purchase-info">
@@ -341,10 +341,13 @@
                         style="display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; border-bottom: 1px solid var(--border); cursor: pointer;"
                         (mousedown)="selectProductSuggestion(s, item.idx)">
                         <div style="flex: 1; overflow: hidden; margin-right: 8px;">
-                          <div style="font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ s.displayName }}</div>
-                          <div style="font-size: 12px; opacity: .7;">{{ s.barcode }}@if (s.brand) { · {{ s.brand }} }</div>
+                          <div style="font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ s.displayName }}</div>
+                          <div style="font-size: 14px; opacity: .7;">{{ s.barcode }}@if (s.brand) { · {{ s.brand }} }</div>
                         </div>
-                        <span style="font-size: 13px; font-weight: 600; flex-shrink: 0;">$ {{ s.costPrice | number:'1.0-0' }}</span>
+                        <div style="text-align: right; flex-shrink: 0;">
+                          <div style="font-size: 11px; color: var(--text-muted);">Costo/u</div>
+                          <div style="font-size: 15px; font-weight: 600;">$ {{ s.costPrice | number:'1.0-0' }}</div>
+                        </div>
                       </div>
                     }
                   </div>
@@ -379,7 +382,7 @@
                   style="padding: 3px 5px; color: var(--text-hint);"
                   (mouseenter)="$any($event.currentTarget).style.background=isDarkMode?'var(--danger-light)':'#FCEBEB'; $any($event.currentTarget).style.color='var(--danger)'"
                   (mouseleave)="$any($event.currentTarget).style.background='transparent'; $any($event.currentTarget).style.color='var(--text-hint)'">
-                  <i class="bi bi-x-lg" style="font-size: 12px;"></i>
+                  <i class="bi bi-x-lg" style="font-size: 14px;"></i>
                 </button>
               </div>
             </div>
@@ -408,7 +411,7 @@
                   <div class="item-ctrl-lbl" style="display: flex; align-items: center; gap: 3px;">
                     IVA %
                     @if (form.get('globalVatRate')?.value !== null && form.get('globalVatRate')?.value !== '') {
-                      <i class="bi bi-lock-fill" style="font-size: 8px; color: var(--accent-text);" title="IVA global"></i>
+                      <i class="bi bi-lock-fill" style="font-size: 9px; color: var(--accent-text);" title="IVA global"></i>
                     }
                   </div>
                   <div class="input-group input-group-sm">
@@ -424,7 +427,7 @@
                 <!-- Subtotal -->
                 <div>
                   <div class="item-ctrl-lbl">Subtotal</div>
-                  <div class="pi-field text-end">{{ item.ctrl.get('totalCost')?.value | number:'1.0-0' }}</div>
+                  <div class="pi-field text-end">{{ getItemSubtotal(item.ctrl) | number:'1.0-0' }}</div>
                 </div>
 
                 <!-- Flete toggle -->
@@ -444,16 +447,16 @@
                   <div>
                     <div class="comp-lbl">Val. IVA</div>
                     <div class="comp-val" style="color: var(--success);">
-                      @if ((item.ctrl.get('vatAmount')?.value ?? 0) > 0) {
-                        +{{ item.ctrl.get('vatAmount')?.value | number:'1.0-0' }}
+                      @if (getItemVat(item.ctrl) > 0) {
+                        +{{ getItemVat(item.ctrl) | number:'1.0-0' }}
                       } @else { <span style="color: var(--text-hint);">—</span> }
                     </div>
                   </div>
                   <div>
                     <div class="comp-lbl">Val. flete</div>
                     <div class="comp-val" style="color: var(--warn);">
-                      @if ((item.ctrl.get('freightAmount')?.value ?? 0) > 0) {
-                        +{{ item.ctrl.get('freightAmount')?.value | number:'1.0-0' }}
+                      @if (getItemFreight(item.ctrl) > 0) {
+                        +{{ getItemFreight(item.ctrl) | number:'1.0-0' }}
                       } @else { <span style="color: var(--text-hint);">—</span> }
                     </div>
                   </div>
@@ -463,7 +466,7 @@
                   </div>
                   <div>
                     <div class="comp-lbl">Total ítem</div>
-                    <div class="comp-val">{{ ((item.ctrl.get('totalCost')?.value ?? 0) + (item.ctrl.get('vatAmount')?.value ?? 0) + (item.ctrl.get('freightAmount')?.value ?? 0)) | number:'1.0-0' }}</div>
+                    <div class="comp-val">{{ (getItemSubtotal(item.ctrl) + getItemVat(item.ctrl) + getItemFreight(item.ctrl)) | number:'1.0-0' }}</div>
                   </div>
                 </div>
               }
@@ -481,9 +484,9 @@
 
     <!-- Agregar ítem -->
     <div class="pi-footer-add" (click)="addItem()" title="Agregar ítem (F2)">
-      <i class="bi bi-plus-circle" style="font-size: 16px; color: var(--accent);"></i>
-      <span style="font-size: 12px; font-weight: 500; color: var(--accent);">Agregar ítem</span>
-      <span style="font-size: 9px; padding: 1px 5px; border: 1px solid var(--border); border-radius: 4px; color: var(--text-hint); background: var(--surface2);">F2</span>
+      <i class="bi bi-plus-circle" style="font-size: 18px; color: var(--accent);"></i>
+      <span style="font-size: 14px; font-weight: 500; color: var(--accent);">Agregar ítem</span>
+      <span style="font-size: 10px; padding: 1px 5px; border: 1px solid var(--border); border-radius: 4px; color: var(--text-hint); background: var(--surface2);">F2</span>
     </div>
 
     <!-- Totales -->
@@ -517,9 +520,9 @@
     <div class="pi-footer-actions">
       <button type="button" class="btn-pi-cancel" (click)="resetForm()">Cancelar</button>
       <button type="button" class="btn-pi-save" (click)="saveInvoice()">
-        <i class="bi bi-device-floppy" style="font-size: 14px;"></i>
+        <i class="bi bi-device-floppy" style="font-size: 16px;"></i>
         Guardar
-        <span style="font-size: 12px; opacity: .7; margin-left: 2px;">F4</span>
+        <span style="font-size: 14px; opacity: .7; margin-left: 2px;">F4</span>
       </button>
     </div>
 

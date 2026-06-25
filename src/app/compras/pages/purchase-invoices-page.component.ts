@@ -193,7 +193,7 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
   get itemsTotal(): number {
     return this.itemsArray.controls.reduce((acc, ctrl) => {
       const g = ctrl as FormGroup;
-      const total = Number(g.get('totalCost')?.value || 0);
+      const total = this.getItemSubtotal(g);
       return acc + (isFinite(total) ? total : 0);
     }, 0);
   }
@@ -201,7 +201,7 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
   get itemsVatTotal(): number {
     return this.itemsArray.controls.reduce((acc, ctrl) => {
       const g = ctrl as FormGroup;
-      const vat = Number(g.get('vatAmount')?.value || 0);
+      const vat = this.getItemVat(g);
       return acc + (isFinite(vat) ? vat : 0);
     }, 0);
   }
@@ -209,7 +209,7 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
   get freightCost(): number {
     return this.itemsArray.controls.reduce((acc, ctrl) => {
       const g = ctrl as FormGroup;
-      const v = Number(g.get('freightAmount')?.value || 0);
+      const v = this.getItemFreight(g);
       return acc + (isFinite(v) ? v : 0);
     }, 0);
   }
@@ -269,6 +269,15 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
   removeItem(index: number) {
     this.itemsArray.removeAt(index);
     this.productSearchTexts.splice(index, 1);
+    this.ensureEmptyItem();
+  }
+
+  /** Garantiza que siempre haya al menos un ítem vacío disponible para ingresar. */
+  private ensureEmptyItem(): void {
+    const hasEmpty = this.itemsArray.controls.some(c => !c.get('presentationId')?.value);
+    if (!hasEmpty) {
+      this.addItem();
+    }
   }
 
   openProductsModalForRow(index: number) {
@@ -416,6 +425,7 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
     });
     this.currentSalePriceByPresentation.set(presentation.barcode, presentation.salePrice || 0);
     this.fetchLastCostForPresentation(presentation.barcode, description);
+    this.ensureEmptyItem();
   }
 
   onPresentationSelected(mappedProduct: Product) {
@@ -548,6 +558,28 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
     const applies = g.get('applyFreight')?.value === true;
     const freightRate = this.normalizeToNumber(this.form.get('freightRate')?.value) || 0;
     return unit + unit * (vatRate / 100) + (applies ? freightRate : 0);
+  }
+
+  /** Computa subtotal directamente desde controles habilitados (sin depender de totalCost disabled). */
+  getItemSubtotal(g: FormGroup): number {
+    const qty = Number(g.get('quantity')?.value || 0);
+    const unit = this.normalizeToNumber(g.get('unitCost')?.value) || 0;
+    return qty * unit;
+  }
+
+  /** Computa IVA del ítem desde controles habilitados. */
+  getItemVat(g: FormGroup): number {
+    const subtotal = this.getItemSubtotal(g);
+    const vatRate = Number(g.get('vatRate')?.value || 0);
+    return subtotal * (vatRate / 100);
+  }
+
+  /** Computa flete del ítem desde controles habilitados. */
+  getItemFreight(g: FormGroup): number {
+    const applies = g.get('applyFreight')?.value === true;
+    const freightRate = this.normalizeToNumber(this.form.get('freightRate')?.value) || 0;
+    const qty = Number(g.get('quantity')?.value || 0);
+    return (applies && freightRate > 0) ? freightRate * qty : 0;
   }
 
   recalcFreight() {

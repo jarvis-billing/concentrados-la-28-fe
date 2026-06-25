@@ -339,7 +339,10 @@
               <div class="fw-semibold text-truncate small">{{ s.displayName }}</div>
               <div class="text-muted" style="font-size: 0.75rem;">{{ s.barcode }} <span *ngIf="s.brand" class="ms-1">· {{ s.brand }}</span></div>
             </div>
-            <span class="badge bg-success flex-shrink-0">{{ s.price | currency:'$ ':'symbol':'.0-0' }}</span>
+            <div class="flex-shrink-0 text-end">
+              <div class="text-muted" style="font-size: 0.7rem;">Precio venta</div>
+              <span class="badge bg-success">{{ s.price | currency:'$ ':'symbol':'.0-0' }}</span>
+            </div>
           </div>
         </div>
       </div>

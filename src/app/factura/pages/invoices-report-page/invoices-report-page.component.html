@@ -199,12 +199,12 @@
                             <tr>
                                 <th>N° Factura</th>
                                 <th>Fecha</th>
+                                <th>Hora</th>
                                 <th>Cliente</th>
                                 <th>Preventa</th>
                                 <th>Tipo</th>
                                 <th>Medio pago</th>
                                 <th class="text-end">Subtotal</th>
-                                <th class="text-end">IVA</th>
                                 <th class="text-end">Total</th>
                                 <th></th>
                             </tr>
@@ -218,6 +218,7 @@
                                         {{ b.billNumber }}
                                     </td>
                                     <td>{{ formatDate(b.dateTimeRecord) }}</td>
+                                    <td>{{ formatTime(b.dateTimeRecord) }}</td>
                                     <td>{{ b.client?.fullName }}</td>
                                     <td>
                                         @if (b.preSaleNumber) {
@@ -247,7 +248,6 @@
                                         }
                                     </td>
                                     <td class="text-end">{{ b.subTotalSale | currency:'$ ':'symbol':'.0-0' }}</td>
-                                    <td class="text-end">{{ b.totalIVAT | currency:'$ ':'symbol':'.0-0' }}</td>
                                     <td class="text-end fw-bold">{{ (b.subTotalSale + b.totalIVAT) | currency:'$ ':'symbol':'.0-0' }}</td>
                                     <td>
                                         <button class="btn btn-sm btn-outline-secondary" (click)="openDetail(b); $event.stopPropagation()">

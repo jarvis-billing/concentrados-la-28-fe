@@ -200,7 +200,11 @@ export class InvoicesReportPageComponent implements OnInit {
     // ─── Helpers de UI ────────────────────────────────────────────
 
     formatDate(d: string | Date): string {
-        return new Intl.DateTimeFormat('es-CO', { day:'2-digit', month:'2-digit', year:'numeric' }).format(new Date(d));
+        return new Intl.DateTimeFormat('es-CO', { day:'2-digit', month:'2-digit', year:'numeric', timeZone:'America/Bogota' }).format(new Date(d));
+    }
+
+    formatTime(d: string | Date): string {
+        return new Intl.DateTimeFormat('es-CO', { hour:'2-digit', minute:'2-digit', hour12:true, timeZone:'America/Bogota' }).format(new Date(d));
     }
 
     toggleDetails(id: string): void {
