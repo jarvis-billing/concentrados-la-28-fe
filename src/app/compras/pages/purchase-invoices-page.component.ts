@@ -269,16 +269,8 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
   removeItem(index: number) {
     this.itemsArray.removeAt(index);
     this.productSearchTexts.splice(index, 1);
-    this.ensureEmptyItem();
   }
 
-  /** Garantiza que siempre haya al menos un ítem vacío disponible para ingresar. */
-  private ensureEmptyItem(): void {
-    const hasEmpty = this.itemsArray.controls.some(c => !c.get('presentationId')?.value);
-    if (!hasEmpty) {
-      this.addItem();
-    }
-  }
 
   openProductsModalForRow(index: number) {
     this.selectedItemIndexForProductSearch = index;
@@ -425,7 +417,6 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
     });
     this.currentSalePriceByPresentation.set(presentation.barcode, presentation.salePrice || 0);
     this.fetchLastCostForPresentation(presentation.barcode, description);
-    this.ensureEmptyItem();
   }
 
   onPresentationSelected(mappedProduct: Product) {
