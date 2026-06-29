@@ -264,6 +264,7 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
     this.itemsArray.push(g);
     this.productSearchTexts.push('');
     if (applyFreightDefault) this.recalcFreight();
+    this.focusProductInput(this.itemsArray.length - 1);
   }
 
   removeItem(index: number) {
@@ -417,6 +418,21 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
     });
     this.currentSalePriceByPresentation.set(presentation.barcode, presentation.salePrice || 0);
     this.fetchLastCostForPresentation(presentation.barcode, description);
+    this.focusQuantityInput(index);
+  }
+
+  private focusQuantityInput(index: number): void {
+    setTimeout(() => {
+      const el = document.querySelector<HTMLInputElement>(`input[data-qty-row="${index}"]`);
+      if (el) { el.focus(); el.select(); }
+    }, 60);
+  }
+
+  private focusProductInput(index: number): void {
+    setTimeout(() => {
+      const el = document.querySelector<HTMLInputElement>(`input[data-product-row="${index}"]`);
+      if (el) { el.focus(); }
+    }, 60);
   }
 
   onPresentationSelected(mappedProduct: Product) {

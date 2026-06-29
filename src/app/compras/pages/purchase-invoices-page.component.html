@@ -250,230 +250,197 @@
       }
 
       <!-- ITEMS TOOLBAR: filter + sort -->
-      @if (itemsArray.controls.length > 0) {
-        <div class="items-toolbar">
-          <div class="search-box">
-            <i class="bi bi-search search-icon"></i>
-            <input type="text" [(ngModel)]="itemFilterText" [ngModelOptions]="{standalone: true}"
-              placeholder="Filtrar ítems...">
-          </div>
-          <button class="sort-btn" [class.active]="itemSortOrder === 'newest'"
-            (click)="itemSortOrder = 'newest'" title="Más reciente primero">
-            <i class="bi bi-clock-history me-1"></i>Reciente
-          </button>
-          <button class="sort-btn" [class.active]="itemSortOrder === 'az'"
-            (click)="itemSortOrder = 'az'">A–Z</button>
-          <button class="sort-btn" [class.active]="itemSortOrder === 'za'"
-            (click)="itemSortOrder = 'za'">Z–A</button>
+      <div class="items-toolbar">
+        <div class="search-box">
+          <i class="bi bi-search search-icon"></i>
+          <input type="text" [(ngModel)]="itemFilterText" [ngModelOptions]="{standalone: true}"
+            placeholder="Filtrar ítems...">
         </div>
-        <div class="items-hint">
-          <span>{{ itemsArray.controls.length }} ítem(s)@if (isEditMode){ · solo nuevos }</span>
-          <span>
-            @if (form.get('globalVatRate')?.value !== null && form.get('globalVatRate')?.value !== '') {
-              IVA {{ form.get('globalVatRate')?.value }}% ·
-            }
-            @if ((form.get('freightRate')?.value ?? 0) > 0) {
-              flete ${{ form.get('freightRate')?.value | number:'1.0-0' }}/u
-            }
-          </span>
-        </div>
-      }
+        <button class="sort-btn" [class.active]="itemSortOrder === 'newest'"
+          (click)="itemSortOrder = 'newest'" title="Más reciente primero">
+          <i class="bi bi-clock-history me-1"></i>Reciente
+        </button>
+        <button class="sort-btn" [class.active]="itemSortOrder === 'az'"
+          (click)="itemSortOrder = 'az'">A–Z</button>
+        <button class="sort-btn" [class.active]="itemSortOrder === 'za'"
+          (click)="itemSortOrder = 'za'">Z–A</button>
+      </div>
+      <div class="items-hint">
+        <span>{{ itemsArray.controls.length }} ítem(s)@if (isEditMode){ · solo nuevos }</span>
+        <span>
+          @if (form.get('globalVatRate')?.value !== null && form.get('globalVatRate')?.value !== '') {
+            IVA {{ form.get('globalVatRate')?.value }}% ·
+          }
+          @if ((form.get('freightRate')?.value ?? 0) > 0) {
+            flete ${{ form.get('freightRate')?.value | number:'1.0-0' }}/u
+          }
+        </span>
+      </div>
 
-      <!-- ITEM CARDS (in display order) -->
-      <div formArrayName="items">
-        @for (item of displayedItems; track item.idx) {
-          <div class="item-card"
-            [formGroupName]="item.idx"
-            [class.item-card-new]="!item.ctrl.get('presentationId')?.value">
+      <!-- ITEMS TABLE -->
+      <div class="pi-card" style="overflow: visible;">
+        <table class="pi-items-table">
+            <thead>
+              <tr>
+                <th style="min-width: 240px;">Producto</th>
+                <th class="text-end" style="width: 80px;">Cant.</th>
+                <th style="width: 150px;">Costo/u</th>
+                <th style="width: 90px;">IVA %</th>
+                <th class="text-center" style="width: 60px;">Flete</th>
+                <th class="text-end" style="width: 110px;">Subtotal</th>
+                <th class="text-end" style="width: 110px;">Total</th>
+                <th style="width: 36px;"></th>
+              </tr>
+            </thead>
+            <tbody formArrayName="items">
+              @for (item of displayedItems; track item.idx) {
+                <tr [formGroupName]="item.idx">
 
-            <!-- Item header: search + name + trend -->
-            <div class="item-hd" [class.item-hd-new]="!item.ctrl.get('presentationId')?.value">
-              <div class="flex-grow-1 position-relative">
-                <div class="input-group input-group-sm">
-                  <span class="input-group-text" style="background: var(--surface2); border-color: var(--border);">
-                    <i class="bi bi-search" style="color: var(--text-hint); font-size: 13px;"></i>
-                  </span>
-                  <input type="text"
-                    class="form-control"
-                    [value]="productSearchTexts[item.idx] ?? ''"
-                    (input)="onProductSearchInput(item.idx, $any($event.target).value)"
-                    (keydown)="onProductKeydown($event, item.idx)"
-                    (focus)="onRowSearchFocus(item.idx)"
-                    (blur)="hideProductDropdownDelayed()"
-                    [placeholder]="item.ctrl.get('description')?.value ? 'Cambiar producto...' : 'Buscar producto...'"
-                    autocomplete="off">
-                  <button type="button" class="btn btn-sm" style="border: 1px solid var(--border); border-left: none; background: var(--surface2); color: var(--text-muted);"
-                    (click)="openProductsModalForRow(item.idx)" title="Catálogo (F3)">
-                    <i class="bi bi-grid-3x3-gap"></i>
-                  </button>
-                </div>
-                @if (item.ctrl.get('description')?.value) {
-                  <div style="padding: 3px 2px 0;">
-                    <span style="font-size: 14px; font-weight: 500; color: var(--text);">{{ item.ctrl.get('description')?.value }}</span>
-                    <span style="font-size: 12px; color: var(--text-hint); font-family: monospace; margin-left: 6px;">{{ item.ctrl.get('presentationId')?.value }}</span>
-                  </div>
-                  @if (getLastCostForRow(item.ctrl); as lc) {
-                    <div class="last-purchase-info">
-                      <i class="bi bi-clock-history"></i>
-                      Ant: ${{ lc.lastUnitCost | number:'1.0-0' }}/u
-                      @if (lc.lastUnitTotalCost && lc.lastUnitTotalCost !== lc.lastUnitCost) {
-                        <span style="color: var(--text-hint);">(total ${{ lc.lastUnitTotalCost | number:'1.0-0' }})</span>
-                      }
-                      @if (lc.lastSupplierName) {
-                        <span class="lpi-sep">·</span>
-                        <i class="bi bi-truck"></i>
-                        <span class="lpi-supplier">{{ lc.lastSupplierName }}</span>
-                      }
-                      @if (lc.lastInvoiceDate) {
-                        <span class="lpi-sep">·</span>
-                        {{ lc.lastInvoiceDate | date:'dd/MM/yy' }}
-                      }
-                    </div>
-                  }
-                }
-                @if (showProductDropdown && activeRowIndex === item.idx && productSuggestions.length > 0) {
-                  <div class="position-absolute border rounded shadow purchase-autocomplete-dropdown"
-                    style="z-index: 1055; max-height: 260px; overflow-y: auto; min-width: 300px; top: 100%; left: 0; background: var(--surface); border-color: var(--border) !important;">
-                    @for (s of productSuggestions; track s.barcode; let si = $index) {
-                      <div class="purchase-suggestion-item"
-                        [class.bg-primary]="productActiveIndex === si"
-                        [class.text-white]="productActiveIndex === si"
-                        style="display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; border-bottom: 1px solid var(--border); cursor: pointer;"
-                        (mousedown)="selectProductSuggestion(s, item.idx)">
-                        <div style="flex: 1; overflow: hidden; margin-right: 8px;">
-                          <div style="font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ s.displayName }}</div>
-                          <div style="font-size: 14px; opacity: .7;">{{ s.barcode }}@if (s.brand) { · {{ s.brand }} }</div>
-                        </div>
-                        <div style="text-align: right; flex-shrink: 0;">
-                          <div style="font-size: 11px; color: var(--text-muted);">Costo/u</div>
-                          <div style="font-size: 15px; font-weight: 600;">$ {{ s.costPrice | number:'1.0-0' }}</div>
-                        </div>
+                  <!-- Producto -->
+                  <td class="pi-td-product">
+                    <div class="position-relative">
+                      <div class="input-group input-group-sm">
+                        <span class="input-group-text" style="background: var(--surface2); border-color: var(--border);">
+                          <i class="bi bi-search" style="color: var(--text-hint); font-size: 12px;"></i>
+                        </span>
+                        <input type="text"
+                          class="form-control"
+                          [value]="productSearchTexts[item.idx] ?? ''"
+                          (input)="onProductSearchInput(item.idx, $any($event.target).value)"
+                          (keydown)="onProductKeydown($event, item.idx)"
+                          (focus)="onRowSearchFocus(item.idx)"
+                          (blur)="hideProductDropdownDelayed()"
+                          [placeholder]="item.ctrl.get('description')?.value ? 'Cambiar producto...' : 'Buscar producto...'"
+                          [attr.data-product-row]="item.idx"
+                          autocomplete="off">
+                        <button type="button" class="btn btn-sm"
+                          style="border: 1px solid var(--border); border-left: none; background: var(--surface2); color: var(--text-muted);"
+                          (click)="openProductsModalForRow(item.idx)" title="Catálogo (F3)">
+                          <i class="bi bi-grid-3x3-gap"></i>
+                        </button>
                       </div>
-                    }
-                  </div>
-                }
-              </div>
+                      @if (item.ctrl.get('description')?.value) {
+                        <div style="margin-top: 2px; display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">
+                          <span style="font-size: 12px; font-weight: 500; color: var(--text);">{{ item.ctrl.get('description')?.value }}</span>
+                          <span style="font-size: 11px; color: var(--text-hint); font-family: monospace;">{{ item.ctrl.get('presentationId')?.value }}</span>
+                          @switch (getCostTrend(item.ctrl)) {
+                            @case ('up') { <span class="trend-badge-up"><i class="bi bi-arrow-up me-1"></i>+{{ getCostDeltaPercent(item.ctrl) | number:'1.0-1' }}%</span> }
+                            @case ('down') { <span class="trend-badge-dn"><i class="bi bi-arrow-down me-1"></i>−{{ getCostDeltaPercent(item.ctrl) | number:'1.0-1' }}%</span> }
+                            @case ('same') { <span class="trend-badge-eq"><i class="bi bi-dash"></i>Igual</span> }
+                            @case ('first') { <span class="trend-badge-new"><i class="bi bi-star me-1"></i>1ª vez</span> }
+                          }
+                        </div>
+                        @if (getLastCostForRow(item.ctrl); as lc) {
+                          <div class="last-purchase-info">
+                            <i class="bi bi-clock-history"></i>
+                            Ant: ${{ lc.lastUnitCost | number:'1.0-0' }}/u
+                            @if (lc.lastUnitTotalCost && lc.lastUnitTotalCost !== lc.lastUnitCost) {
+                              <span style="color: var(--text-hint);">(total ${{ lc.lastUnitTotalCost | number:'1.0-0' }})</span>
+                            }
+                            @if (lc.lastSupplierName) {
+                              <span class="lpi-sep">·</span>
+                              <i class="bi bi-truck"></i>
+                              <span class="lpi-supplier">{{ lc.lastSupplierName }}</span>
+                            }
+                            @if (lc.lastInvoiceDate) {
+                              <span class="lpi-sep">·</span>
+                              {{ lc.lastInvoiceDate | date:'dd/MM/yy' }}
+                            }
+                          </div>
+                        }
+                      }
+                      @if (showProductDropdown && activeRowIndex === item.idx && productSuggestions.length > 0) {
+                        <div class="position-absolute border rounded shadow purchase-autocomplete-dropdown"
+                          style="z-index: 1055; max-height: 260px; overflow-y: auto; min-width: 300px; top: 100%; left: 0; background: var(--surface); border-color: var(--border) !important;">
+                          @for (s of productSuggestions; track s.barcode; let si = $index) {
+                            <div class="purchase-suggestion-item"
+                              [class.bg-primary]="productActiveIndex === si"
+                              [class.text-white]="productActiveIndex === si"
+                              style="display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; border-bottom: 1px solid var(--border); cursor: pointer;"
+                              (mousedown)="selectProductSuggestion(s, item.idx)">
+                              <div style="flex: 1; overflow: hidden; margin-right: 8px;">
+                                <div style="font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ s.displayName }}</div>
+                                <div style="font-size: 12px; opacity: .7;">{{ s.barcode }}@if (s.brand) { · {{ s.brand }} }</div>
+                              </div>
+                              <div style="text-align: right; flex-shrink: 0;">
+                                <div style="font-size: 11px; color: var(--text-muted);">Costo/u</div>
+                                <div style="font-size: 14px; font-weight: 600;">$ {{ s.costPrice | number:'1.0-0' }}</div>
+                              </div>
+                            </div>
+                          }
+                        </div>
+                      }
+                    </div>
+                  </td>
 
-              <!-- Trend badge + remove -->
-              <div style="display: flex; align-items: center; gap: 5px; flex-shrink: 0; margin-left: 6px;">
-                @if (!item.ctrl.get('presentationId')?.value) {
-                  <span class="badge-nuevo">
-                    <i class="bi bi-plus-circle me-1"></i>Nuevo ítem #{{ item.idx + 1 }}
-                  </span>
-                }
-                @if (item.ctrl.get('presentationId')?.value) {
-                  @switch (getCostTrend(item.ctrl)) {
-                    @case ('up') {
-                      <span class="trend-badge-up"><i class="bi bi-arrow-up me-1"></i>+{{ getCostDeltaPercent(item.ctrl) | number:'1.0-1' }}% · subió</span>
-                    }
-                    @case ('down') {
-                      <span class="trend-badge-dn"><i class="bi bi-arrow-down me-1"></i>−{{ getCostDeltaPercent(item.ctrl) | number:'1.0-1' }}% · bajó</span>
-                    }
-                    @case ('same') {
-                      <span class="trend-badge-eq"><i class="bi bi-dash me-1"></i>Sin cambio</span>
-                    }
-                    @case ('first') {
-                      <span class="trend-badge-new"><i class="bi bi-star me-1"></i>Primera compra</span>
-                    }
-                  }
-                }
-                <button type="button" class="btn-icon"
-                  (click)="removeItem(item.idx)"
-                  style="padding: 3px 5px; color: var(--text-hint);"
-                  (mouseenter)="$any($event.currentTarget).style.background=isDarkMode?'var(--danger-light)':'#FCEBEB'; $any($event.currentTarget).style.color='var(--danger)'"
-                  (mouseleave)="$any($event.currentTarget).style.background='transparent'; $any($event.currentTarget).style.color='var(--text-hint)'">
-                  <i class="bi bi-x-lg" style="font-size: 14px;"></i>
-                </button>
-              </div>
-            </div>
+                  <!-- Cantidad -->
+                  <td>
+                    <input class="form-control form-control-sm text-end" type="number" min="0.01" step="0.01" formControlName="quantity" [attr.data-qty-row]="item.idx">
+                  </td>
 
-            <!-- Item body: controls + computed -->
-            <div class="item-bd">
-              <div class="item-ctrl-grid">
+                  <!-- Costo/u -->
+                  <td>
+                    <div class="input-group input-group-sm">
+                      <span class="input-group-text">$</span>
+                      <input class="form-control text-end" type="text" formControlName="unitCost" appCurrencyFormat>
+                    </div>
+                  </td>
 
-                <!-- Cantidad -->
-                <div>
-                  <div class="item-ctrl-lbl">Cant.</div>
-                  <input class="form-control form-control-sm text-end" type="number" min="0.01" step="0.01" formControlName="quantity">
-                </div>
-
-                <!-- Costo unitario (columna fija 140px) -->
-                <div>
-                  <div class="item-ctrl-lbl">Costo/u</div>
-                  <div class="input-group input-group-sm">
-                    <span class="input-group-text">$</span>
-                    <input class="form-control text-end" type="text" formControlName="unitCost" appCurrencyFormat>
-                  </div>
-                </div>
-
-                <!-- IVA % -->
-                <div>
-                  <div class="item-ctrl-lbl" style="display: flex; align-items: center; gap: 3px;">
-                    IVA %
+                  <!-- IVA % -->
+                  <td>
+                    <div class="input-group input-group-sm">
+                      <input class="form-control text-end"
+                        [class.iva-active]="form.get('globalVatRate')?.value !== null && form.get('globalVatRate')?.value !== ''"
+                        type="number" min="0" max="100" step="0.1" formControlName="vatRate">
+                      <span class="input-group-text"
+                        [style.background]="(form.get('globalVatRate')?.value !== null && form.get('globalVatRate')?.value !== '') ? 'var(--accent-light)' : ''"
+                        [style.border-color]="(form.get('globalVatRate')?.value !== null && form.get('globalVatRate')?.value !== '') ? 'var(--accent-border)' : ''">%</span>
+                    </div>
                     @if (form.get('globalVatRate')?.value !== null && form.get('globalVatRate')?.value !== '') {
-                      <i class="bi bi-lock-fill" style="font-size: 9px; color: var(--accent-text);" title="IVA global"></i>
+                      <div style="font-size: 10px; color: var(--accent-text); margin-top: 1px;"><i class="bi bi-lock-fill me-1"></i>global</div>
                     }
-                  </div>
-                  <div class="input-group input-group-sm">
-                    <input class="form-control text-end"
-                      [class.iva-active]="form.get('globalVatRate')?.value !== null && form.get('globalVatRate')?.value !== ''"
-                      type="number" min="0" max="100" step="0.1" formControlName="vatRate">
-                    <span class="input-group-text"
-                      [style.background]="(form.get('globalVatRate')?.value !== null && form.get('globalVatRate')?.value !== '') ? 'var(--accent-light)' : ''"
-                      [style.border-color]="(form.get('globalVatRate')?.value !== null && form.get('globalVatRate')?.value !== '') ? 'var(--accent-border)' : ''">%</span>
-                  </div>
-                </div>
+                  </td>
 
-                <!-- Subtotal -->
-                <div>
-                  <div class="item-ctrl-lbl">Subtotal</div>
-                  <div class="pi-field text-end">{{ getItemSubtotal(item.ctrl) | number:'1.0-0' }}</div>
-                </div>
-
-                <!-- Flete toggle -->
-                <div>
-                  <div class="item-ctrl-lbl">Flete</div>
-                  <div class="form-check form-switch mb-0 mt-1">
-                    <input class="form-check-input mt-0" type="checkbox" formControlName="applyFreight"
-                      [title]="(form.get('freightRate')?.value ?? 0) > 0 ? 'Flete: $' + form.get('freightRate')?.value + '/u' : 'Sin tarifa'">
-                  </div>
-                </div>
-
-              </div>
-
-              <!-- Computed strip -->
-              @if (item.ctrl.get('presentationId')?.value) {
-                <div class="item-computed">
-                  <div>
-                    <div class="comp-lbl">Val. IVA</div>
-                    <div class="comp-val" style="color: var(--success);">
-                      @if (getItemVat(item.ctrl) > 0) {
-                        +{{ getItemVat(item.ctrl) | number:'1.0-0' }}
-                      } @else { <span style="color: var(--text-hint);">—</span> }
+                  <!-- Flete toggle -->
+                  <td class="text-center">
+                    <div class="form-check form-switch mb-0 d-flex justify-content-center">
+                      <input class="form-check-input mt-0" type="checkbox" formControlName="applyFreight"
+                        [title]="(form.get('freightRate')?.value ?? 0) > 0 ? 'Flete: $' + form.get('freightRate')?.value + '/u' : 'Sin tarifa'">
                     </div>
-                  </div>
-                  <div>
-                    <div class="comp-lbl">Val. flete</div>
-                    <div class="comp-val" style="color: var(--warn);">
-                      @if (getItemFreight(item.ctrl) > 0) {
-                        +{{ getItemFreight(item.ctrl) | number:'1.0-0' }}
-                      } @else { <span style="color: var(--text-hint);">—</span> }
-                    </div>
-                  </div>
-                  <div>
-                    <div class="comp-lbl">Costo/u total</div>
-                    <div class="comp-val" style="color: var(--accent);">{{ getUnitTotal(item.ctrl) | number:'1.0-0' }}</div>
-                  </div>
-                  <div>
-                    <div class="comp-lbl">Total ítem</div>
-                    <div class="comp-val">{{ (getItemSubtotal(item.ctrl) + getItemVat(item.ctrl) + getItemFreight(item.ctrl)) | number:'1.0-0' }}</div>
-                  </div>
-                </div>
+                  </td>
+
+                  <!-- Subtotal -->
+                  <td class="text-end">
+                    <div class="pi-td-computed">{{ getItemSubtotal(item.ctrl) | number:'1.0-0' }}</div>
+                  </td>
+
+                  <!-- Total ítem (subtotal + IVA + flete) -->
+                  <td class="text-end">
+                    <div class="pi-td-total">{{ (getItemSubtotal(item.ctrl) + getItemVat(item.ctrl) + getItemFreight(item.ctrl)) | number:'1.0-0' }}</div>
+                  </td>
+
+                  <!-- Eliminar -->
+                  <td>
+                    <button type="button" class="btn-icon"
+                      (click)="removeItem(item.idx)"
+                      style="padding: 3px 5px; color: var(--text-hint);"
+                      (mouseenter)="$any($event.currentTarget).style.background=isDarkMode?'var(--danger-light)':'#FCEBEB'; $any($event.currentTarget).style.color='var(--danger)'"
+                      (mouseleave)="$any($event.currentTarget).style.background='transparent'; $any($event.currentTarget).style.color='var(--text-hint)'">
+                      <i class="bi bi-x-lg" style="font-size: 13px;"></i>
+                    </button>
+                  </td>
+
+                </tr>
               }
-
-            </div>
-          </div>
-        }
+              @empty {
+                <tr>
+                  <td colspan="8" style="text-align: center; padding: 20px; color: var(--text-hint); font-size: 14px;">
+                    <i class="bi bi-plus-circle me-2"></i>Presiona "Agregar ítem" para comenzar
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
       </div>
 
     </form>
