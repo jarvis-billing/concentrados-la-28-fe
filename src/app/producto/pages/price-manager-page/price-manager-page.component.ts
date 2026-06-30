@@ -132,7 +132,9 @@ export class PriceManagerPageComponent implements OnInit {
                         row.newCostPrice = costInfo.lastUnitTotalCost;
                         row.costSource = costInfo.source;
                     } else {
-                        row.costSource = 'NONE';
+                        // Fallback: costPrice viene de pres.costPrice (buildRows).
+                        // Si tiene valor, se etiqueta como PRODUCT_ENTITY; si no, NONE.
+                        row.costSource = row.costPrice > 0 ? 'PRODUCT_ENTITY' : 'NONE';
                     }
                 });
                 this.applyFilters();
