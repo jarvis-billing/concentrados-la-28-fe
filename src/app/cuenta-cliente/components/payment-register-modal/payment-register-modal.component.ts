@@ -55,8 +55,13 @@ export class PaymentRegisterModalComponent {
         paymentMethod: [PaymentMethod.EFECTIVO, Validators.required],
         bankAccountId: [''],
         reference: [''],
-        notes: ['']
+        notes: [''],
+        paymentDate: [this.todayDate(), Validators.required]
     });
+
+    todayDate(): string {
+        return formatInTimeZone(new Date(), 'America/Bogota', 'yyyy-MM-dd');
+    }
 
     get amountControl() {
         return this.paymentForm.get('amount');
@@ -150,7 +155,13 @@ export class PaymentRegisterModalComponent {
             return;
         }
 
-        const now = formatInTimeZone(new Date(), 'America/Bogota', "yyyy-MM-dd'T'HH:mm:ssXXX");
+        // Usar la fecha ingresada por el usuario; hora actual en Bogotá
+        const selectedDate = this.paymentForm.value.paymentDate || this.todayDate();
+        const now = formatInTimeZone(
+            new Date(`${selectedDate}T12:00:00`),
+            'America/Bogota',
+            "yyyy-MM-dd'T'HH:mm:ssXXX"
+        );
 
         // 1) Descontar del saldo a favor del cliente (siempre que haya crédito aplicado)
         const deductCreditObs$ = this.creditToApply > 0
@@ -210,14 +221,15 @@ export class PaymentRegisterModalComponent {
                     amount: totalPaying,
                     paymentMethod: paymentMethodLabel,
                     reference: this.paymentForm.value.reference || undefined,
-                    paymentDate: new Date(),
+                    paymentDate: new Date(`${selectedDate}T12:00:00`),
                     createdBy: user?.username || '',
                     previousBalance: previousBalance,
                     newBalance: newBalance
                 };
 
                 this.paymentForm.reset({
-                    paymentMethod: PaymentMethod.EFECTIVO
+                    paymentMethod: PaymentMethod.EFECTIVO,
+                    paymentDate: this.todayDate()
                 });
                 this.creditToApply = 0;
                 this.closeModal();
