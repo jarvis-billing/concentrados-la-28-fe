@@ -86,28 +86,44 @@
   <!-- Totales -->
   @if (!isLoading && preventas.length > 0) {
     <div class="row g-2 mb-3">
-      <div class="col-6 col-sm-3">
+      <div class="col-6 col-sm">
         <div class="card border-0 bg-warning bg-opacity-15 text-center py-2">
           <div class="fs-4 fw-bold text-warning-emphasis">{{ countPending }}</div>
           <div class="small text-muted">Pendientes</div>
         </div>
       </div>
-      <div class="col-6 col-sm-3">
+      <div class="col-6 col-sm">
         <div class="card border-0 bg-success bg-opacity-10 text-center py-2">
           <div class="fs-4 fw-bold text-success">{{ countBilled }}</div>
           <div class="small text-muted">Facturadas</div>
         </div>
       </div>
-      <div class="col-6 col-sm-3">
+      <div class="col-6 col-sm">
         <div class="card border-0 bg-danger bg-opacity-10 text-center py-2">
           <div class="fs-4 fw-bold text-danger">{{ countCancelled }}</div>
           <div class="small text-muted">Canceladas</div>
         </div>
       </div>
-      <div class="col-6 col-sm-3">
+      <div class="col-6 col-sm">
         <div class="card border-0 bg-primary bg-opacity-10 text-center py-2">
           <div class="fs-5 fw-bold text-primary">{{ totalBilledAmount | currency:'$ ':'symbol':'.0-0' }}</div>
           <div class="small text-muted">Total facturado</div>
+        </div>
+      </div>
+      <div class="col-12 col-sm">
+        <div class="card border-0 text-center py-2 px-2"
+             [class.bg-success]="billedPercentageVariant === 'success'"
+             [class.bg-warning]="billedPercentageVariant === 'warning'"
+             [class.bg-danger]="billedPercentageVariant === 'danger'"
+             [class.text-white]="billedPercentageVariant !== 'warning'"
+             [class.text-dark]="billedPercentageVariant === 'warning'">
+          <div class="fs-4 fw-bold">{{ billedPercentage }}%</div>
+          <div class="small opacity-75">Tasa de facturación</div>
+          <div class="progress mx-2 mt-1 bg-white bg-opacity-25" style="height:4px">
+            <div class="progress-bar bg-white bg-opacity-75"
+                 [style.width.%]="billedPercentage">
+            </div>
+          </div>
         </div>
       </div>
     </div>

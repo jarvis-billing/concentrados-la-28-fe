@@ -41,11 +41,25 @@ export class PreventaListComponent implements OnInit, OnDestroy {
   }
 
   // ── Totales ──────────────────────────────────────────────────────────────
-  get totalAmount():      number { return this.preventas.reduce((s, p) => s + p.totalAmount, 0); }
-  get countPending():     number { return this.preventas.filter(p => p.status === 'PENDING').length; }
-  get countBilled():      number { return this.preventas.filter(p => p.status === 'BILLED').length; }
-  get countCancelled():   number { return this.preventas.filter(p => p.status === 'CANCELLED').length; }
-  get totalBilledAmount():number { return this.preventas.filter(p => p.status === 'BILLED').reduce((s, p) => s + p.totalAmount, 0); }
+  get totalAmount():        number { return this.preventas.reduce((s, p) => s + p.totalAmount, 0); }
+  get countPending():       number { return this.preventas.filter(p => p.status === 'PENDING').length; }
+  get countBilled():        number { return this.preventas.filter(p => p.status === 'BILLED').length; }
+  get countCancelled():     number { return this.preventas.filter(p => p.status === 'CANCELLED').length; }
+  get totalBilledAmount():  number { return this.preventas.filter(p => p.status === 'BILLED').reduce((s, p) => s + p.totalAmount, 0); }
+
+  /** % de preventas facturadas sobre el total (incluyendo canceladas y pendientes) */
+  get billedPercentage(): number {
+    if (this.preventas.length === 0) return 0;
+    return parseFloat(((this.countBilled / this.preventas.length) * 100).toFixed(2));
+  }
+
+  get billedPercentageVariant(): string {
+    const pct = this.billedPercentage;
+    debugger
+    if (pct >= 70) return 'success';
+    if (pct >= 40) return 'warning';
+    return 'danger';
+  }
 
   ngOnInit(): void {
     this.isMobileView = this.router.url.startsWith('/preventa/lista');
