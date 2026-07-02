@@ -134,7 +134,7 @@ export const routes: Routes = [
             path: 'compras/facturas/historial-costos', component: PurchaseCostHistoryPageComponent
         },
         {
-            path: 'compras/reporte-costos-venta', component: PurchaseCostReportPageComponent
+            path: 'producto/actualizacion-costos-precios', component: PurchaseCostReportPageComponent
         },
         {
             path: 'compras/pagos-proveedor', component: SupplierPaymentsPageComponent

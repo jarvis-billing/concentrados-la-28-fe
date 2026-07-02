@@ -76,7 +76,6 @@
                       <a class="dropdown-item" routerLink="/main/compras/facturas" (click)="closeMenu()">Nueva factura de compra</a>
                       <a class="dropdown-item" routerLink="/main/compras/facturas/list" (click)="closeMenu()">Listar facturas de compra</a>
                       <a class="dropdown-item" routerLink="/main/compras/facturas/historial-costos" (click)="closeMenu()">Historial de costos</a>
-                      <a class="dropdown-item" routerLink="/main/compras/reporte-costos-venta" (click)="closeMenu()">Reporte costos vs venta</a>
                       <div class="dropdown-divider"></div>
                       <a class="dropdown-item" routerLink="/main/compras/pagos-proveedor" (click)="closeMenu()">Pagos a proveedor</a>
                       <a class="dropdown-item" routerLink="/main/compras/pagos-proveedor/list" (click)="closeMenu()">Ver pagos registrados</a>
@@ -94,8 +93,9 @@
                       <a class="dropdown-item" routerLink="/main/producto" (click)="closeMenu()">
                         <i class="bi bi-box-seam me-1"></i> Gestionar productos
                       </a>
-                      <a class="dropdown-item" routerLink="/main/producto/precios" (click)="closeMenu()">
-                        <i class="bi bi-tags-fill me-1"></i> Actualizar precios y costos
+                      <!-- Actualizar precios y costos — oculto (reemplazado) -->
+                      <a class="dropdown-item" routerLink="/main/producto/actualizacion-costos-precios" (click)="closeMenu()">
+                        <i class="bi bi-tags-fill me-1"></i> Actualización de Costos y Precios de Venta
                       </a>
                       <a class="dropdown-item" routerLink="/main/producto/presentaciones" (click)="closeMenu()">
                         <i class="bi bi-boxes me-1"></i> Editar presentaciones

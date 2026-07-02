@@ -24,13 +24,17 @@ interface ReportRow {
   isFixedAmount: boolean;
   fixedAmount: number | null;
   lastUnitTotalCost: number | null;
+  lastVatRate: number;          // IVA % aplicado en la última compra
+  lastVatPerUnit: number;       // IVA por unidad de la última compra
+  lastFreightPerUnit: number;   // Flete por unidad de la última compra
   lastInvoiceDate: string | null;
   lastSupplierName: string | null;
   newSalePrice: number | null;
+  newCostPrice: number | null;          // nuevo costo a guardar
   pendingCostPrice: number | null;  // costo sugerido pendiente de confirmar (magic button)
 }
 
-type ColumnKey = 'category' | 'brand' | 'product' | 'presentation' | 'salePrice' | 'cost' | 'entityCost' | 'newSalePrice';
+type ColumnKey = 'category' | 'brand' | 'product' | 'presentation' | 'salePrice' | 'cost' | 'entityCost' | 'newCostPrice' | 'newSalePrice';
 
 interface ColumnConfig {
   key: ColumnKey;
@@ -94,6 +98,7 @@ export class PurchaseCostReportPageComponent implements OnInit {
     { key: 'salePrice', label: 'Precio venta', defaultVisible: true },
     { key: 'cost', label: 'Costo/u', defaultVisible: true },
     { key: 'entityCost', label: 'Costo entidad', defaultVisible: true },
+    { key: 'newCostPrice', label: 'Nuevo costo', defaultVisible: true },
     { key: 'newSalePrice', label: 'Nuevo precio venta', defaultVisible: true },
   ];
 
@@ -200,6 +205,7 @@ export class PurchaseCostReportPageComponent implements OnInit {
       case 'salePrice': return row.salePrice;
       case 'cost': return this.getReportCost(row);
       case 'entityCost': return row.presentationCostPrice;
+      case 'newCostPrice': return row.newCostPrice ?? 0;
       case 'newSalePrice': return row.newSalePrice ?? row.salePrice;
       default: return null;
     }
@@ -257,9 +263,13 @@ export class PurchaseCostReportPageComponent implements OnInit {
           isFixedAmount: pres.isFixedAmount ?? false,
           fixedAmount: pres.fixedAmount ?? null,
           lastUnitTotalCost: null,
+          lastVatRate: 0,
+          lastVatPerUnit: 0,
+          lastFreightPerUnit: 0,
           lastInvoiceDate: null,
           lastSupplierName: null,
           newSalePrice: null,
+          newCostPrice: null,
           pendingCostPrice: null
         });
       });
@@ -293,12 +303,14 @@ export class PurchaseCostReportPageComponent implements OnInit {
           results.forEach((info, idx) => {
             const row = batch[idx];
             if (info) {
-              // Costo total por unidad = costo base + IVA/u + flete/u
               const baseUnitCost = info.lastUnitCost || 0;
               const vatPerUnit = info.lastVatPerUnit || 0;
               const freightPerUnit = info.lastFreightPerUnit || 0;
               const computedTotal = baseUnitCost + vatPerUnit + freightPerUnit;
               row.lastUnitTotalCost = info.lastUnitTotalCost || computedTotal;
+              row.lastVatRate = info.lastVatRate || 0;
+              row.lastVatPerUnit = vatPerUnit;
+              row.lastFreightPerUnit = freightPerUnit;
               row.lastInvoiceDate = info.lastInvoiceDate ? info.lastInvoiceDate.split('T')[0] : null;
               row.lastSupplierName = info.lastSupplierName || null;
             }
@@ -380,11 +392,17 @@ export class PurchaseCostReportPageComponent implements OnInit {
   }
 
   get hasPendingChanges(): boolean {
-    return this.rows.some(r => r.newSalePrice != null && r.newSalePrice !== r.salePrice);
+    return this.rows.some(r =>
+      (r.newSalePrice != null && r.newSalePrice !== r.salePrice) ||
+      (r.newCostPrice != null && r.newCostPrice > 0)
+    );
   }
 
   get pendingChangeCount(): number {
-    return this.rows.filter(r => r.newSalePrice != null && r.newSalePrice !== r.salePrice).length;
+    return this.rows.filter(r =>
+      (r.newSalePrice != null && r.newSalePrice !== r.salePrice) ||
+      (r.newCostPrice != null && r.newCostPrice > 0)
+    ).length;
   }
 
   // -------- Magic button: sincronizar costo entidad desde última compra --------
@@ -461,17 +479,48 @@ export class PurchaseCostReportPageComponent implements OnInit {
     }
   }
 
-  savePrices(): void {
-    const updates: PresentationPriceUpdate[] = this.rows
-      .filter(r => r.newSalePrice != null && r.newSalePrice !== r.salePrice)
-      .map(r => ({
-        productId: r.productId,
-        barcode: r.barcode,
-        salePrice: r.newSalePrice!
-      }));
+  onNewPriceInput(event: Event, row: ReportRow): void {
+    const input = event.target as HTMLInputElement;
+    const parsed = this.parseIntFromFormatted(input.value);
+    input.value = parsed > 0 ? this.formatInt(parsed) : '';
+    row.newSalePrice = parsed > 0 && Math.abs(parsed - row.salePrice) > 0.01 ? parsed : null;
+  }
 
+  onNewCostInput(event: Event, row: ReportRow): void {
+    const input = event.target as HTMLInputElement;
+    const parsed = this.parseIntFromFormatted(input.value);
+    input.value = parsed > 0 ? this.formatInt(parsed) : '';
+    row.newCostPrice = parsed > 0 ? parsed : null;
+  }
+
+  formatInt(value: number | null | undefined): string {
+    if (value == null || isNaN(value) || value === 0) return '';
+    return new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(value);
+  }
+
+  private parseIntFromFormatted(raw: string): number {
+    const digits = (raw || '').replace(/\D/g, '');
+    return digits.length === 0 ? 0 : Number(digits);
+  }
+
+  savePrices(): void {
+    // Construir mapa combinado: un update por barcode con los campos que cambiaron
+    const updateMap = new Map<string, PresentationPriceUpdate>();
+
+    this.rows.forEach(r => {
+      const hasPriceChange = r.newSalePrice != null && r.newSalePrice !== r.salePrice;
+      const hasCostChange = r.newCostPrice != null && r.newCostPrice > 0;
+      if (hasPriceChange || hasCostChange) {
+        const entry: PresentationPriceUpdate = { productId: r.productId, barcode: r.barcode };
+        if (hasPriceChange) entry.salePrice = r.newSalePrice!;
+        if (hasCostChange) entry.costPrice = r.newCostPrice!;
+        updateMap.set(r.barcode, entry);
+      }
+    });
+
+    const updates = [...updateMap.values()];
     if (updates.length === 0) {
-      toast.warning('No hay precios modificados');
+      toast.warning('No hay cambios para guardar');
       return;
     }
 
@@ -479,15 +528,14 @@ export class PurchaseCostReportPageComponent implements OnInit {
     this.productService.bulkUpdatePresentationPrices(payload).subscribe({
       next: (res) => {
         if (res.failed > 0) {
-          toast.warning(`${res.updated} actualizados, ${res.failed} fallidos`);
+          toast.warning(`${res.updated} actualizado(s), ${res.failed} fallido(s)`);
           console.warn('Errores:', res.errors);
         } else {
-          toast.success(`${res.updated} precio(s) de venta actualizado(s)`);
+          toast.success(`${res.updated} presentación(es) actualizada(s)`);
         }
-        // Refrescar datos
         this.loadProducts();
       },
-      error: () => toast.error('Error al actualizar precios')
+      error: () => toast.error('Error al guardar cambios')
     });
   }
 
@@ -559,6 +607,7 @@ export class PurchaseCostReportPageComponent implements OnInit {
             case 'salePrice': rowCells.push(this.formatNumber(r.salePrice)); break;
             case 'cost': rowCells.push(this.formatNumber(this.getReportCost(r)) + (this.isLastCost(r) ? '' : '*')); break;
             case 'entityCost': rowCells.push(this.formatNumber(r.presentationCostPrice)); break;
+            case 'newCostPrice': rowCells.push(r.newCostPrice != null && r.newCostPrice > 0 ? this.formatNumber(r.newCostPrice) : ''); break;
             case 'newSalePrice': rowCells.push(r.newSalePrice != null && r.newSalePrice !== r.salePrice ? this.formatNumber(r.newSalePrice) : ''); break;
           }
         });
@@ -575,12 +624,13 @@ export class PurchaseCostReportPageComponent implements OnInit {
         salePrice: 28,
         cost: 28,
         entityCost: 28,
+        newCostPrice: 28,
         newSalePrice: 28,
       };
       const columnStyles: Record<number, any> = { 0: { halign: 'center', cellWidth: 10 } };
       pdfCols.forEach((k, i) => {
         const w = colWidthMap[k];
-        columnStyles[i + 1] = w === 'auto' ? { cellWidth: 'auto' } : { cellWidth: w, halign: ['salePrice', 'cost', 'entityCost', 'newSalePrice'].includes(k) ? 'right' : 'left' };
+        columnStyles[i + 1] = w === 'auto' ? { cellWidth: 'auto' } : { cellWidth: w, halign: ['salePrice', 'cost', 'entityCost', 'newCostPrice', 'newSalePrice'].includes(k) ? 'right' : 'left' };
       });
       if (this.addBlankPdfColumn) {
         columnStyles[pdfCols.length + 1] = { cellWidth: 35 };

@@ -1,7 +1,7 @@
 <div class="container py-3">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h4 class="m-0">
-      <i class="bi bi-file-earmark-bar-graph me-2"></i>Reporte de Costos y Precios de Venta
+      <i class="bi bi-tags-fill me-2"></i>Actualización de Costos y Precios de Venta
     </h4>
     <div class="d-flex gap-2 align-items-center">
       <div class="dropdown">
@@ -23,6 +23,7 @@
           <div class="form-check"><input class="form-check-input" type="checkbox" id="col-sp" [checked]="isColumnVisible('salePrice')" (change)="toggleColumn('salePrice',$any($event.target).checked)"><label class="form-check-label" for="col-sp">Precio venta</label></div>
           <div class="form-check"><input class="form-check-input" type="checkbox" id="col-cost" [checked]="isColumnVisible('cost')" (change)="toggleColumn('cost',$any($event.target).checked)"><label class="form-check-label" for="col-cost">Costo/u</label></div>
           <div class="form-check"><input class="form-check-input" type="checkbox" id="col-ec" [checked]="isColumnVisible('entityCost')" (change)="toggleColumn('entityCost',$any($event.target).checked)"><label class="form-check-label" for="col-ec">Costo entidad</label></div>
+          <div class="form-check"><input class="form-check-input" type="checkbox" id="col-ncp" [checked]="isColumnVisible('newCostPrice')" (change)="toggleColumn('newCostPrice',$any($event.target).checked)"><label class="form-check-label" for="col-ncp">Nuevo costo</label></div>
           <div class="form-check"><input class="form-check-input" type="checkbox" id="col-nsp" [checked]="isColumnVisible('newSalePrice')" (change)="toggleColumn('newSalePrice',$any($event.target).checked)"><label class="form-check-label" for="col-nsp">Nuevo precio venta</label></div>
         </div>
       </div>
@@ -157,6 +158,9 @@
               <th *ngIf="isColumnVisible('entityCost')" (click)="toggleSort('entityCost')" class="text-end text-muted small" style="cursor:pointer">
                 Costo entidad <i class="bi" [ngClass]="sortIcon('entityCost')"></i>
               </th>
+              <th *ngIf="isColumnVisible('newCostPrice')" class="text-end">
+                Nuevo costo
+              </th>
               <th *ngIf="isColumnVisible('newSalePrice')" (click)="toggleSort('newSalePrice')" class="text-end" style="cursor:pointer">
                 Nuevo precio venta <i class="bi" [ngClass]="sortIcon('newSalePrice')"></i>
               </th>
@@ -167,22 +171,41 @@
               <td *ngIf="isColumnVisible('category')" class="small">{{ row.category }}</td>
               <td *ngIf="isColumnVisible('brand')" class="small">{{ row.brand }}</td>
               <td *ngIf="isColumnVisible('product')" class="fw-semibold small">{{ row.productDescription }}</td>
-              <td *ngIf="isColumnVisible('presentation')" class="small text-muted">{{ row.presentationLabel }}</td>
+              <td *ngIf="isColumnVisible('presentation')" class="small">
+                <div>{{ row.presentationLabel }}</div>
+                <code class="text-muted" style="font-size:0.72rem">{{ row.barcode }}</code>
+              </td>
               <td *ngIf="isColumnVisible('salePrice')" class="text-end fw-semibold">{{ formatCurrency(row.salePrice) }}</td>
               <td *ngIf="isColumnVisible('cost')" class="text-end">
                 <span *ngIf="getReportCost(row) != null; else noCost">
-                  {{ formatCurrency(getReportCost(row)) }}
-                  <span *ngIf="(reportFreightPerUnit > 0 || reportVatPercent > 0) && getDisplayCost(row) != null && getReportCost(row) !== getDisplayCost(row)"
-                        class="badge bg-warning text-dark small" title="Base: {{ formatCurrency(getDisplayCost(row)) }}">
-                    <i class="bi bi-calculator me-1"></i>Ajustado
-                  </span>
-                  <span *ngIf="row.lastInvoiceDate" class="text-muted small">({{ row.lastInvoiceDate }})</span>
-                  <span class="badge" [ngClass]="isLastCost(row) ? 'bg-success' : 'bg-secondary'">
-                    {{ isLastCost(row) ? 'Compra' : 'Entidad' }}
-                  </span>
-                  <div *ngIf="row.lastSupplierName" class="text-info small mt-1"
-                       [title]="'Último proveedor: ' + row.lastSupplierName">
-                    <i class="bi bi-shop me-1"></i>{{ row.lastSupplierName }}
+                  <div class="fw-semibold">{{ formatCurrency(getReportCost(row)) }}</div>
+                  <!-- Badges: fuente del costo -->
+                  <div class="d-flex flex-wrap gap-1 justify-content-end mt-1">
+                    <span class="badge" [ngClass]="isLastCost(row) ? 'bg-success' : 'bg-secondary'">
+                      {{ isLastCost(row) ? 'Última compra' : 'Entidad' }}
+                    </span>
+                    <!-- Marca: IVA incluido en el costo -->
+                    <span *ngIf="row.lastVatPerUnit > 0"
+                          class="badge bg-info text-dark"
+                          title="IVA {{ row.lastVatRate }}% incluido: +{{ formatCurrency(row.lastVatPerUnit) }}/u">
+                      IVA {{ row.lastVatRate }}%
+                    </span>
+                    <!-- Marca: flete incluido en el costo -->
+                    <span *ngIf="row.lastFreightPerUnit > 0"
+                          class="badge bg-warning text-dark"
+                          title="Flete incluido: +{{ formatCurrency(row.lastFreightPerUnit) }}/u">
+                      <i class="bi bi-truck me-1"></i>Flete
+                    </span>
+                    <!-- Ajuste de reporte -->
+                    <span *ngIf="(reportFreightPerUnit > 0 || reportVatPercent > 0) && getReportCost(row) !== getDisplayCost(row)"
+                          class="badge bg-warning text-dark"
+                          title="Base: {{ formatCurrency(getDisplayCost(row)) }}">
+                      <i class="bi bi-calculator me-1"></i>+Ajuste
+                    </span>
+                  </div>
+                  <div *ngIf="row.lastInvoiceDate || row.lastSupplierName" class="text-muted mt-1" style="font-size:0.7rem">
+                    <span *ngIf="row.lastInvoiceDate">{{ row.lastInvoiceDate }}</span>
+                    <span *ngIf="row.lastSupplierName"> · {{ row.lastSupplierName }}</span>
                   </div>
                 </span>
                 <ng-template #noCost>
@@ -213,18 +236,35 @@
                   </span>
                 </ng-template>
               </td>
-              <td *ngIf="isColumnVisible('newSalePrice')" class="text-end">
-                <div class="input-group input-group-sm justify-content-end" style="max-width:140px">
+              <td *ngIf="isColumnVisible('newCostPrice')" class="text-end">
+                <div class="input-group input-group-sm justify-content-end" style="max-width:150px;margin-left:auto">
                   <span class="input-group-text">$</span>
-                  <input type="number" class="form-control text-end"
-                    [value]="row.salePrice"
-                    min="0" step="1"
-                    (change)="onNewPriceChange(row, $any($event.target).valueAsNumber)">
+                  <input type="text"
+                    inputmode="numeric"
+                    class="form-control text-end"
+                    [value]="formatInt(row.newCostPrice)"
+                    [ngClass]="{'border-warning fw-bold': row.newCostPrice != null && row.newCostPrice > 0}"
+                    placeholder="—"
+                    (input)="onNewCostInput($event, row)">
                 </div>
-                <span *ngIf="row.newSalePrice != null && row.newSalePrice !== row.salePrice"
-                      class="badge bg-info text-dark mt-1">
+                <div *ngIf="row.newCostPrice != null && row.newCostPrice > 0" class="text-warning mt-1" style="font-size:0.72rem">
+                  <i class="bi bi-pencil-fill me-1"></i>{{ formatCurrency(row.newCostPrice) }}
+                </div>
+              </td>
+              <td *ngIf="isColumnVisible('newSalePrice')" class="text-end">
+                <div class="input-group input-group-sm justify-content-end" style="max-width:150px;margin-left:auto">
+                  <span class="input-group-text">$</span>
+                  <input type="text"
+                    inputmode="numeric"
+                    class="form-control text-end"
+                    [value]="formatInt(row.newSalePrice ?? row.salePrice)"
+                    [ngClass]="{'border-warning fw-bold': row.newSalePrice != null && row.newSalePrice !== row.salePrice}"
+                    (input)="onNewPriceInput($event, row)">
+                </div>
+                <div *ngIf="row.newSalePrice != null && row.newSalePrice !== row.salePrice"
+                     class="text-warning mt-1" style="font-size:0.72rem">
                   <i class="bi bi-pencil-fill me-1"></i>{{ formatCurrency(row.newSalePrice) }}
-                </span>
+                </div>
               </td>
             </tr>
             <tr *ngIf="filteredRows.length === 0">
