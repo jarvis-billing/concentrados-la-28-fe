@@ -483,7 +483,7 @@ export class PurchaseCostReportPageComponent implements OnInit {
     const input = event.target as HTMLInputElement;
     const parsed = this.parseIntFromFormatted(input.value);
     input.value = parsed > 0 ? this.formatInt(parsed) : '';
-    row.newSalePrice = parsed > 0 && Math.abs(parsed - row.salePrice) > 0.01 ? parsed : null;
+    row.newSalePrice = parsed > 0 ? parsed : null;
   }
 
   onNewCostInput(event: Event, row: ReportRow): void {

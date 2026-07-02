@@ -257,7 +257,7 @@
                   <input type="text"
                     inputmode="numeric"
                     class="form-control text-end"
-                    [value]="formatInt(row.newSalePrice ?? row.salePrice)"
+                    [value]="formatInt(row.newSalePrice)"
                     [ngClass]="{'border-warning fw-bold': row.newSalePrice != null && row.newSalePrice !== row.salePrice}"
                     (input)="onNewPriceInput($event, row)">
                 </div>
