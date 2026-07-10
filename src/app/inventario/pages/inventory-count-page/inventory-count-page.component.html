@@ -1,0 +1,186 @@
+<!-- ── Header ─────────────────────────────────────────────────────────────── -->
+<div class="mobile-header">
+  <button class="back-btn" (click)="goBack()">
+    <i class="bi bi-arrow-left me-1"></i>Inicio
+  </button>
+  <h5 class="mb-0"><i class="bi bi-clipboard-check me-1"></i>Conteo Físico</h5>
+  <span></span>
+</div>
+
+<div class="count-root">
+
+  <!-- ── Sin sesión activa ─────────────────────────────────────────────────── -->
+  @if (!isLoading && !session) {
+    <div class="no-session-card">
+      <i class="bi bi-clipboard2-x display-5 text-muted d-block mb-2"></i>
+      <p class="fw-semibold mb-1">Sin sesión activa</p>
+      <p class="text-muted small mb-3">Inicia una nueva sesión para registrar el conteo físico del inventario.</p>
+      <button class="btn btn-primary w-100" (click)="createSession()" [disabled]="isCreating">
+        @if (isCreating) {
+          <span class="spinner-border spinner-border-sm me-1"></span>
+        }
+        <i class="bi bi-play-circle me-1"></i>Iniciar sesión de conteo
+      </button>
+    </div>
+  }
+
+  @if (isLoading) {
+    <div class="text-center py-5">
+      <div class="spinner-border text-primary"></div>
+      <p class="text-muted mt-2 small">Cargando sesión…</p>
+    </div>
+  }
+
+  <!-- ── Sesión activa ──────────────────────────────────────────────────────── -->
+  @if (!isLoading && session) {
+
+    <!-- Chip de sesión -->
+    <div class="session-chip">
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge"
+          [class.bg-success]="session.status === 'IN_PROGRESS'"
+          [class.bg-warning]="session.status === 'PAUSED'"
+          [class.bg-secondary]="session.status === 'COMPLETED'">
+          {{ statusLabel(session.status) }}
+        </span>
+        <span class="fw-semibold">{{ session.sessionNumber }}</span>
+      </div>
+      <span class="text-muted small">{{ session.totalCounted }} contado(s)</span>
+    </div>
+
+    <!-- ── Sesión completada ────────────────────────────────────────────────── -->
+    @if (session.status === 'COMPLETED') {
+      <div class="completed-card">
+        <i class="bi bi-check-circle-fill text-success fs-3 d-block mb-1"></i>
+        <p class="fw-semibold mb-0">Sesión completada</p>
+        <p class="text-muted small">{{ session.totalCounted }} presentaciones contadas.</p>
+        <button class="btn btn-outline-primary btn-sm mt-2" (click)="createSession()">
+          <i class="bi bi-plus-circle me-1"></i>Nueva sesión
+        </button>
+      </div>
+    }
+
+    <!-- ── Sesión en progreso o pausada ────────────────────────────────────── -->
+    @if (session.status === 'IN_PROGRESS' || session.status === 'PAUSED') {
+
+      <!-- Banner de pausa -->
+      @if (session.status === 'PAUSED') {
+        <div class="alert alert-warning py-2 px-3 mb-2 d-flex align-items-center gap-2">
+          <i class="bi bi-pause-circle-fill"></i>
+          <span class="small">Sesión pausada. Escanea o busca un producto para reanudar.</span>
+        </div>
+      }
+
+      <!-- Búsqueda / Escáner -->
+      <div class="search-section">
+        <div class="input-group mb-1">
+          <span class="input-group-text"><i class="bi bi-upc-scan"></i></span>
+          <input
+            #searchInputRef
+            type="text"
+            class="form-control"
+            placeholder="Buscar por nombre o código de barras…"
+            [(ngModel)]="searchQuery"
+            (input)="onSearchInput()"
+            (keydown)="onSearchKeyDown($event)"
+            autocomplete="off">
+          @if (searchQuery) {
+            <button class="btn btn-outline-secondary" (click)="searchQuery=''; showSearchResults=false">
+              <i class="bi bi-x"></i>
+            </button>
+          }
+        </div>
+        @if (showSearchResults) {
+          <div class="search-dropdown">
+            @for (r of searchResults; track r.presentation.barcode; let i = $index) {
+              <div class="search-item" [class.active]="i === activeSearchIndex" (click)="selectResult(r)">
+                <div class="search-item-name">{{ buildLabel(r.product.description, r.presentation.label) }}</div>
+                <div class="search-item-sub">
+                  <code>{{ r.presentation.barcode }}</code>
+                  @if (getCountedQty(r.presentation.barcode); as counted) {
+                    <span class="badge bg-success-subtle text-success ms-1">✓ {{ counted }} und.</span>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Producto seleccionado para contar -->
+      @if (selectedProduct) {
+        <div class="count-card">
+          <div class="count-card-name">{{ buildLabel(selectedProduct.product.description, selectedProduct.presentation.label) }}</div>
+          <div class="count-card-code"><code>{{ selectedProduct.presentation.barcode }}</code></div>
+
+          <div class="qty-row">
+            <button class="qty-btn qty-minus" (click)="decrementQty()">−</button>
+            <div class="d-flex flex-column align-items-center">
+              <input
+                id="qty-input"
+                type="number"
+                class="qty-input"
+                [(ngModel)]="countedQty"
+                [step]="qtyStep"
+                min="0"
+                [inputmode]="isUnitBased ? 'numeric' : 'decimal'">
+              @if (unitLabel) {
+                <span class="small text-muted" style="font-size:0.7rem; margin-top:2px">{{ unitLabel }}</span>
+              }
+            </div>
+            <button class="qty-btn qty-plus" (click)="incrementQty()">+</button>
+          </div>
+
+          <div class="count-actions">
+            <button class="btn btn-outline-secondary btn-sm" (click)="clearSelection()">
+              <i class="bi bi-x-circle me-1"></i>Cancelar
+            </button>
+            <button class="btn btn-primary flex-fill" (click)="confirmCount()"
+              [disabled]="isSaving || countedQty == null">
+              @if (isSaving) { <span class="spinner-border spinner-border-sm me-1"></span> }
+              <i class="bi bi-check-lg me-1"></i>Confirmar conteo
+            </button>
+          </div>
+        </div>
+      }
+
+      <!-- Lista de contados -->
+      @if (session.entries.length > 0) {
+        <div class="counted-section">
+          <div class="counted-section-title">Contados en esta sesión ({{ session.entries.length }})</div>
+          @for (entry of reversedEntries; track entry.barcode) {
+            <div class="counted-item">
+              <div>
+                <div class="counted-name">{{ entry.description }}</div>
+                <div class="counted-sub"><code>{{ entry.barcode }}</code></div>
+              </div>
+              <div class="counted-right">
+                <div class="counted-qty">{{ entry.countedQty | number:'1.0-2' }} und.</div>
+                @if (entry.difference !== 0) {
+                  <div class="counted-diff" [class.text-success]="entry.difference > 0" [class.text-danger]="entry.difference < 0">
+                    {{ entry.difference > 0 ? '+' : '' }}{{ entry.difference | number:'1.0-2' }}
+                  </div>
+                } @else {
+                  <div class="text-muted" style="font-size:0.72rem">igual</div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- Bottom bar -->
+      <div class="bottom-bar">
+        <button class="btn btn-outline-secondary flex-fill" (click)="pauseSession()"
+          [disabled]="session.status === 'PAUSED'">
+          <i class="bi bi-pause-circle me-1"></i>Pausar
+        </button>
+        <button class="btn btn-success flex-fill" (click)="completeSession()">
+          <i class="bi bi-check-circle me-1"></i>Finalizar
+        </button>
+      </div>
+
+    }
+  }
+
+</div>

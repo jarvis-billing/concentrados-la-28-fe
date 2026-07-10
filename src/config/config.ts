@@ -55,4 +55,6 @@ export const urlConfig = {
     getPreSaleServiceUrl: () => urlConfig.baseUrl + '/api/preventas',
 
     getWebSocketUrl: () => urlConfig.baseUrl.replace(/^http/, 'ws') + '/ws/preventa',
+
+    getInventoryCountServiceUrl: () => urlConfig.baseUrl + '/api/inventory/count',
 };

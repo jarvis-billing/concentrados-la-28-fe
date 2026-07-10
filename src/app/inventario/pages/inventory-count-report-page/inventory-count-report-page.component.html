@@ -1,0 +1,269 @@
+<div class="container-fluid py-3">
+
+  <!-- ── Encabezado ─────────────────────────────────────────────────────────── -->
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h5 class="mb-0">
+      <i class="bi bi-clipboard-data me-2 text-primary"></i>Conteo Físico de Inventario
+    </h5>
+    @if (selectedSession) {
+      <button class="btn btn-outline-secondary btn-sm" (click)="clearSelection()">
+        <i class="bi bi-arrow-left me-1"></i>Volver a sesiones
+      </button>
+    }
+  </div>
+
+  <!-- ── Vista: lista de sesiones ─────────────────────────────────────────── -->
+  @if (!selectedSession) {
+
+    <!-- Filtros -->
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body py-2">
+        <div class="row g-2 align-items-end">
+          <div class="col-auto">
+            <label class="form-label small mb-1">Desde</label>
+            <input type="date" class="form-control form-control-sm" [(ngModel)]="fromDate">
+          </div>
+          <div class="col-auto">
+            <label class="form-label small mb-1">Hasta</label>
+            <input type="date" class="form-control form-control-sm" [(ngModel)]="toDate">
+          </div>
+          <div class="col-auto">
+            <button class="btn btn-primary btn-sm" (click)="loadSessions()">
+              <i class="bi bi-search me-1"></i>Buscar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabla de sesiones -->
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-0">
+        @if (isLoadingSessions) {
+          <div class="text-center py-5">
+            <div class="spinner-border text-primary"></div>
+            <p class="text-muted mt-2 small">Cargando sesiones…</p>
+          </div>
+        } @else if (sessions.length === 0) {
+          <div class="text-center py-5 text-muted">
+            <i class="bi bi-inbox display-5 d-block mb-2"></i>
+            <p class="mb-0">No hay sesiones registradas</p>
+          </div>
+        } @else {
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th class="ps-3"># Sesión</th>
+                  <th>Estado</th>
+                  <th>Inicio</th>
+                  <th>Completada</th>
+                  <th>Iniciada por</th>
+                  <th class="text-center">Contados</th>
+                  <th class="text-end pe-3">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (s of sessions; track s.id) {
+                  <tr style="cursor: pointer;" (click)="selectSession(s)">
+                    <td class="ps-3">
+                      <span class="fw-semibold text-primary">{{ s.sessionNumber }}</span>
+                    </td>
+                    <td>
+                      <span class="badge" [ngClass]="statusBadgeClass(s.status)">
+                        {{ statusLabel(s.status) }}
+                      </span>
+                    </td>
+                    <td class="small text-muted">{{ s.startedAt | date:'dd/MM/yy HH:mm' }}</td>
+                    <td class="small text-muted">
+                      {{ s.completedAt ? (s.completedAt | date:'dd/MM/yy HH:mm') : '—' }}
+                    </td>
+                    <td class="small">{{ s.startedBy }}</td>
+                    <td class="text-center">
+                      <span class="badge bg-primary-subtle text-primary">{{ s.totalCounted }}</span>
+                    </td>
+                    <td class="text-end pe-3">
+                      <button class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-eye me-1"></i>Ver reporte
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- ── Vista: detalle de sesión ──────────────────────────────────────────── -->
+  @if (selectedSession) {
+
+    <!-- Chips resumen -->
+    @if (report) {
+      <div class="row g-2 mb-3">
+        <div class="col-6 col-sm-3">
+          <div class="card border-0 bg-primary bg-opacity-10 text-center py-2">
+            <div class="fs-4 fw-bold text-primary">{{ report.totalCounted }}</div>
+            <div class="small text-muted">Presentaciones contadas</div>
+          </div>
+        </div>
+        <div class="col-6 col-sm-3">
+          <div class="card border-0 bg-secondary bg-opacity-10 text-center py-2">
+            <div class="fs-4 fw-bold text-secondary">{{ report.totalUncounted }}</div>
+            <div class="small text-muted">Sin contar</div>
+          </div>
+        </div>
+        <div class="col-6 col-sm-3">
+          <div class="card border-0 text-center py-2"
+               [class.bg-success]="report.coveragePercent >= 80"
+               [class.bg-warning]="report.coveragePercent >= 50 && report.coveragePercent < 80"
+               [class.bg-danger]="report.coveragePercent < 50">
+            <div class="fs-4 fw-bold text-white">{{ report.coveragePercent | number:'1.1-1' }}%</div>
+            <div class="small text-white opacity-75">Cobertura</div>
+          </div>
+        </div>
+        <div class="col-6 col-sm-3">
+          <div class="card border-0 bg-light text-center py-2">
+            <div class="fs-5 fw-semibold">
+              <span class="badge" [ngClass]="statusBadgeClass(selectedSession.status)">
+                {{ statusLabel(selectedSession.status) }}
+              </span>
+            </div>
+            <div class="small text-muted">{{ selectedSession.sessionNumber }}</div>
+          </div>
+        </div>
+      </div>
+    }
+
+    @if (isLoadingReport) {
+      <div class="text-center py-5">
+        <div class="spinner-border text-primary"></div>
+        <p class="text-muted mt-2 small">Cargando reporte…</p>
+      </div>
+    }
+
+    @if (report && !isLoadingReport) {
+
+      <!-- Tabs -->
+      <ul class="nav nav-tabs mb-3">
+        <li class="nav-item">
+          <button class="nav-link" [class.active]="activeTab === 'counted'" (click)="activeTab = 'counted'">
+            <i class="bi bi-check-circle me-1 text-success"></i>
+            Contados <span class="badge bg-success ms-1">{{ report.totalCounted }}</span>
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" [class.active]="activeTab === 'uncounted'" (click)="activeTab = 'uncounted'">
+            <i class="bi bi-x-circle me-1 text-danger"></i>
+            Sin contar <span class="badge bg-danger ms-1">{{ report.totalUncounted }}</span>
+          </button>
+        </li>
+      </ul>
+
+      <!-- Tab: Contados -->
+      @if (activeTab === 'counted') {
+        <div class="card border-0 shadow-sm">
+          <div class="card-header bg-white border-bottom py-2">
+            <input type="text" class="form-control form-control-sm"
+                   placeholder="Filtrar por nombre o código…"
+                   [(ngModel)]="countedFilter">
+          </div>
+          <div class="card-body p-0">
+            @if (filteredCounted.length === 0) {
+              <div class="text-center py-4 text-muted small">Sin resultados</div>
+            } @else {
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th class="ps-3">Producto</th>
+                      <th>Código</th>
+                      <th class="text-end">Stock sistema</th>
+                      <th class="text-end">Contado</th>
+                      <th class="text-end pe-3">Diferencia</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (e of filteredCounted; track e.barcode) {
+                      <tr>
+                        <td class="ps-3">
+                          <div class="fw-medium small">{{ e.description }}</div>
+                          @if (e.presentationLabel) {
+                            <div class="text-muted" style="font-size:0.72rem">{{ e.presentationLabel }}</div>
+                          }
+                        </td>
+                        <td><code class="small">{{ e.barcode }}</code></td>
+                        <td class="text-end small">{{ e.systemStock | number:'1.0-2' }}</td>
+                        <td class="text-end small fw-semibold">{{ e.countedQty | number:'1.0-2' }}</td>
+                        <td class="text-end pe-3">
+                          <span class="badge"
+                            [class.bg-success-subtle]="e.difference > 0"
+                            [class.text-success]="e.difference > 0"
+                            [class.bg-danger-subtle]="e.difference < 0"
+                            [class.text-danger]="e.difference < 0"
+                            [class.bg-secondary-subtle]="e.difference === 0"
+                            [class.text-secondary]="e.difference === 0">
+                            {{ e.difference > 0 ? '+' : '' }}{{ e.difference | number:'1.0-2' }}
+                          </span>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- Tab: Sin contar -->
+      @if (activeTab === 'uncounted') {
+        <div class="card border-0 shadow-sm">
+          <div class="card-header bg-white border-bottom py-2">
+            <input type="text" class="form-control form-control-sm"
+                   placeholder="Filtrar por nombre o código…"
+                   [(ngModel)]="uncountedFilter">
+          </div>
+          <div class="card-body p-0">
+            @if (filteredUncounted.length === 0) {
+              <div class="text-center py-4 text-muted small">
+                @if (uncountedFilter) { Sin resultados } @else {
+                  <i class="bi bi-check-circle-fill text-success me-1"></i>¡Todos los productos fueron contados!
+                }
+              </div>
+            } @else {
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th class="ps-3">Producto</th>
+                      <th>Código</th>
+                      <th class="text-end pe-3">Stock sistema</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (u of filteredUncounted; track u.barcode) {
+                      <tr>
+                        <td class="ps-3">
+                          <div class="fw-medium small">{{ u.description }}</div>
+                          @if (u.presentationLabel) {
+                            <div class="text-muted" style="font-size:0.72rem">{{ u.presentationLabel }}</div>
+                          }
+                        </td>
+                        <td><code class="small">{{ u.barcode }}</code></td>
+                        <td class="text-end pe-3 small">{{ u.systemStock | number:'1.0-2' }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    }
+  }
+
+</div>

@@ -2,32 +2,22 @@
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h4 class="m-0">Listado de Facturas de Compra</h4>
     <div class="d-flex gap-2">
-      <button type="button" class="btn btn-outline-secondary" (click)="goToCostHistory()">
-        Historial de costos
-      </button>
-      <button type="button" class="btn btn-primary" (click)="goToCreateInvoice()">
-        Nueva Factura
-      </button>
+      <button type="button" class="btn btn-outline-secondary" (click)="goToCostHistory()">Historial de costos</button>
+      <button type="button" class="btn btn-primary" (click)="goToCreateInvoice()">Nueva Factura</button>
     </div>
   </div>
 
+  <!-- ── Filtros ─────────────────────────────────────────────────────────── -->
   <div class="card mb-3">
-    <div class="card-header">
-      <div class="d-flex justify-content-between align-items-center">
-        <span>Filtros</span>
-        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="clearFilters()">
-          Limpiar filtros
-        </button>
-      </div>
-    </div>
+    <div class="card-header">Filtros</div>
     <div class="card-body">
-      <form [formGroup]="filterForm">
-        <div class="row g-3">
-          <div class="col-12 col-md-3">
+      <form [formGroup]="filterForm" (ngSubmit)="search()">
+        <div class="row g-3 align-items-end">
+          <div class="col-12 col-md-2">
             <label class="form-label">Fecha inicio</label>
             <input type="date" class="form-control" formControlName="startDate">
           </div>
-          <div class="col-12 col-md-3">
+          <div class="col-12 col-md-2">
             <label class="form-label">Fecha fin</label>
             <input type="date" class="form-control" formControlName="endDate">
           </div>
@@ -35,9 +25,9 @@
             <label class="form-label">Proveedor</label>
             <div class="position-relative">
               <div class="input-group">
-                <input 
-                  type="text" 
-                  class="form-control" 
+                <input
+                  type="text"
+                  class="form-control"
                   [(ngModel)]="supplierFilterSearchText"
                   [ngModelOptions]="{standalone: true}"
                   (input)="filterSuppliersForFilter(supplierFilterSearchText)"
@@ -46,19 +36,15 @@
                   (keydown)="onSupplierKeydown($event)"
                   placeholder="Buscar proveedor..."
                   autocomplete="off">
-                <button 
-                  type="button" 
-                  class="btn btn-outline-danger" 
-                  *ngIf="selectedSupplierForFilter"
-                  (click)="clearSupplierFilterSelection()">
+                <button type="button" class="btn btn-outline-danger" *ngIf="selectedSupplierForFilter" (click)="clearSupplierFilterSelection()">
                   <i class="bi bi-x"></i>
                 </button>
               </div>
               <div #supplierDropdownEl
-                *ngIf="showSupplierFilterDropdown && filteredSuppliersForFilter.length > 0" 
+                *ngIf="showSupplierFilterDropdown && filteredSuppliersForFilter.length > 0"
                 class="position-absolute w-100 bg-white border rounded shadow-sm mt-1"
                 style="max-height: 250px; overflow-y: auto; z-index: 1000;">
-                <div 
+                <div
                   *ngFor="let supplier of filteredSuppliersForFilter; let i = index"
                   class="p-2 border-bottom"
                   [style.background-color]="supplierActiveIndex === i ? '#0d6efd' : ''"
@@ -66,167 +52,244 @@
                   style="cursor: pointer;"
                   (mousedown)="selectSupplierForFilter(supplier)">
                   <div class="fw-bold">{{ supplier.name }}</div>
-                  <small [style.color]="supplierActiveIndex === i ? 'rgba(255,255,255,0.8)' : 'var(--bs-secondary-color)'">{{ supplier.documentType }} {{ supplier.idNumber }}</small>
+                  <small [style.color]="supplierActiveIndex === i ? 'rgba(255,255,255,0.8)' : 'var(--bs-secondary-color)'">
+                    {{ supplier.documentType }} {{ supplier.idNumber }}
+                  </small>
                 </div>
               </div>
             </div>
           </div>
-          <div class="col-12 col-md-3">
-            <label class="form-label">Buscar producto</label>
+          <div class="col-12 col-md-2">
+            <label class="form-label">Nº Factura</label>
+            <input type="text" class="form-control" formControlName="invoiceNumber"
+                   placeholder="Buscar…" (keydown.enter)="search()">
+          </div>
+          <div class="col-12 col-md-2">
+            <label class="form-label">Producto</label>
             <div class="input-group">
-              <input type="text" class="form-control" formControlName="productSearch" 
-                     placeholder="Código o descripción" readonly>
+              <input type="text" class="form-control" formControlName="productSearch"
+                     placeholder="Seleccionar…" readonly>
               <button type="button" class="btn btn-outline-secondary" (click)="openProductModal()">
-                Buscar
+                <i class="bi bi-search"></i>
               </button>
               <button type="button" class="btn btn-outline-danger" *ngIf="selectedProduct" (click)="clearProductFilter()">
                 <i class="bi bi-x"></i>
               </button>
             </div>
           </div>
+          <div class="col-12 col-md-auto d-flex gap-2">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-search me-1"></i>Buscar
+            </button>
+            <button type="button" class="btn btn-outline-secondary" (click)="clearFilters()">
+              <i class="bi bi-x-circle me-1"></i>Limpiar
+            </button>
+          </div>
         </div>
       </form>
     </div>
   </div>
 
+  <!-- ── Tabla ───────────────────────────────────────────────────────────── -->
   <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
-      <span>Facturas ({{ getTotalInvoices() }})</span>
-      <span class="badge bg-primary">Total: {{ formatCurrency(getTotalAmount()) }}</span>
-    </div>
-    <div class="card-body p-0">
-      <div class="table-responsive">
-        <table class="table table-hover align-middle m-0">
-          <thead class="table-light">
-            <tr>
-              <th style="width: 50px;"></th>
-              <th>Fecha ingreso</th>
-              <th>Fecha factura</th>
-              <th>Nº Factura</th>
-              <th>Proveedor</th>
-              <th>Tipo pago</th>
-              <th class="text-end">Total</th>
-              <th class="text-center">Estado pago</th>
-              <th class="text-center">Ítems</th>
-              <th class="text-center">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            <ng-container *ngFor="let invoice of filteredInvoices">
-              <tr (click)="toggleInvoiceDetails(invoice.id)" style="cursor: pointer;">
-                <td class="text-center">
-                  <i [class]="isExpanded(invoice.id) ? 'bi bi-chevron-down' : 'bi bi-chevron-right'"></i>
-                </td>
-                <td>{{ formatDate(invoice.createdAt) || '-' }}</td>
-                <td>{{ formatDate(invoice.emissionDate) || '-' }}</td>
-                <td>{{ invoice.invoiceNumber || '-' }}</td>
-                <td>{{ getSupplierName(invoice) }}</td>
-                <td>
-                  <span *ngIf="invoice.paymentType" [class]="invoice.paymentType === 'CONTADO' ? 'badge bg-success' : 'badge bg-warning'">
-                    {{ invoice.paymentType }}
-                  </span>
-                  <span *ngIf="!invoice.paymentType" class="text-muted">-</span>
-                </td>
-                <td class="text-end fw-bold">{{ formatCurrency(invoice.total) }}</td>
-                <td class="text-center">
-                  <span [class]="getPaymentStatusBadgeClass(invoice.paymentStatus)">
-                    {{ getPaymentStatusLabel(invoice.paymentStatus) }}
-                  </span>
-                  <small *ngIf="invoice.totalPaid" class="d-block text-muted">{{ formatCurrency(invoice.totalPaid) }}</small>
-                </td>
-                <td class="text-center">{{ invoice.items?.length || 0 }}</td>
-                <td class="text-center">
-                  <div class="btn-group btn-group-sm">
-                    <button type="button" class="btn btn-outline-primary" 
-                            (click)="editInvoice(invoice.id); $event.stopPropagation()"
-                            title="Agregar productos">
-                      <i class="bi bi-plus-circle"></i>
-                    </button>
-                    <button type="button" class="btn btn-outline-success" 
-                            (click)="openLinkPaymentsModal(invoice); $event.stopPropagation()"
-                            title="Vincular pagos">
-                      <i class="bi bi-link-45deg"></i>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-              <tr *ngIf="isExpanded(invoice.id)">
-                <td colspan="10" class="bg-light">
-                  <div class="p-3">
-                    <h6 class="mb-3">Detalle de ítems</h6>
-                    <div class="table-responsive">
-                      <table class="table table-sm table-bordered m-0">
-                        <thead class="table-secondary">
-                          <tr>
-                            <th>Producto</th>
-                            <th>Código barras</th>
-                            <th class="text-end">Cant.</th>
-                            <th class="text-end">Costo unit.</th>
-                            <th class="text-end">Subtotal</th>
-                            <th class="text-end">Flete/Unid</th>
-                            <th class="text-end">% IVA</th>
-                            <th class="text-end">IVA/Unid</th>
-                            <th class="text-end">Total/Unid</th>
-                            <th class="text-end">Total ítem</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr *ngFor="let item of invoice.items">
-                            <td>{{ item.description }}</td>
-                            <td>{{ item.presentationBarcode || item.presentationId }}</td>
-                            <td class="text-end">{{ item.quantity }}</td>
-                            <td class="text-end">{{ formatCurrency(item.unitCost) }}</td>
-                            <td class="text-end">{{ formatCurrency(item.totalCost) }}</td>
-                            <td class="text-end">{{ item.applyFreight ? formatCurrency(invoice.freightRate) : '-' }}</td>
-                            <td class="text-end">{{ item.vatRate }}%</td>
-                            <td class="text-end">{{ formatCurrency(item.unitCost * (item.vatRate / 100)) }}</td>
-                            <td class="text-end fw-semibold">{{ formatCurrency(item.unitCost + (item.unitCost * (item.vatRate / 100)) + (item.applyFreight ? invoice.freightRate : 0)) }}</td>
-                            <td class="text-end fw-semibold">{{ formatCurrency(item.totalCost + item.vatAmount + item.freightAmount) }}</td>
-                          </tr>
-                        </tbody>
-                        <tfoot class="table-light fw-semibold">
-                          <tr>
-                            <td colspan="4" class="text-end">Subtotal:</td>
-                            <td class="text-end">{{ formatCurrency(invoice.subtotal) }}</td>
-                            <td colspan="4"></td>
-                            <td class="text-end">{{ formatCurrency(invoice.subtotal) }}</td>
-                          </tr>
-                          <tr>
-                            <td colspan="4" class="text-end">Total IVA:</td>
-                            <td class="text-end">{{ formatCurrency(invoice.totalVat) }}</td>
-                            <td colspan="4"></td>
-                            <td class="text-end">{{ formatCurrency(invoice.totalVat) }}</td>
-                          </tr>
-                          <tr>
-                            <td colspan="4" class="text-end">Total Flete:</td>
-                            <td class="text-end">{{ formatCurrency(invoice.freightCost) }}</td>
-                            <td colspan="4"></td>
-                            <td class="text-end">{{ formatCurrency(invoice.freightCost) }}</td>
-                          </tr>
-                          <tr class="table-primary">
-                            <td colspan="4" class="text-end fw-bold">TOTAL FACTURA:</td>
-                            <td class="text-end fw-bold">{{ formatCurrency(invoice.total) }}</td>
-                            <td colspan="4"></td>
-                            <td class="text-end fw-bold">{{ formatCurrency(invoice.total) }}</td>
-                          </tr>
-                        </tfoot>
-                      </table>
-                    </div>
-                    <div class="mt-2" *ngIf="invoice.notes">
-                      <strong>Notas:</strong> {{ invoice.notes }}
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            </ng-container>
-            <tr *ngIf="filteredInvoices.length === 0">
-              <td colspan="10" class="text-center text-muted py-4">
-                No se encontraron facturas con los filtros aplicados
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <span>
+        @if (!isLoading) {
+          {{ totalElements }} factura(s) — mostrando {{ startRecord }}–{{ endRecord }}
+        } @else {
+          Cargando…
+        }
+      </span>
+      <!-- Selector de registros por página -->
+      <div class="d-flex align-items-center gap-2">
+        <label class="form-label mb-0 small">Por página:</label>
+        <select class="form-select form-select-sm" style="width:80px"
+                [(ngModel)]="pageSize" (change)="goToPage(0)">
+          <option [value]="10">10</option>
+          <option [value]="20">20</option>
+          <option [value]="50">50</option>
+        </select>
       </div>
+    </div>
+
+    <div class="card-body p-0">
+      @if (isLoading) {
+        <div class="text-center py-5">
+          <div class="spinner-border text-primary"></div>
+          <p class="text-muted mt-2 small">Cargando facturas…</p>
+        </div>
+      } @else {
+        <div class="table-responsive">
+          <table class="table table-hover align-middle m-0">
+            <thead class="table-light">
+              <tr>
+                <th style="width:40px"></th>
+                <th>Fecha ingreso</th>
+                <th>Fecha factura</th>
+                <th>Nº Factura</th>
+                <th>Proveedor</th>
+                <th>Tipo pago</th>
+                <th class="text-end">Total</th>
+                <th class="text-center">Estado pago</th>
+                <th class="text-center">Ítems</th>
+                <th class="text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <ng-container *ngFor="let invoice of invoices">
+                <tr (click)="toggleInvoiceDetails(invoice.id)" style="cursor:pointer">
+                  <td class="text-center">
+                    <i [class]="isExpanded(invoice.id) ? 'bi bi-chevron-down' : 'bi bi-chevron-right'"></i>
+                  </td>
+                  <td>{{ formatDate(invoice.createdAt) || '-' }}</td>
+                  <td>{{ formatDate(invoice.emissionDate) || '-' }}</td>
+                  <td>{{ invoice.invoiceNumber || '-' }}</td>
+                  <td>{{ getSupplierName(invoice) }}</td>
+                  <td>
+                    <span *ngIf="invoice.paymentType"
+                          [class]="invoice.paymentType === 'CONTADO' ? 'badge bg-success' : 'badge bg-warning'">
+                      {{ invoice.paymentType }}
+                    </span>
+                    <span *ngIf="!invoice.paymentType" class="text-muted">-</span>
+                  </td>
+                  <td class="text-end fw-bold">{{ formatCurrency(invoice.total) }}</td>
+                  <td class="text-center">
+                    <span [class]="getPaymentStatusBadgeClass(invoice.paymentStatus)">
+                      {{ getPaymentStatusLabel(invoice.paymentStatus) }}
+                    </span>
+                    <small *ngIf="invoice.totalPaid" class="d-block text-muted">{{ formatCurrency(invoice.totalPaid) }}</small>
+                  </td>
+                  <td class="text-center">{{ invoice.items?.length || 0 }}</td>
+                  <td class="text-center">
+                    <div class="btn-group btn-group-sm">
+                      <button type="button" class="btn btn-outline-primary"
+                              (click)="editInvoice(invoice.id); $event.stopPropagation()"
+                              title="Agregar productos">
+                        <i class="bi bi-plus-circle"></i>
+                      </button>
+                      <button type="button" class="btn btn-outline-success"
+                              (click)="openLinkPaymentsModal(invoice); $event.stopPropagation()"
+                              title="Vincular pagos">
+                        <i class="bi bi-link-45deg"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <!-- Detalle expandido -->
+                <tr *ngIf="isExpanded(invoice.id)">
+                  <td colspan="10" class="bg-light">
+                    <div class="p-3">
+                      <h6 class="mb-3">Detalle de ítems</h6>
+                      <div class="table-responsive">
+                        <table class="table table-sm table-bordered m-0">
+                          <thead class="table-secondary">
+                            <tr>
+                              <th>Producto</th>
+                              <th>Código barras</th>
+                              <th class="text-end">Cant.</th>
+                              <th class="text-end">Costo unit.</th>
+                              <th class="text-end">Subtotal</th>
+                              <th class="text-end">Flete/Unid</th>
+                              <th class="text-end">% IVA</th>
+                              <th class="text-end">IVA/Unid</th>
+                              <th class="text-end">Total/Unid</th>
+                              <th class="text-end">Total ítem</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr *ngFor="let item of invoice.items">
+                              <td>{{ item.description }}</td>
+                              <td>{{ item.presentationBarcode || item.presentationId }}</td>
+                              <td class="text-end">{{ item.quantity }}</td>
+                              <td class="text-end">{{ formatCurrency(item.unitCost) }}</td>
+                              <td class="text-end">{{ formatCurrency(item.totalCost) }}</td>
+                              <td class="text-end">{{ item.applyFreight ? formatCurrency(invoice.freightRate) : '-' }}</td>
+                              <td class="text-end">{{ item.vatRate }}%</td>
+                              <td class="text-end">{{ formatCurrency(item.unitCost * (item.vatRate / 100)) }}</td>
+                              <td class="text-end fw-semibold">{{ formatCurrency(item.unitCost + (item.unitCost * (item.vatRate / 100)) + (item.applyFreight ? invoice.freightRate : 0)) }}</td>
+                              <td class="text-end fw-semibold">{{ formatCurrency(item.totalCost + item.vatAmount + item.freightAmount) }}</td>
+                            </tr>
+                          </tbody>
+                          <tfoot class="table-light fw-semibold">
+                            <tr>
+                              <td colspan="4" class="text-end">Subtotal:</td>
+                              <td class="text-end">{{ formatCurrency(invoice.subtotal) }}</td>
+                              <td colspan="4"></td>
+                              <td class="text-end">{{ formatCurrency(invoice.subtotal) }}</td>
+                            </tr>
+                            <tr>
+                              <td colspan="4" class="text-end">Total IVA:</td>
+                              <td class="text-end">{{ formatCurrency(invoice.totalVat) }}</td>
+                              <td colspan="4"></td>
+                              <td class="text-end">{{ formatCurrency(invoice.totalVat) }}</td>
+                            </tr>
+                            <tr>
+                              <td colspan="4" class="text-end">Total Flete:</td>
+                              <td class="text-end">{{ formatCurrency(invoice.freightCost) }}</td>
+                              <td colspan="4"></td>
+                              <td class="text-end">{{ formatCurrency(invoice.freightCost) }}</td>
+                            </tr>
+                            <tr class="table-primary">
+                              <td colspan="4" class="text-end fw-bold">TOTAL FACTURA:</td>
+                              <td class="text-end fw-bold">{{ formatCurrency(invoice.total) }}</td>
+                              <td colspan="4"></td>
+                              <td class="text-end fw-bold">{{ formatCurrency(invoice.total) }}</td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                      <div class="mt-2" *ngIf="invoice.notes">
+                        <strong>Notas:</strong> {{ invoice.notes }}
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </ng-container>
+
+              <tr *ngIf="!isLoading && invoices.length === 0">
+                <td colspan="10" class="text-center text-muted py-4">No se encontraron facturas</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- ── Paginación ──────────────────────────────────────────────── -->
+        @if (totalPages > 1) {
+          <div class="d-flex justify-content-center align-items-center py-3 gap-1">
+            <!-- Primera / Anterior -->
+            <button class="btn btn-sm btn-outline-secondary" [disabled]="currentPage === 0" (click)="goToPage(0)" title="Primera">
+              <i class="bi bi-chevron-double-left"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" [disabled]="currentPage === 0" (click)="goToPage(currentPage - 1)" title="Anterior">
+              <i class="bi bi-chevron-left"></i>
+            </button>
+
+            <!-- Páginas -->
+            @if (pages[0] > 0) {
+              <span class="px-1 text-muted">…</span>
+            }
+            @for (p of pages; track p) {
+              <button class="btn btn-sm"
+                      [class.btn-primary]="p === currentPage"
+                      [class.btn-outline-secondary]="p !== currentPage"
+                      (click)="goToPage(p)">
+                {{ p + 1 }}
+              </button>
+            }
+            @if (pages[pages.length - 1] < totalPages - 1) {
+              <span class="px-1 text-muted">…</span>
+            }
+
+            <!-- Siguiente / Última -->
+            <button class="btn btn-sm btn-outline-secondary" [disabled]="currentPage >= totalPages - 1" (click)="goToPage(currentPage + 1)" title="Siguiente">
+              <i class="bi bi-chevron-right"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" [disabled]="currentPage >= totalPages - 1" (click)="goToPage(totalPages - 1)" title="Última">
+              <i class="bi bi-chevron-double-right"></i>
+            </button>
+          </div>
+        }
+      }
     </div>
   </div>
 </div>

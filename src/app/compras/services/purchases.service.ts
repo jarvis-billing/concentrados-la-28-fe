@@ -13,13 +13,46 @@ export interface PurchasePaymentDetailResponse {
   payments: Array<LinkedPayment & { bankAccountName?: string; originalAmount?: number }>;
 }
 
+export interface PurchasePagedResponse {
+  content: PurchaseInvoice[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  first: boolean;
+  last: boolean;
+}
+
+export interface PurchaseListFilter {
+  createdAtFrom?: string;
+  createdAtTo?: string;
+  supplierId?: string;
+  productBarcode?: string;
+  invoiceNumber?: string;
+  page?: number;
+  size?: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class PurchasesService {
   private http = inject(HttpClient);
   private baseUrl = urlConfig.getPurchaseServiceUrl();
 
+  /** @deprecated Usa listPaged() */
   list(params?: any): Observable<PurchaseInvoice[]> {
     return this.http.get<PurchaseInvoice[]>(this.baseUrl, { params });
+  }
+
+  listPaged(filter: PurchaseListFilter = {}): Observable<PurchasePagedResponse> {
+    let params = new HttpParams();
+    if (filter.createdAtFrom)  params = params.set('createdAtFrom',  filter.createdAtFrom);
+    if (filter.createdAtTo)    params = params.set('createdAtTo',    filter.createdAtTo);
+    if (filter.supplierId)     params = params.set('supplierId',     filter.supplierId);
+    if (filter.productBarcode) params = params.set('productBarcode', filter.productBarcode);
+    if (filter.invoiceNumber)  params = params.set('invoiceNumber',  filter.invoiceNumber);
+    params = params.set('page', String(filter.page ?? 0));
+    params = params.set('size', String(filter.size ?? 20));
+    return this.http.get<PurchasePagedResponse>(this.baseUrl, { params });
   }
 
   getById(id: string): Observable<PurchaseInvoice> {

@@ -1,0 +1,3 @@
+/* Desktop report page — minimal overrides, Bootstrap does the heavy lifting */
+.table th { font-size: 0.78rem; font-weight: 600; }
+.table td { font-size: 0.82rem; }

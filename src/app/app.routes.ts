@@ -59,6 +59,8 @@ import { PurchaseReturnFormComponent } from './devoluciones/pages/purchase-retur
 import { ReturnDetailPageComponent } from './devoluciones/pages/return-detail-page/return-detail-page.component';
 import { PreventaPageComponent } from './preventa/pages/preventa-page/preventa-page.component';
 import { PreventaListComponent } from './preventa/pages/preventa-list/preventa-list.component';
+import { InventoryCountPageComponent } from './inventario/pages/inventory-count-page/inventory-count-page.component';
+import { InventoryCountReportPageComponent } from './inventario/pages/inventory-count-report-page/inventory-count-report-page.component';
 import { authGuard } from './auth/auth.guard';
 import { UsersPageComponent } from './configuracion/pages/users-page/users-page.component';
 import { CompanyPageComponent } from './configuracion/pages/company-page/company-page.component';
@@ -67,6 +69,7 @@ export const routes: Routes = [
     { path: '', pathMatch: 'full', redirectTo: '/login' },
     { path: 'preventa', component: PreventaPageComponent, canActivate: [authGuard] },
     { path: 'preventa/lista', component: PreventaListComponent, canActivate: [authGuard] },
+    { path: 'inventario/conteo', component: InventoryCountPageComponent, canActivate: [authGuard] },
     { path: 'persona', component: PersonaComponent },
     { path: 'login', component: LoginComponent },
     { path: 'menu', component: MenuComponent },
@@ -252,6 +255,9 @@ export const routes: Routes = [
         },
         {
             path: 'preventa/lista', component: PreventaListComponent
+        },
+        {
+            path: 'inventario/conteo/reporte', component: InventoryCountReportPageComponent
         }
     ]}
 ];

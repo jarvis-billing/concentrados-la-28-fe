@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { PurchaseInvoice } from '../models/purchase-invoice';
 import { Supplier } from '../models/supplier';
-import { PurchasesService } from '../services/purchases.service';
+import { PurchasesService, PurchaseListFilter } from '../services/purchases.service';
 import { SupplierService } from '../services/supplier.service';
 import { toast } from 'ngx-sonner';
 import { Router } from '@angular/router';
@@ -18,51 +18,134 @@ import { LinkPaymentsModalComponent } from '../components/link-payments-modal/li
   templateUrl: './purchase-invoices-list-page.component.html'
 })
 export class PurchaseInvoicesListPageComponent implements OnInit {
-  private fb = inject(FormBuilder);
+  private fb               = inject(FormBuilder);
   private purchasesService = inject(PurchasesService);
-  private supplierService = inject(SupplierService);
-  private router = inject(Router);
+  private supplierService  = inject(SupplierService);
+  private router           = inject(Router);
 
+  // ── Datos ─────────────────────────────────────────────────────────────────
   invoices: PurchaseInvoice[] = [];
-  filteredInvoices: PurchaseInvoice[] = [];
   suppliers: Supplier[] = [];
+  isLoading = false;
+
+  // ── Paginación ────────────────────────────────────────────────────────────
+  currentPage   = 0;
+  pageSize      = 20;
+  totalElements = 0;
+  totalPages    = 0;
+
+  // ── Filtro de proveedor ───────────────────────────────────────────────────
   filteredSuppliersForFilter: Supplier[] = [];
-  supplierFilterSearchText: string = '';
-  showSupplierFilterDropdown: boolean = false;
+  supplierFilterSearchText  = '';
+  showSupplierFilterDropdown = false;
   selectedSupplierForFilter: Supplier | null = null;
   supplierActiveIndex = -1;
   @ViewChild('supplierDropdownEl') supplierDropdownEl?: ElementRef;
-  expandedInvoiceId: string | null = null;
+
+  // ── Producto seleccionado ─────────────────────────────────────────────────
   selectedProduct: Product | null = null;
 
+  // ── Detalle expandido ─────────────────────────────────────────────────────
+  expandedInvoiceId: string | null = null;
+
   @ViewChild(ProductsSearchModalComponent, { static: false }) productsSearchModalComp!: ProductsSearchModalComponent;
-  @ViewChild(LinkPaymentsModalComponent, { static: false }) linkPaymentsModal!: LinkPaymentsModalComponent;
+  @ViewChild(LinkPaymentsModalComponent,   { static: false }) linkPaymentsModal!: LinkPaymentsModalComponent;
 
   filterForm: FormGroup = this.fb.group({
-    startDate: [''],
-    endDate: [''],
-    supplierId: [''],
-    productSearch: ['']
+    startDate:     [''],
+    endDate:       [''],
+    supplierId:    [''],
+    productSearch: [''],
+    invoiceNumber: [''],
   });
 
   ngOnInit() {
     this.loadSuppliers();
-    // Cargar facturas después de que los proveedores estén cargados
-    this.supplierService.list().subscribe(suppliers => {
-      this.suppliers = suppliers;
-      this.loadInvoices();
-    });
-    this.filterForm.valueChanges.subscribe(() => this.applyFilters());
+    this.loadPage();
   }
 
-  loadSuppliers() {
+  /** Buscar con los filtros actuales (botón Buscar / Enter en campos de texto) */
+  search(): void {
+    this.currentPage = 0;
+    this.loadPage();
+  }
+
+  // ── Carga ─────────────────────────────────────────────────────────────────
+
+  loadPage(): void {
+    this.isLoading = true;
+    const v = this.filterForm.value;
+
+    const filter: PurchaseListFilter = {
+      page: this.currentPage,
+      size: this.pageSize,
+    };
+
+    if (v.startDate)     filter.createdAtFrom  = v.startDate;
+    if (v.endDate)       filter.createdAtTo    = v.endDate;
+    if (v.supplierId)    filter.supplierId     = v.supplierId;
+    if (v.invoiceNumber) filter.invoiceNumber  = v.invoiceNumber;
+    if (this.selectedProduct?.barcode) filter.productBarcode = this.selectedProduct.barcode;
+
+    this.purchasesService.listPaged(filter).subscribe({
+      next: (res) => {
+        this.invoices = res.content.map((inv: any) => {
+          // Backend: invoiceDate (LocalDate) → FE model: emissionDate
+          if (inv.invoiceDate && !inv.emissionDate) {
+            inv.emissionDate = inv.invoiceDate;
+          }
+          // Backend: totalAmount (BigDecimal) → FE model: total
+          if (!inv.total || inv.total === 0) {
+            inv.total = inv.totalAmount
+              ?? (inv.items || []).reduce((sum: number, item: any) =>
+                  sum + ((item.totalCost || 0) + (item.vatAmount || 0) + (item.freightAmount || 0)), 0);
+          }
+          return inv;
+        });
+        this.totalElements = res.totalElements;
+        this.totalPages    = res.totalPages;
+        this.isLoading     = false;
+        this.expandedInvoiceId = null;
+      },
+      error: () => {
+        this.isLoading = false;
+        toast.error('Error al cargar las facturas');
+      }
+    });
+  }
+
+  loadSuppliers(): void {
     this.supplierService.list().subscribe(res => {
       this.suppliers = res;
       this.filteredSuppliersForFilter = res;
     });
   }
 
-  filterSuppliersForFilter(searchText: string) {
+  // ── Paginación ────────────────────────────────────────────────────────────
+
+  goToPage(page: number): void {
+    if (page < 0 || page >= this.totalPages) return;
+    this.currentPage = page;
+    this.loadPage();
+  }
+
+  get pages(): number[] {
+    const total = this.totalPages;
+    const cur   = this.currentPage;
+    const delta = 2;
+    const range: number[] = [];
+    for (let i = Math.max(0, cur - delta); i <= Math.min(total - 1, cur + delta); i++) {
+      range.push(i);
+    }
+    return range;
+  }
+
+  get startRecord(): number { return this.totalElements === 0 ? 0 : this.currentPage * this.pageSize + 1; }
+  get endRecord():   number { return Math.min((this.currentPage + 1) * this.pageSize, this.totalElements); }
+
+  // ── Filtros ───────────────────────────────────────────────────────────────
+
+  filterSuppliersForFilter(searchText: string): void {
     this.supplierFilterSearchText = searchText;
     this.supplierActiveIndex = -1;
     if (!searchText.trim()) {
@@ -70,32 +153,29 @@ export class PurchaseInvoicesListPageComponent implements OnInit {
       this.showSupplierFilterDropdown = false;
       return;
     }
-    
-    const query = searchText.toLowerCase();
-    this.filteredSuppliersForFilter = this.suppliers.filter(s => {
-      const name = (s.name || '').toLowerCase();
-      const idNumber = (s.idNumber || '').toLowerCase();
-      const docType = (s.documentType || '').toLowerCase();
-      return name.includes(query) || idNumber.includes(query) || docType.includes(query);
-    });
+    const q = searchText.toLowerCase();
+    this.filteredSuppliersForFilter = this.suppliers.filter(s =>
+      (s.name || '').toLowerCase().includes(q) ||
+      (s.idNumber || '').toLowerCase().includes(q)
+    );
     this.showSupplierFilterDropdown = this.filteredSuppliersForFilter.length > 0;
   }
 
-  selectSupplierForFilter(supplier: Supplier) {
+  selectSupplierForFilter(supplier: Supplier): void {
     this.selectedSupplierForFilter = supplier;
-    this.supplierFilterSearchText = `${supplier.name} (${supplier.documentType} ${supplier.idNumber})`;
+    this.supplierFilterSearchText  = `${supplier.name} (${supplier.documentType} ${supplier.idNumber})`;
     this.filterForm.patchValue({ supplierId: supplier.id });
     this.showSupplierFilterDropdown = false;
   }
 
-  clearSupplierFilterSelection() {
+  clearSupplierFilterSelection(): void {
     this.selectedSupplierForFilter = null;
-    this.supplierFilterSearchText = '';
+    this.supplierFilterSearchText  = '';
     this.filterForm.patchValue({ supplierId: '' });
     this.filteredSuppliersForFilter = this.suppliers;
   }
 
-  onSupplierKeydown(event: KeyboardEvent) {
+  onSupplierKeydown(event: KeyboardEvent): void {
     if (!this.showSupplierFilterDropdown) return;
     if (event.key === 'ArrowDown') {
       event.preventDefault();
@@ -109,7 +189,6 @@ export class PurchaseInvoicesListPageComponent implements OnInit {
       event.preventDefault();
       this.selectSupplierForFilter(this.filteredSuppliersForFilter[this.supplierActiveIndex]);
     } else if (event.key === 'Escape') {
-      event.preventDefault();
       this.showSupplierFilterDropdown = false;
       this.supplierActiveIndex = -1;
     }
@@ -121,222 +200,80 @@ export class PurchaseInvoicesListPageComponent implements OnInit {
     item?.scrollIntoView({ block: 'nearest' });
   }
 
-  hideSupplierDropdownDelayed() {
+  hideSupplierDropdownDelayed(): void {
     setTimeout(() => { this.showSupplierFilterDropdown = false; this.supplierActiveIndex = -1; }, 200);
   }
 
-  loadInvoices() {
-    this.purchasesService.list().subscribe(res => {
-      console.log('Facturas recibidas del backend:', res);
-      this.invoices = res.map((invoice: any) => {
-        console.log('Procesando factura:', invoice);
-        
-        // Mapear invoiceDate a emissionDate si viene del backend
-        if (invoice.invoiceDate && !invoice.emissionDate) {
-          invoice.emissionDate = invoice.invoiceDate;
-        }
-        
-        // Calcular total si no viene del backend (subtotal + IVA + flete)
-        if (!invoice.total || invoice.total === 0) {
-          invoice.total = (invoice.items || []).reduce((sum: number, item: any) => 
-            sum + ((item.totalCost || (item.quantity * item.unitCost) || 0) + (item.vatAmount || 0) + (item.freightAmount || 0)), 0
-          );
-        }
-        
-        // Resolver supplier si viene como ID o está incompleto
-        if (typeof invoice.supplier === 'string') {
-          const supplierId = invoice.supplier;
-          const supplierObj = this.suppliers.find(s => s.id === supplierId);
-          if (supplierObj) {
-            invoice.supplier = supplierObj;
-          }
-        } else if (invoice.supplier && !invoice.supplier.name) {
-          // Si supplier es un objeto pero no tiene name, intentar completarlo
-          const supplierId = invoice.supplier.id;
-          const supplierObj = this.suppliers.find(s => s.id === supplierId);
-          if (supplierObj) {
-            invoice.supplier = supplierObj;
-          }
-        }
-        
-        // Validar que emissionDate y paymentType existan después del mapeo
-        if (!invoice.emissionDate) {
-          console.warn('Factura sin emissionDate/invoiceDate:', invoice);
-        }
-        if (!invoice.paymentType) {
-          console.warn('Factura sin paymentType:', invoice);
-        }
-        
-        return invoice;
-      }).sort((a: any, b: any) => {
-        // Ordenar por fecha de ingreso (createdAt) descendente - más recientes primero
-        const dateA = new Date(a.createdAt || 0).getTime();
-        const dateB = new Date(b.createdAt || 0).getTime();
-        return dateB - dateA;
-      });
-      console.log('Facturas procesadas:', this.invoices);
-      this.applyFilters();
-    });
-  }
+  openProductModal(): void { this.productsSearchModalComp?.openModal(); }
 
-  applyFilters() {
-    const filters = this.filterForm.value;
-    let filtered = [...this.invoices];
-
-    // Filtrar por fecha de inicio (fecha de ingreso)
-    if (filters.startDate) {
-      filtered = filtered.filter(inv => {
-        if (!inv.createdAt) return false;
-        const createdDate = inv.createdAt.split('T')[0]; // Extraer solo la fecha YYYY-MM-DD
-        return createdDate >= filters.startDate;
-      });
-    }
-
-    // Filtrar por fecha de fin (fecha de ingreso)
-    if (filters.endDate) {
-      filtered = filtered.filter(inv => {
-        if (!inv.createdAt) return false;
-        const createdDate = inv.createdAt.split('T')[0]; // Extraer solo la fecha YYYY-MM-DD
-        return createdDate <= filters.endDate;
-      });
-    }
-
-    // Filtrar por proveedor
-    if (filters.supplierId) {
-      filtered = filtered.filter(inv => {
-        if (!inv.supplier || !inv.supplier.id) return false;
-        return inv.supplier.id === filters.supplierId;
-      });
-    }
-
-    // Filtrar por producto seleccionado
-    if (this.selectedProduct) {
-      filtered = filtered.filter(inv => {
-        return inv.items.some(item => {
-          // Buscar por productId o por barcode
-          return item.productId === this.selectedProduct!.id || 
-                 item.presentationBarcode === this.selectedProduct!.barcode;
-        });
-      });
-    }
-
-    this.filteredInvoices = filtered;
-  }
-
-  clearFilters() {
-    this.selectedProduct = null;
-    this.selectedSupplierForFilter = null;
-    this.supplierFilterSearchText = '';
-    this.filteredSuppliersForFilter = this.suppliers;
-    this.filterForm.reset({
-      startDate: '',
-      endDate: '',
-      supplierId: '',
-      productSearch: ''
-    });
-  }
-
-  openProductModal() {
-    this.productsSearchModalComp?.openModal();
-  }
-
-  onProductSelected(product: Product) {
+  onProductSelected(product: Product): void {
     this.selectedProduct = product;
-    const searchText = `${product.description || ''} - ${product.barcode || ''}`;
-    this.filterForm.patchValue({ productSearch: searchText });
+    this.filterForm.patchValue({ productSearch: `${product.description || ''} - ${product.barcode || ''}` });
+    // No dispara búsqueda automática — el usuario usa el botón Buscar
   }
 
-  clearProductFilter() {
+  clearProductFilter(): void {
     this.selectedProduct = null;
     this.filterForm.patchValue({ productSearch: '' });
   }
 
-  toggleInvoiceDetails(invoiceId: string | undefined) {
+  clearFilters(): void {
+    this.selectedProduct            = null;
+    this.selectedSupplierForFilter  = null;
+    this.supplierFilterSearchText   = '';
+    this.filteredSuppliersForFilter = this.suppliers;
+    this.filterForm.reset({ startDate: '', endDate: '', supplierId: '', productSearch: '', invoiceNumber: '' });
+    this.currentPage = 0;
+    this.loadPage(); // Limpiar sí recarga inmediatamente
+  }
+
+  // ── Detalle ───────────────────────────────────────────────────────────────
+
+  toggleInvoiceDetails(invoiceId: string | undefined): void {
     if (!invoiceId) return;
     this.expandedInvoiceId = this.expandedInvoiceId === invoiceId ? null : invoiceId;
   }
 
-  isExpanded(invoiceId: string | undefined): boolean {
-    return invoiceId === this.expandedInvoiceId;
-  }
+  isExpanded(invoiceId: string | undefined): boolean { return invoiceId === this.expandedInvoiceId; }
 
-  goToCreateInvoice() {
-    this.router.navigate(['/main/compras/facturas']);
-  }
+  // ── Navegación ────────────────────────────────────────────────────────────
 
-  goToCostHistory() {
-    this.router.navigate(['/main/compras/facturas/historial-costos']);
-  }
+  goToCreateInvoice():  void { this.router.navigate(['/main/compras/facturas']); }
+  goToCostHistory():    void { this.router.navigate(['/main/compras/facturas/historial-costos']); }
+  editInvoice(id: string | undefined): void { if (id) this.router.navigate(['/main/compras/facturas/editar', id]); }
 
-  editInvoice(invoiceId: string | undefined) {
-    if (!invoiceId) return;
-    this.router.navigate(['/main/compras/facturas/editar', invoiceId]);
-  }
+  openLinkPaymentsModal(invoice: PurchaseInvoice): void { this.linkPaymentsModal?.open(invoice); }
+  onPaymentsLinked(): void { this.loadPage(); }
 
-  getSupplierName(invoice: PurchaseInvoice): string {
-    if (!invoice || !invoice.supplier) return 'N/A';
-    return invoice.supplier.name || 'N/A';
-  }
+  // ── Helpers display ───────────────────────────────────────────────────────
 
-  getSupplierDocument(invoice: PurchaseInvoice): string {
-    const s = invoice.supplier;
-    if (!s) return '';
-    return `${s.documentType || ''} ${s.idNumber || ''}`.trim();
-  }
+  getSupplierName(invoice: PurchaseInvoice): string { return invoice?.supplier?.name || 'N/A'; }
 
   formatDate(dateStr: string): string {
     if (!dateStr) return '';
-    
-    // Extraer solo la parte de fecha si viene con hora (YYYY-MM-DD o YYYY-MM-DDTHH:mm:ss)
     const datePart = dateStr.split('T')[0];
     const [year, month, day] = datePart.split('-');
-    
-    // Crear fecha en zona horaria local para evitar desfase
     const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
     return date.toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' });
   }
 
   formatCurrency(value: number | undefined | null): string {
-    const numValue = Number(value) || 0;
-    if (!isFinite(numValue)) return '$ 0';
-    return '$ ' + new Intl.NumberFormat('es-CO', { 
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(numValue);
-  }
-
-  getTotalInvoices(): number {
-    return this.filteredInvoices.length;
-  }
-
-  getTotalAmount(): number {
-    return this.filteredInvoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
-  }
-
-  openLinkPaymentsModal(invoice: PurchaseInvoice) {
-    this.linkPaymentsModal?.open(invoice);
-  }
-
-  onPaymentsLinked() {
-    this.loadInvoices();
+    const n = Number(value) || 0;
+    if (!isFinite(n)) return '$ 0';
+    return '$ ' + new Intl.NumberFormat('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
   }
 
   getPaymentStatusBadgeClass(status: string | undefined): string {
     switch (status) {
-      case 'PAGADO': return 'badge bg-success';
+      case 'PAGADO':      return 'badge bg-success';
       case 'SOBREPAGADO': return 'badge bg-danger';
-      case 'PARCIAL': return 'badge bg-warning text-dark';
-      default: return 'badge bg-secondary';
+      case 'PARCIAL':     return 'badge bg-warning text-dark';
+      default:            return 'badge bg-secondary';
     }
   }
 
   getPaymentStatusLabel(status: string | undefined): string {
-    const labels: Record<string, string> = {
-      'PENDIENTE': 'Pendiente',
-      'PARCIAL': 'Parcial',
-      'PAGADO': 'Pagado',
-      'SOBREPAGADO': 'Sobrepagado'
-    };
+    const labels: Record<string, string> = { PENDIENTE: 'Pendiente', PARCIAL: 'Parcial', PAGADO: 'Pagado', SOBREPAGADO: 'Sobrepagado' };
     return labels[status || ''] || 'Pendiente';
   }
 }
