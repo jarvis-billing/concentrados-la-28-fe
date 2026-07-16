@@ -3,6 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { urlConfig } from '../../../config/config';
 import {
+  HideUncountedResultDto,
   InventoryCountReportDto,
   InventoryCountSessionDto,
   RecordCountRequest,
@@ -47,5 +48,9 @@ export class InventoryCountService {
 
   getReport(sessionId: string): Observable<InventoryCountReportDto> {
     return this.http.get<InventoryCountReportDto>(`${this.base}/sessions/${sessionId}/report`);
+  }
+
+  hideUncounted(sessionId: string): Observable<HideUncountedResultDto> {
+    return this.http.post<HideUncountedResultDto>(`${this.base}/sessions/${sessionId}/hide-uncounted`, {});
   }
 }

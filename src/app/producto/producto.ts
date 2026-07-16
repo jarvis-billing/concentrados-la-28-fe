@@ -40,6 +40,7 @@ export class Presentation {
     isFixedAmount?: boolean;     // true when this presentation has a fixed amount (e.g., bulto)
     fixedAmount?: number;        // the fixed amount (e.g., 40 kg for bulto, 20 kg for medio bulto)
     packageType?: string;        // tipo de embalaje físico (ROLLO, BULTO, CAJA, GALON, etc.)
+    active?: boolean;            // false = oculta de búsquedas normales (marcada en conteo físico)
 }
 
 export class Stock {

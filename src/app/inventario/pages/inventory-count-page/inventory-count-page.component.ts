@@ -218,7 +218,7 @@ export class InventoryCountPageComponent implements OnInit, AfterViewInit, OnDes
       for (const pres of prod.presentations || []) {
         const combined = this.buildLabel(prod.description, pres.label).toLowerCase();
         const barcode  = (pres.barcode || '').toLowerCase();
-        if (combined.includes(q) || barcode.includes(q)) {
+        if ((combined.includes(q) || barcode.includes(q)) && pres.active !== false) {
           results.push({ product: prod, presentation: pres });
         }
       }
@@ -341,6 +341,7 @@ export class InventoryCountPageComponent implements OnInit, AfterViewInit, OnDes
       isBulk:        [presentation.isBulk ?? false],
       isFixedAmount: [presentation.isFixedAmount ?? false],
       fixedAmount:   [presentation.fixedAmount ?? null],
+      active:        [presentation.active !== false],
     });
     this.showEditSheet = true;
   }
@@ -394,6 +395,7 @@ export class InventoryCountPageComponent implements OnInit, AfterViewInit, OnDes
           isBulk:        v.isBulk,
           isFixedAmount: v.isFixedAmount,
           fixedAmount:   v.isFixedAmount && v.fixedAmount != null ? +v.fixedAmount : undefined,
+          active:        v.active,
         };
 
         if (!presentation.id) {
@@ -489,7 +491,9 @@ export class InventoryCountPageComponent implements OnInit, AfterViewInit, OnDes
     const code = barcode.trim().toLowerCase();
     for (const prod of this.allProducts) {
       for (const pres of prod.presentations || []) {
-        if ((pres.barcode || '').toLowerCase() === code) return { product: prod, presentation: pres };
+        if ((pres.barcode || '').toLowerCase() === code && pres.active !== false) {
+          return { product: prod, presentation: pres };
+        }
       }
     }
     return null;

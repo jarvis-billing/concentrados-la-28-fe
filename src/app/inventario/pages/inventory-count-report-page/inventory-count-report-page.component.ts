@@ -3,6 +3,7 @@ import { CommonModule, DecimalPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { InventoryCountService } from '../../services/inventory-count.service';
 import {
+  HideUncountedResultDto,
   InventoryCountReportDto,
   InventoryCountSessionDto,
 } from '../../models/inventory-count';
@@ -36,6 +37,8 @@ export class InventoryCountReportPageComponent implements OnInit {
   // Filtro texto dentro del reporte
   countedFilter = '';
   uncountedFilter = '';
+
+  isHiding = false;
 
   ngOnInit(): void {
     this.loadSessions();
@@ -78,6 +81,34 @@ export class InventoryCountReportPageComponent implements OnInit {
   clearSelection(): void {
     this.selectedSession = null;
     this.report = null;
+  }
+
+  hideUncounted(): void {
+    if (!this.selectedSession || this.isHiding) return;
+    const count = this.report?.totalUncounted ?? 0;
+    const active = this.report?.uncounted.filter(u => u.active !== false).length ?? 0;
+    if (active === 0) {
+      toast.info('No hay presentaciones activas sin contar para ocultar.');
+      return;
+    }
+    const ok = confirm(
+      `¿Marcar ${active} presentación(es) sin contar como inactivas?\n` +
+      `Quedarán ocultas en búsquedas normales pero visibles en reportes.`
+    );
+    if (!ok) return;
+    this.isHiding = true;
+    this.countService.hideUncounted(this.selectedSession.id).subscribe({
+      next: (result: HideUncountedResultDto) => {
+        this.isHiding = false;
+        toast.success(result.message);
+        // Recargar reporte para reflejar active=false en la lista
+        this.selectSession(this.selectedSession!);
+      },
+      error: () => {
+        this.isHiding = false;
+        toast.error('Error al ocultar presentaciones');
+      },
+    });
   }
 
   statusLabel(status: string): string {

@@ -37,9 +37,17 @@ export interface RecordCountRequest {
 export interface UncountedProductDto {
   barcode: string;
   productId: string;
+  presentationId?: string;
   description: string;
   presentationLabel?: string;
   systemStock: number;
+  /** false = marcada como inactiva/oculta */
+  active?: boolean;
+}
+
+export interface HideUncountedResultDto {
+  hidden: number;
+  message: string;
 }
 
 export interface InventoryCountReportDto {

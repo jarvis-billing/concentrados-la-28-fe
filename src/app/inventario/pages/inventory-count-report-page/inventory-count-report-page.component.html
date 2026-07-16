@@ -222,9 +222,21 @@
       @if (activeTab === 'uncounted') {
         <div class="card border-0 shadow-sm">
           <div class="card-header bg-white border-bottom py-2">
-            <input type="text" class="form-control form-control-sm"
-                   placeholder="Filtrar por nombre o código…"
-                   [(ngModel)]="uncountedFilter">
+            <div class="d-flex gap-2 align-items-center">
+              <input type="text" class="form-control form-control-sm flex-grow-1"
+                     placeholder="Filtrar por nombre o código…"
+                     [(ngModel)]="uncountedFilter">
+              <button class="btn btn-warning btn-sm text-nowrap"
+                      [disabled]="isHiding"
+                      (click)="hideUncounted()">
+                @if (isHiding) {
+                  <span class="spinner-border spinner-border-sm me-1"></span>
+                } @else {
+                  <i class="bi bi-eye-slash me-1"></i>
+                }
+                Ocultar no contados
+              </button>
+            </div>
           </div>
           <div class="card-body p-0">
             @if (filteredUncounted.length === 0) {
@@ -245,9 +257,14 @@
                   </thead>
                   <tbody>
                     @for (u of filteredUncounted; track u.barcode) {
-                      <tr>
+                      <tr [class.table-secondary]="u.active === false" [class.opacity-50]="u.active === false">
                         <td class="ps-3">
-                          <div class="fw-medium small">{{ u.description }}</div>
+                          <div class="fw-medium small d-flex align-items-center gap-1">
+                            {{ u.description }}
+                            @if (u.active === false) {
+                              <span class="badge bg-secondary" style="font-size:0.65rem">Inactivo</span>
+                            }
+                          </div>
                           @if (u.presentationLabel) {
                             <div class="text-muted" style="font-size:0.72rem">{{ u.presentationLabel }}</div>
                           }
