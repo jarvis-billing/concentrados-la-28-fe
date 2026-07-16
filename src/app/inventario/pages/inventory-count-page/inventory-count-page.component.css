@@ -86,6 +86,17 @@
 .search-item:hover, .search-item.active { background: #f0f6ff; }
 .search-item-name { font-size: 0.85rem; font-weight: 500; }
 .search-item-sub { font-size: 0.75rem; color: #6c757d; margin-top: 2px; }
+.search-item-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.product-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.68rem;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+.tag-brand    { background: #fff3cd; color: #856404; border: 1px solid #ffc10740; }
+.tag-category { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
 
 /* ── Tarjeta de conteo ─────────────────────────────────────────────────── */
 .count-card {
@@ -96,7 +107,27 @@
   margin-bottom: 0.75rem;
 }
 .count-card-name { font-size: 0.9rem; font-weight: 600; margin-bottom: 2px; }
-.count-card-code { font-size: 0.75rem; color: #6c757d; margin-bottom: 0.75rem; }
+.count-card-code {
+  font-size: 0.75rem;
+  color: #6c757d;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.btn-edit-inline {
+  background: none;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 1px 6px;
+  color: #6c757d;
+  font-size: 0.75rem;
+  cursor: pointer;
+  line-height: 1.4;
+  transition: background 0.15s, color 0.15s;
+}
+.btn-edit-inline:hover { background: #f0f6ff; color: #0d6efd; border-color: #0d6efd; }
 
 .qty-row {
   display: flex;
@@ -172,4 +203,69 @@
   display: flex;
   gap: 0.5rem;
   z-index: 100;
+}
+
+/* ── Bottom sheet: editar producto ─────────────────────────────────────── */
+.edit-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 200;
+}
+.edit-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-width: 520px;
+  margin: 0 auto;
+  background: #fff;
+  border-radius: 16px 16px 0 0;
+  z-index: 201;
+  max-height: 92vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  animation: slideUp 0.22s ease-out;
+}
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.edit-sheet-handle {
+  width: 36px;
+  height: 4px;
+  background: #dee2e6;
+  border-radius: 2px;
+  margin: 10px auto 4px;
+}
+.edit-sheet-header {
+  padding: 0.4rem 1rem 0.65rem;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.edit-sheet-body {
+  padding: 0.75rem 1rem 0.5rem;
+}
+.edit-section-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6c757d;
+  margin-top: 1rem;
+  margin-bottom: 0.4rem;
+  padding-bottom: 0.2rem;
+  border-bottom: 1px solid #f5f5f5;
+}
+.edit-section-label:first-child { margin-top: 0; }
+.edit-sheet-footer {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  gap: 0.5rem;
+  position: sticky;
+  bottom: 0;
+  background: #fff;
 }

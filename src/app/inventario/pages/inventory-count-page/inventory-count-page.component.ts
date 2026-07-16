@@ -9,12 +9,14 @@ import {
   ViewChild,
 } from '@angular/core';
 import { CommonModule, DecimalPipe } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { toast } from 'ngx-sonner';
 
 import { Product, Presentation, UnitMeasure, UnitMeasureLabels } from '../../../producto/producto';
 import { ProductoService } from '../../../producto/producto.service';
+import { CatalogService } from '../../../producto/catalog.service';
+import { getPackageTypes, findPackageType, PackageTypeConfig } from '../../../producto/package-type.config';
 import { LoginUserService } from '../../../auth/login/loginUser.service';
 import { InventoryCountService } from '../../services/inventory-count.service';
 import {
@@ -26,17 +28,23 @@ import {
 @Component({
   selector: 'app-inventory-count-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, DecimalPipe],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, DecimalPipe],
   templateUrl: './inventory-count-page.component.html',
   styleUrl: './inventory-count-page.component.css',
 })
 export class InventoryCountPageComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('searchInputRef') searchInputRef!: ElementRef<HTMLInputElement>;
 
-  private countService    = inject(InventoryCountService);
-  private productoService = inject(ProductoService);
+  private countService     = inject(InventoryCountService);
+  private productoService  = inject(ProductoService);
+  private catalogService   = inject(CatalogService);
   private loginUserService = inject(LoginUserService);
-  private router = inject(Router);
+  private router           = inject(Router);
+  private fb               = inject(FormBuilder);
+
+  // Catálogo de marcas y categorías para los selects del editor
+  brands$     = this.catalogService.brands$;
+  categories$ = this.catalogService.categories$;
 
   // Estado sesión
   session: InventoryCountSessionDto | null = null;
@@ -58,6 +66,12 @@ export class InventoryCountPageComponent implements OnInit, AfterViewInit, OnDes
   private barcodeBuffer = '';
   private barcodeStartTime = 0;
   private barcodeClearTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // Bottom sheet — edición rápida de producto/presentación
+  showEditSheet           = false;
+  isSavingEdit            = false;
+  editForm!: FormGroup;
+  availablePackageTypes: PackageTypeConfig[] = [];
 
   // Touch — distinguir scroll de tap para no cerrar el dropdown mientras se hace scroll
   private touchStartY = 0;
@@ -304,6 +318,162 @@ export class InventoryCountPageComponent implements OnInit, AfterViewInit, OnDes
     this.countedQty = null;
     this.searchQuery = '';
     this.showSearchResults = false;
+  }
+
+  // ── Editor rápido (bottom sheet) ─────────────────────────────────────────
+
+  openEditSheet(): void {
+    if (!this.selectedProduct) return;
+    const { product, presentation } = this.selectedProduct;
+    this.availablePackageTypes = getPackageTypes(product.saleType ?? 'OTHER');
+    this.editForm = this.fb.group({
+      // Producto
+      description: [product.description, Validators.required],
+      brand:       [product.brand || ''],
+      category:    [product.category || ''],
+      // Presentación
+      label:         [presentation.label || ''],
+      unitMeasure:   [presentation.unitMeasure || 'UNIDAD'],
+      barcode:       [presentation.barcode, Validators.required],
+      salePrice:     [this._formatPrice(presentation.salePrice)],
+      costPrice:     [this._formatPrice(presentation.costPrice)],
+      packageType:   [presentation.packageType || ''],
+      isBulk:        [presentation.isBulk ?? false],
+      isFixedAmount: [presentation.isFixedAmount ?? false],
+      fixedAmount:   [presentation.fixedAmount ?? null],
+    });
+    this.showEditSheet = true;
+  }
+
+  /** Cuando cambia el embalaje, deriva isBulk e isFixedAmount automáticamente */
+  onPackageTypeChange(): void {
+    const key = this.editForm.get('packageType')?.value;
+    if (!key || !this.selectedProduct) return;
+    const cfg = findPackageType(this.selectedProduct.product.saleType ?? 'OTHER', key);
+    if (!cfg) return;
+    const isFixed = cfg.saleMode === 'FIXED_FULL' || cfg.saleMode === 'FIXED_HALF';
+    this.editForm.patchValue({
+      isBulk:        cfg.saleMode === 'BULK',
+      isFixedAmount: isFixed,
+      fixedAmount:   isFixed ? (this.editForm.get('fixedAmount')?.value ?? null) : null,
+    });
+  }
+
+  get isFixedAmountSelected(): boolean {
+    return !!this.editForm?.get('isFixedAmount')?.value;
+  }
+
+  closeEditSheet(): void {
+    this.showEditSheet = false;
+  }
+
+  saveEdit(): void {
+    if (!this.selectedProduct || this.editForm.invalid || this.isSavingEdit) return;
+    const { product, presentation } = this.selectedProduct;
+    const v = this.editForm.getRawValue();
+    this.isSavingEdit = true;
+
+    // 1) Actualizar campos del producto (PUT con objeto completo)
+    const updatedProduct: Product = {
+      ...product,
+      description: v.description,
+      brand:       v.brand,
+      category:    v.category,
+    };
+
+    this.productoService.update(updatedProduct, product.id).subscribe({
+      next: (savedProd) => {
+        // 2) Actualizar presentación vía PATCH
+        const presPatch: Partial<Presentation> = {
+          label:         v.label,
+          barcode:       v.barcode,
+          salePrice:     this._parsePrice(v.salePrice),
+          costPrice:     this._parsePrice(v.costPrice),
+          unitMeasure:   v.unitMeasure,
+          packageType:   v.packageType || undefined,
+          isBulk:        v.isBulk,
+          isFixedAmount: v.isFixedAmount,
+          fixedAmount:   v.isFixedAmount && v.fixedAmount != null ? +v.fixedAmount : undefined,
+        };
+
+        if (!presentation.id) {
+          // Sin ID de presentación: solo refleja cambios en memoria
+          this._applyUpdate(savedProd, undefined, presPatch);
+          this.isSavingEdit = false;
+          this.showEditSheet = false;
+          toast.success('Producto actualizado');
+          return;
+        }
+
+        this.productoService.updatePresentation(product.id, presentation.id, presPatch).subscribe({
+          next: (finalProd) => {
+            this._applyUpdate(finalProd, presentation.id);
+            this.isSavingEdit = false;
+            this.showEditSheet = false;
+            toast.success('Producto actualizado correctamente');
+          },
+          error: () => {
+            this.isSavingEdit = false;
+            toast.error('Error al actualizar la presentación');
+          },
+        });
+      },
+      error: () => {
+        this.isSavingEdit = false;
+        toast.error('Error al actualizar el producto');
+      },
+    });
+  }
+
+  // ── Helpers de formato de precios ────────────────────────────────────────
+
+  /** Formatea un número como moneda COP (ej. 1250000 → "1.250.000") */
+  _formatPrice(value: number | null | undefined): string {
+    const n = Number(value) || 0;
+    if (n === 0) return '';
+    return new Intl.NumberFormat('es-CO', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(n);
+  }
+
+  /** Parsea string formateado de vuelta a número ("1.250.000" → 1250000) */
+  private _parsePrice(val: any): number {
+    if (typeof val === 'number') return val;
+    const digits = String(val ?? '').replace(/\./g, '').replace(',', '.');
+    return parseFloat(digits) || 0;
+  }
+
+  /** Formatea en tiempo real mientras el usuario escribe en un campo de precio */
+  onPriceInput(event: Event, controlName: string): void {
+    const input = event.target as HTMLInputElement;
+    const digits = input.value.replace(/\D/g, '');
+    const num    = parseInt(digits, 10) || 0;
+    const formatted = num > 0
+      ? new Intl.NumberFormat('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num)
+      : '';
+    // Actualizar el input visualmente y el control del formulario
+    input.value = formatted;
+    this.editForm.get(controlName)?.setValue(formatted, { emitEvent: false });
+  }
+
+  /** Actualiza allProducts y selectedProduct con la respuesta del servidor */
+  private _applyUpdate(prod: Product, presId?: string, fallbackPatch?: Partial<Presentation>): void {
+    const idx = this.allProducts.findIndex(p => p.id === prod.id);
+    if (idx >= 0) this.allProducts[idx] = prod;
+
+    const pres = presId
+      ? prod.presentations?.find(p => p.id === presId)
+      : prod.presentations?.find(p => p.barcode === this.selectedProduct?.presentation.barcode);
+
+    if (pres) {
+      this.selectedProduct = { product: prod, presentation: pres };
+    } else if (fallbackPatch) {
+      this.selectedProduct = {
+        product: prod,
+        presentation: { ...this.selectedProduct!.presentation, ...fallbackPatch } as Presentation,
+      };
+    }
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
