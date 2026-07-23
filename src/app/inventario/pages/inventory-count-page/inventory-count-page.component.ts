@@ -20,27 +20,52 @@ import { getPackageTypes, findPackageType, PackageTypeConfig } from '../../../pr
 import { LoginUserService } from '../../../auth/login/loginUser.service';
 import { InventoryCountService } from '../../services/inventory-count.service';
 import {
+  BulkCountRequest,
   InventoryCountEntryDto,
   InventoryCountSessionDto,
   RecordCountRequest,
 } from '../../models/inventory-count';
+import jsPDF from 'jspdf';
+import JsBarcode from 'jsbarcode';
+import { LabelConfig } from '../../models/label-config';
+import { LabelConfigService } from '../../services/label-config.service';
+import { LabelConfigModalComponent } from '../../components/label-config-modal/label-config-modal.component';
+
+interface LabelSheetItem {
+  barcode: string;
+  description: string;
+  brand: string;
+  salePrice: number | string;
+  copies: number;
+}
+
+const UNIT_ABBREVIATIONS: Record<string, string> = {
+  [UnitMeasure.KILOGRAMOS]: 'Kg',
+  [UnitMeasure.METROS]: 'Metro',
+  [UnitMeasure.CENTIMETROS]: 'Cm',
+  [UnitMeasure.LITROS]: 'Lt',
+  [UnitMeasure.MILILITROS]: 'CC',
+  [UnitMeasure.UNIDAD]: 'Und',
+};
 
 @Component({
   selector: 'app-inventory-count-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, DecimalPipe],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, DecimalPipe, LabelConfigModalComponent],
   templateUrl: './inventory-count-page.component.html',
   styleUrl: './inventory-count-page.component.css',
 })
 export class InventoryCountPageComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('searchInputRef') searchInputRef!: ElementRef<HTMLInputElement>;
+  @ViewChild('labelConfigModal') labelConfigModal!: LabelConfigModalComponent;
 
-  private countService     = inject(InventoryCountService);
-  private productoService  = inject(ProductoService);
-  private catalogService   = inject(CatalogService);
-  private loginUserService = inject(LoginUserService);
-  private router           = inject(Router);
-  private fb               = inject(FormBuilder);
+  private countService        = inject(InventoryCountService);
+  private productoService     = inject(ProductoService);
+  private catalogService      = inject(CatalogService);
+  private loginUserService    = inject(LoginUserService);
+  private labelConfigService  = inject(LabelConfigService);
+  private router              = inject(Router);
+  private fb                  = inject(FormBuilder);
 
   // Catálogo de marcas y categorías para los selects del editor
   brands$     = this.catalogService.brands$;
@@ -58,9 +83,15 @@ export class InventoryCountPageComponent implements OnInit, AfterViewInit, OnDes
   showSearchResults = false;
   activeSearchIndex = -1;
 
-  // Producto seleccionado para contar
+  // Producto seleccionado para contar (modo single)
   selectedProduct: { product: Product; presentation: Presentation } | null = null;
   countedQty: number | null = null;
+
+  // Modo bulk — producto con múltiples presentaciones activas
+  isBulkMode = false;
+  bulkProduct: Product | null = null;
+  bulkPresentations: Presentation[] = [];
+  bulkQtys: { [barcode: string]: number | null } = {};
 
   // Escáner HID
   private barcodeBuffer = '';
@@ -72,6 +103,15 @@ export class InventoryCountPageComponent implements OnInit, AfterViewInit, OnDes
   isSavingEdit            = false;
   editForm!: FormGroup;
   availablePackageTypes: PackageTypeConfig[] = [];
+
+  // Flag para saber si el sheet se abrió desde modo bulk y restaurar después
+  private editFromBulkMode = false;
+
+  // ── Hoja de impresión de etiquetas ───────────────────────────────────────
+  showLabelSheet     = false;
+  labelSheetItems:   LabelSheetItem[] = [];
+  isGeneratingLabels = false;
+  labelConfig: LabelConfig = {} as LabelConfig;
 
   // Touch — distinguir scroll de tap para no cerrar el dropdown mientras se hace scroll
   private touchStartY = 0;
@@ -241,15 +281,37 @@ export class InventoryCountPageComponent implements OnInit, AfterViewInit, OnDes
   }
 
   selectResult(result: { product: Product; presentation: Presentation }): void {
-    this.selectedProduct = result;
-    this.countedQty = null;
-    this.searchQuery = '';
+    this.searchQuery       = '';
     this.showSearchResults = false;
 
-    const existing = this.session?.entries.find(e => e.barcode === result.presentation.barcode);
-    if (existing) this.countedQty = existing.countedQty;
+    const activePres = (result.product.presentations || []).filter(p => p.active !== false);
 
-    setTimeout(() => document.getElementById('qty-input')?.focus(), 100);
+    if (activePres.length >= 2) {
+      // ── Modo bulk: mostrar todas las presentaciones activas del producto ──
+      this.isBulkMode       = true;
+      this.bulkProduct      = result.product;
+      this.bulkPresentations = activePres;
+      this.bulkQtys         = {};
+      this.selectedProduct  = null;
+      this.countedQty       = null;
+
+      // Pre-llenar con lo que ya se haya contado en esta sesión
+      for (const pres of activePres) {
+        const counted = this.session?.entries.find(e => e.barcode === pres.barcode);
+        this.bulkQtys[pres.barcode!] = counted ? counted.countedQty : null;
+      }
+    } else {
+      // ── Modo single: comportamiento original ──
+      this.isBulkMode      = false;
+      this.bulkProduct     = null;
+      this.selectedProduct = result;
+      this.countedQty      = null;
+
+      const existing = this.session?.entries.find(e => e.barcode === result.presentation.barcode);
+      if (existing) this.countedQty = existing.countedQty;
+
+      setTimeout(() => document.getElementById('qty-input')?.focus(), 100);
+    }
   }
 
   private processBarcode(barcode: string): void {
@@ -303,7 +365,7 @@ export class InventoryCountPageComponent implements OnInit, AfterViewInit, OnDes
     this.isSaving = true;
     this.countService.recordCount(this.session.id, request).subscribe({
       next: (s) => {
-        this.session = s;
+        this.session  = s;
         this.isSaving = false;
         toast.success(`✓ ${request.description} — ${this.countedQty} ${this.unitLabel}`);
         this.clearSelection();
@@ -315,12 +377,84 @@ export class InventoryCountPageComponent implements OnInit, AfterViewInit, OnDes
 
   clearSelection(): void {
     this.selectedProduct = null;
-    this.countedQty = null;
-    this.searchQuery = '';
+    this.countedQty      = null;
+    this.searchQuery     = '';
     this.showSearchResults = false;
+    this.clearBulkMode();
+  }
+
+  // ── Conteo bulk (múltiples presentaciones) ───────────────────────────────
+
+  confirmBulkCount(): void {
+    if (!this.session || !this.bulkProduct || this.isSaving) return;
+
+    // Validar que TODAS las presentaciones estén llenas (0 es válido, null/undefined no)
+    const unfilled = this.bulkPresentations.filter(p => this.bulkQtys[p.barcode!] == null);
+    if (unfilled.length > 0) {
+      toast.warning(
+        `Faltan ${unfilled.length} presentación(es) por llenar. Ingresa 0 si no hay existencias.`
+      );
+      return;
+    }
+
+    // Incluir TODAS las presentaciones (incluso las que tienen qty=0)
+    const requests: RecordCountRequest[] = this.bulkPresentations.map(pres => ({
+      barcode:           pres.barcode!,
+      productId:         this.bulkProduct!.id,
+      description:       this.buildLabel(this.bulkProduct!.description, pres.label),
+      presentationLabel: pres.label || '',
+      countedQty:        this.bulkQtys[pres.barcode!]!,
+    }));
+
+    const bulkRequest: BulkCountRequest = { entries: requests };
+    this.isSaving = true;
+
+    this.countService.recordBulkCount(this.session.id, bulkRequest).subscribe({
+      next: (s) => {
+        this.session  = s;
+        this.isSaving = false;
+        toast.success(`✓ ${this.bulkProduct!.description} — ${requests.length} presentación(es) guardadas`);
+        this.clearBulkMode();
+        setTimeout(() => this.searchInputRef?.nativeElement?.focus(), 150);
+      },
+      error: () => { this.isSaving = false; toast.error('Error al registrar el conteo'); },
+    });
+  }
+
+  clearBulkMode(): void {
+    this.isBulkMode        = false;
+    this.bulkProduct       = null;
+    this.bulkPresentations = [];
+    this.bulkQtys          = {};
+  }
+
+  incrementBulkQty(barcode: string, step: number): void {
+    const current = this.bulkQtys[barcode] ?? 0;
+    this.bulkQtys[barcode] = parseFloat((current + step).toFixed(3));
+  }
+
+  decrementBulkQty(barcode: string, step: number): void {
+    const current = this.bulkQtys[barcode] ?? 0;
+    this.bulkQtys[barcode] = parseFloat((Math.max(0, current - step)).toFixed(3));
+  }
+
+  bulkQtyStep(pres: Presentation): number {
+    return pres.unitMeasure === UnitMeasure.UNIDAD ? 1 : 0.5;
+  }
+
+  bulkUnitLabel(pres: Presentation): string {
+    return pres.unitMeasure ? (UnitMeasureLabels[pres.unitMeasure] ?? pres.unitMeasure) : '';
   }
 
   // ── Editor rápido (bottom sheet) ─────────────────────────────────────────
+
+  /** Abre el sheet de edición para una presentación específica del modo bulk */
+  openEditSheetForPresentation(pres: Presentation): void {
+    if (!this.bulkProduct) return;
+    this.editFromBulkMode = true;
+    this.selectedProduct  = { product: this.bulkProduct, presentation: pres };
+    this.openEditSheet();
+  }
 
   openEditSheet(): void {
     if (!this.selectedProduct) return;
@@ -365,7 +499,26 @@ export class InventoryCountPageComponent implements OnInit, AfterViewInit, OnDes
   }
 
   closeEditSheet(): void {
+    if (this.editFromBulkMode && this.selectedProduct) {
+      this._restoreBulkMode(this.selectedProduct.product);
+      this.editFromBulkMode = false;
+    }
     this.showEditSheet = false;
+  }
+
+  /** Restaura el modo bulk con el producto actualizado, preservando las qtys ingresadas */
+  private _restoreBulkMode(prod: Product): void {
+    const activePres = (prod.presentations || []).filter(p => p.active !== false);
+    const newQtys: { [barcode: string]: number | null } = {};
+    for (const pres of activePres) {
+      newQtys[pres.barcode!] = this.bulkQtys[pres.barcode!] ??
+        (this.session?.entries.find(e => e.barcode === pres.barcode)?.countedQty ?? null);
+    }
+    this.isBulkMode        = true;
+    this.bulkProduct       = prod;
+    this.bulkPresentations = activePres;
+    this.bulkQtys          = newQtys;
+    this.selectedProduct   = null;
   }
 
   saveEdit(): void {
@@ -411,6 +564,10 @@ export class InventoryCountPageComponent implements OnInit, AfterViewInit, OnDes
           next: (finalProd) => {
             this._applyUpdate(finalProd, presentation.id);
             this.isSavingEdit = false;
+            if (this.editFromBulkMode && this.selectedProduct) {
+              this._restoreBulkMode(finalProd);
+              this.editFromBulkMode = false;
+            }
             this.showEditSheet = false;
             toast.success('Producto actualizado correctamente');
           },
@@ -487,11 +644,32 @@ export class InventoryCountPageComponent implements OnInit, AfterViewInit, OnDes
     });
   }
 
+  /** Abre la tarjeta de conteo para editar un conteo ya registrado */
+  editEntry(entry: InventoryCountEntryDto): void {
+    const found = this.findByBarcodeIncludingInactive(entry.barcode);
+    if (!found) { toast.warning('Producto no encontrado en el catálogo'); return; }
+    this.selectResult(found);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
   private findByBarcode(barcode: string): { product: Product; presentation: Presentation } | null {
     const code = barcode.trim().toLowerCase();
     for (const prod of this.allProducts) {
       for (const pres of prod.presentations || []) {
         if ((pres.barcode || '').toLowerCase() === code && pres.active !== false) {
+          return { product: prod, presentation: pres };
+        }
+      }
+    }
+    return null;
+  }
+
+  /** Como findByBarcode pero también incluye presentaciones inactivas (para editar conteos) */
+  private findByBarcodeIncludingInactive(barcode: string): { product: Product; presentation: Presentation } | null {
+    const code = barcode.trim().toLowerCase();
+    for (const prod of this.allProducts) {
+      for (const pres of prod.presentations || []) {
+        if ((pres.barcode || '').toLowerCase() === code) {
           return { product: prod, presentation: pres };
         }
       }
@@ -516,8 +694,186 @@ export class InventoryCountPageComponent implements OnInit, AfterViewInit, OnDes
 
   goBack(): void { this.router.navigate(['/main/inicio']); }
 
+  // ── Impresión de etiquetas ─────────────────────────────────────────────────
+
+  /** Abre el label sheet para una entrada ya contada (desde la lista de contados) */
+  printEntryLabel(entry: InventoryCountEntryDto): void {
+    const found = this.findByBarcodeIncludingInactive(entry.barcode);
+    const items: LabelSheetItem[] = [];
+
+    if (found) {
+      const { product, presentation } = found;
+      const unitAbbr = UNIT_ABBREVIATIONS[presentation.unitMeasure] || presentation.unitMeasure;
+      items.push({
+        barcode:     presentation.barcode || entry.barcode,
+        description: entry.description,
+        brand:       product.brand || '',
+        salePrice:   presentation.isBulk
+                       ? (presentation.salePrice || 0) + ' ' + unitAbbr
+                       : (presentation.salePrice || 0),
+        copies: 1,
+      });
+    } else {
+      // Fallback si el producto ya no está en catálogo
+      items.push({ barcode: entry.barcode, description: entry.description, brand: '', salePrice: 0, copies: 1 });
+    }
+
+    this.openLabelSheet(items);
+  }
+
+  openLabelSheet(items: LabelSheetItem[]): void {
+    this.labelConfig    = this.labelConfigService.getConfig();
+    this.labelSheetItems = items;
+    this.showLabelSheet  = true;
+  }
+
+  closeLabelSheet(): void {
+    this.showLabelSheet  = false;
+    this.labelSheetItems = [];
+    setTimeout(() => this.searchInputRef?.nativeElement?.focus(), 150);
+  }
+
+  onLabelConfigSaved(config: LabelConfig): void {
+    this.labelConfig = config;
+  }
+
+  decrementLabelCopies(item: LabelSheetItem): void {
+    item.copies = Math.max(1, item.copies - 1);
+  }
+
+  incrementLabelCopies(item: LabelSheetItem): void {
+    item.copies = item.copies + 1;
+  }
+
+  generateAndPrintLabels(): void {
+    if (!this.labelSheetItems.length || this.isGeneratingLabels) return;
+    this.isGeneratingLabels = true;
+
+    const config  = this.labelConfig;
+    const columns = config.columns || 1;
+    const labelW  = config.labelWidth;
+    const labelH  = config.labelHeight;
+    const colGap  = config.columnGap || 0;
+
+    // Expandir según copias
+    const expanded: LabelSheetItem[] = [];
+    this.labelSheetItems.forEach(item => {
+      for (let i = 0; i < (item.copies || 1); i++) expanded.push(item);
+    });
+
+    const rollWidth  = config.marginLeft + (labelW * columns) + (colGap * (columns - 1)) + config.marginRight;
+    const pageHeight = config.marginTop + labelH + config.marginBottom;
+
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [pageHeight, rollWidth] });
+
+    let idx = 0;
+    let firstPage = true;
+    while (idx < expanded.length) {
+      if (!firstPage) doc.addPage([pageHeight, rollWidth], 'landscape');
+      firstPage = false;
+      for (let col = 0; col < columns && idx < expanded.length; col++) {
+        const x = config.marginLeft + col * (labelW + colGap);
+        this._drawLabel(doc, expanded[idx], x, config.marginTop);
+        idx++;
+      }
+    }
+
+    // Abrir en nueva pestaña para imprimir
+    const blob = doc.output('blob');
+    const url  = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+
+    this.isGeneratingLabels = false;
+    this.closeLabelSheet();
+    toast.success('PDF abierto — usa Ctrl+P para imprimir');
+  }
+
+  private _drawLabel(doc: jsPDF, item: LabelSheetItem, x: number, y: number): void {
+    const config  = this.labelConfig;
+    const w       = config.labelWidth;
+    const h       = config.labelHeight;
+    const centerX = x + w / 2;
+    let   curY    = y + 1;
+    const ls      = h / 6;
+
+    if (config.showCompanyName) {
+      doc.setFontSize(Math.max(4, Math.min(6, w / 10)));
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text(config.companyName || 'CONCENTRADOS LA 28', centerX, curY + 2.5, { align: 'center' });
+      curY += ls * 0.8;
+    }
+
+    if (config.showBarcode && item.barcode) {
+      try {
+        const canvas = document.createElement('canvas');
+        JsBarcode(canvas, item.barcode, { format: 'CODE128', width: 2, height: 40, displayValue: false, margin: 0, background: '#ffffff' });
+        const bw = Math.min(w - 4, w * 0.85);
+        const bh = Math.min(h * 0.25, 6);
+        doc.addImage(canvas.toDataURL('image/png'), 'PNG', x + (w - bw) / 2, curY, bw, bh);
+        curY += bh + 1;
+      } catch (e) { console.warn('Barcode error', item.barcode, e); }
+    }
+
+    if (config.showBarcodeNumber) {
+      doc.setFontSize(Math.max(5, Math.min(8, w / 7)));
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text(item.barcode, centerX, curY + 2, { align: 'center' });
+      curY += ls * 0.7;
+    }
+
+    if (config.showDescription) {
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      let lines: string[] = doc.splitTextToSize(item.description || '', w - 2);
+      if (lines.length > 4) { lines = lines.slice(0, 4); lines[3] = lines[3].substring(0, lines[3].length - 3) + '...'; }
+      lines.forEach((l: string, i: number) => doc.text(l, centerX, curY + 2.5 + i * 2.5, { align: 'center' }));
+      curY += 2.5 * lines.length;
+    }
+
+    if (config.showBrand && item.brand) {
+      doc.setFontSize(Math.max(4, Math.min(6, w / 10)));
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(80, 80, 80);
+      doc.text(item.brand, centerX, curY + 2, { align: 'center' });
+      doc.setTextColor(0, 0, 0);
+      curY += ls * 0.6;
+    }
+
+    if (config.showPrice) {
+      doc.setFontSize(Math.max(8, Math.min(9, w / 6)));
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text(this._formatLabelPrice(item.salePrice), centerX, Math.min(curY + 3, y + h - 2), { align: 'center' });
+    }
+  }
+
+  private _formatLabelPrice(price: number | string): string {
+    if (typeof price === 'string') {
+      const parts = price.split(' ');
+      const num   = parseFloat(parts[0]);
+      const unit  = parts.slice(1).join(' ');
+      const fmt   = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num);
+      return unit ? `${fmt}/${unit}` : fmt;
+    }
+    return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(price);
+  }
+
   get reversedEntries(): InventoryCountEntryDto[] {
     return this.session ? [...this.session.entries].reverse() : [];
+  }
+
+  /** Busca el producto en allProducts a partir de cualquier barcode de sus presentaciones */
+  getProductForBarcode(barcode: string): Product | null {
+    const code = barcode.toLowerCase();
+    for (const prod of this.allProducts) {
+      for (const pres of prod.presentations || []) {
+        if ((pres.barcode || '').toLowerCase() === code) return prod;
+      }
+    }
+    return null;
   }
 
   getCountedQty(barcode: string): number | null {

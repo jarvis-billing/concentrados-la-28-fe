@@ -2,12 +2,13 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { urlConfig } from '../../../config/config';
-import { 
-    ClientAccount, 
-    AccountPayment, 
-    AccountReportFilter, 
+import {
+    ClientAccount,
+    AccountPayment,
+    AccountReportFilter,
     AccountSummary,
-    ManualDebtRequest
+    ManualDebtRequest,
+    PagedAccountReport
 } from '../models/client-account';
 
 @Injectable({
@@ -55,10 +56,17 @@ export class ClientAccountService {
     }
 
     /**
-     * Genera reporte de cuentas por cobrar
+     * Genera reporte paginado de cuentas por cobrar
      */
-    getAccountsReport(filter: AccountReportFilter): Observable<AccountSummary[]> {
-        return this.http.post<AccountSummary[]>(`${this.url}/report`, filter);
+    getAccountsReport(filter: AccountReportFilter): Observable<PagedAccountReport> {
+        return this.http.post<PagedAccountReport>(`${this.url}/report`, filter);
+    }
+
+    /**
+     * Descarga el PDF del reporte de cuentas por cobrar (JasperReports)
+     */
+    getAccountsReportPdf(filter: AccountReportFilter): Observable<Blob> {
+        return this.http.post(`${this.url}/report/pdf`, filter, { responseType: 'blob' });
     }
 
     /**

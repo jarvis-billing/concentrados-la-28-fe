@@ -115,6 +115,71 @@
         }
       </div>
 
+      <!-- Producto con múltiples presentaciones: modo bulk -->
+      @if (isBulkMode && bulkProduct) {
+        <div class="count-card">
+          <div class="count-card-name">{{ bulkProduct.description }}</div>
+          <div class="search-item-tags justify-content-center mb-1">
+            @if (bulkProduct.brand) {
+              <span class="product-tag tag-brand"><i class="bi bi-award me-1"></i>{{ bulkProduct.brand }}</span>
+            }
+            @if (bulkProduct.category) {
+              <span class="product-tag tag-category"><i class="bi bi-tag me-1"></i>{{ bulkProduct.category }}</span>
+            }
+          </div>
+          <div class="count-card-code text-muted small mb-2">
+            <i class="bi bi-layers me-1"></i>{{ bulkPresentations.length }} presentaciones activas
+          </div>
+
+          @for (pres of bulkPresentations; track pres.barcode) {
+            <div class="bulk-pres-block" [class.bulk-pres-required]="bulkQtys[pres.barcode!] == null">
+              <!-- Fila superior: label + badge + editar -->
+              <div class="bulk-pres-top">
+                <span class="fw-semibold" style="font-size:0.85rem">{{ pres.label || '(sin etiqueta)' }}</span>
+                @if (pres.fixedAmount && pres.fixedAmount > 1) {
+                  <span class="badge bg-secondary ms-1" style="font-size:0.6rem">×{{ pres.fixedAmount }}</span>
+                }
+                <button class="btn-edit-inline ms-2" (click)="openEditSheetForPresentation(pres)" title="Editar presentación">
+                  <i class="bi bi-pencil-square"></i>
+                </button>
+              </div>
+              <!-- Fila inferior: barcode + controles qty -->
+              <div class="bulk-pres-bottom">
+                <code style="font-size:0.7rem; color:#6c757d">{{ pres.barcode }}</code>
+                <div class="qty-row qty-row-sm">
+                  <button class="qty-btn qty-minus" (click)="decrementBulkQty(pres.barcode!, bulkQtyStep(pres))">−</button>
+                  <div class="d-flex flex-column align-items-center">
+                    <input
+                      type="number"
+                      class="qty-input qty-input-sm"
+                      [(ngModel)]="bulkQtys[pres.barcode!]"
+                      [step]="bulkQtyStep(pres)"
+                      min="0"
+                      placeholder="—"
+                      [inputmode]="pres.unitMeasure === 'UNIDAD' ? 'numeric' : 'decimal'">
+                    @if (bulkUnitLabel(pres)) {
+                      <span style="font-size:0.62rem; color:#6c757d; margin-top:1px">{{ bulkUnitLabel(pres) }}</span>
+                    }
+                  </div>
+                  <button class="qty-btn qty-plus" (click)="incrementBulkQty(pres.barcode!, bulkQtyStep(pres))">+</button>
+                </div>
+              </div>
+            </div>
+          }
+
+          <div class="count-actions mt-2">
+            <button class="btn btn-outline-secondary btn-sm" (click)="clearSelection()">
+              <i class="bi bi-x-circle me-1"></i>Cancelar
+            </button>
+            <button class="btn btn-primary flex-fill" (click)="confirmBulkCount()"
+              [disabled]="isSaving">
+              @if (isSaving) { <span class="spinner-border spinner-border-sm me-1"></span> }
+              <i class="bi bi-check-lg me-1"></i>Guardar todo
+            </button>
+          </div>
+        </div>
+      }
+
       <!-- Producto seleccionado para contar -->
       @if (selectedProduct) {
         <div class="count-card">
@@ -168,12 +233,27 @@
       <!-- Lista de contados -->
       @if (session.entries.length > 0) {
         <div class="counted-section">
-          <div class="counted-section-title">Contados en esta sesión ({{ session.entries.length }})</div>
+          <div class="counted-section-title">
+            Contados en esta sesión ({{ session.entries.length }})
+            <span class="text-muted fw-normal" style="font-size:0.68rem"> · toca para editar</span>
+          </div>
           @for (entry of reversedEntries; track entry.barcode) {
             <div class="counted-item">
-              <div>
+              <div class="counted-left counted-item-tap" (click)="editEntry(entry)" role="button">
                 <div class="counted-name">{{ entry.description }}</div>
                 <div class="counted-sub"><code>{{ entry.barcode }}</code></div>
+                @if (getProductForBarcode(entry.barcode); as prod) {
+                  @if (prod.brand || prod.category) {
+                    <div class="search-item-tags mt-1">
+                      @if (prod.brand) {
+                        <span class="product-tag tag-brand"><i class="bi bi-award me-1"></i>{{ prod.brand }}</span>
+                      }
+                      @if (prod.category) {
+                        <span class="product-tag tag-category"><i class="bi bi-tag me-1"></i>{{ prod.category }}</span>
+                      }
+                    </div>
+                  }
+                }
               </div>
               <div class="counted-right">
                 <div class="counted-qty">{{ entry.countedQty | number:'1.0-2' }} und.</div>
@@ -184,6 +264,14 @@
                 } @else {
                   <div class="text-muted" style="font-size:0.72rem">igual</div>
                 }
+                <div class="counted-actions-row">
+                  <button class="counted-action-btn" (click)="editEntry(entry)" title="Editar conteo">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  <button class="counted-action-btn counted-action-print" (click)="printEntryLabel(entry)" title="Imprimir etiqueta">
+                    <i class="bi bi-printer"></i>
+                  </button>
+                </div>
               </div>
             </div>
           }
@@ -205,6 +293,68 @@
   }
 
 </div>
+
+<!-- ── Label config modal (reutilizado del generador de etiquetas) ───────── -->
+<app-label-config-modal #labelConfigModal (configSaved)="onLabelConfigSaved($event)"></app-label-config-modal>
+
+<!-- ── Bottom sheet: imprimir etiquetas ─────────────────────────────────── -->
+@if (showLabelSheet) {
+  <div class="edit-backdrop" (click)="closeLabelSheet()"></div>
+  <div class="edit-sheet label-sheet">
+    <div class="edit-sheet-handle"></div>
+
+    <div class="edit-sheet-header">
+      <span class="fw-semibold fs-6"><i class="bi bi-printer me-1"></i>Imprimir etiqueta(s)</span>
+      <div class="d-flex align-items-center gap-2">
+        <button class="btn btn-outline-secondary btn-sm" (click)="labelConfigModal.openModal()" title="Configurar etiqueta">
+          <i class="bi bi-sliders me-1"></i>Config.
+        </button>
+        <button class="btn-close btn-close-sm" (click)="closeLabelSheet()"></button>
+      </div>
+    </div>
+
+    <div class="edit-sheet-body">
+      <!-- Resumen de configuración activa -->
+      <div class="label-config-summary">
+        <i class="bi bi-tag-fill me-1"></i>
+        {{ labelConfig.labelWidth }}×{{ labelConfig.labelHeight }} mm
+        · {{ labelConfig.columns }} col.
+        · {{ labelConfig.presetName }}
+      </div>
+
+      <!-- Lista de presentaciones con control de copias -->
+      @for (item of labelSheetItems; track item.barcode) {
+        <div class="label-sheet-item">
+          <div class="label-sheet-name">{{ item.description }}</div>
+          <code class="label-sheet-code">{{ item.barcode }}</code>
+          <div class="label-sheet-copies">
+            <span class="small text-muted me-2">Copias:</span>
+            <button class="qty-btn qty-minus qty-btn-xs" (click)="decrementLabelCopies(item)">−</button>
+            <input
+              type="number"
+              class="qty-input qty-input-xs"
+              [(ngModel)]="item.copies"
+              min="1"
+              max="999"
+              inputmode="numeric">
+            <button class="qty-btn qty-plus qty-btn-xs" (click)="incrementLabelCopies(item)">+</button>
+          </div>
+        </div>
+      }
+    </div>
+
+    <div class="edit-sheet-footer">
+      <button type="button" class="btn btn-outline-secondary flex-fill" (click)="closeLabelSheet()">
+        <i class="bi bi-x-circle me-1"></i>Cancelar
+      </button>
+      <button type="button" class="btn btn-primary flex-fill" (click)="generateAndPrintLabels()"
+              [disabled]="isGeneratingLabels">
+        @if (isGeneratingLabels) { <span class="spinner-border spinner-border-sm me-1"></span> }
+        <i class="bi bi-printer me-1"></i>Generar PDF
+      </button>
+    </div>
+  </div>
+}
 
 <!-- ── Bottom sheet: editar producto / presentación ────────────────────── -->
 @if (showEditSheet) {

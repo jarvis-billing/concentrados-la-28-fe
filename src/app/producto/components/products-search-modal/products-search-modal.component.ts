@@ -1,5 +1,5 @@
 import { Component, ElementRef, EventEmitter, OnDestroy, OnInit, Output, ViewChild, inject } from '@angular/core';
-import { Presentation, Product } from '../../producto';
+import { ESaleType, Presentation, Product } from '../../producto';
 import { FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ProductoService } from '../../producto.service';
 import { CommonModule } from '@angular/common';
@@ -82,6 +82,86 @@ export class ProductsSearchModalComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.productosSub?.unsubscribe();
+  }
+
+  // Etiqueta de stock total para el header: para LONGITUDE muestra "X rollos + Y m"
+  getProductStockLabel(product: Product): string {
+    const qty = Number(product.stock?.quantity ?? 0);
+
+    if (product.saleType === ESaleType.LONGITUDE) {
+      const fixedPres = (product.presentations || [])
+        .filter(p => p.isFixedAmount && (p.fixedAmount ?? 0) > 0)
+        .sort((a, b) => (b.fixedAmount ?? 0) - (a.fixedAmount ?? 0));
+
+      if (fixedPres.length > 0) {
+        const rollSizeCm = Number(fixedPres[0].fixedAmount ?? 0);
+        const rollCount = Math.floor(qty / rollSizeCm);
+        const remainderM = Math.round((qty - rollCount * rollSizeCm) / 100 * 100) / 100;
+        if (rollCount > 0 && remainderM > 0) return `${rollCount} rollos + ${remainderM} m`;
+        if (rollCount > 0) return `${rollCount} rollos`;
+        return `${remainderM} m`;
+      }
+      // Sin presentaciones fijas: total en metros
+      return `${Math.round(qty / 100 * 100) / 100} m`;
+    }
+
+    // Para otros tipos usar el label del backend si existe, sino fallback simple
+    if (product.displayStock?.label) return product.displayStock.label;
+    const unit = (product.stock?.unitMeasure ?? '').toString();
+    return `${qty} ${unit}`;
+  }
+
+  // Noun de embalaje según tipo de venta
+  private packagingNoun(saleType: string | undefined): string {
+    switch (saleType) {
+      case ESaleType.WEIGHT:    return 'bultos';
+      case ESaleType.LONGITUDE: return 'rollos';
+      case ESaleType.VOLUME:    return 'unid.';
+      default:                  return 'unid.';
+    }
+  }
+
+  // Calcula el stock disponible para una presentación específica usando distribución greedy
+  // (de mayor fixedAmount a menor, el resto va a granel)
+  getPresStockLabel(product: Product, pres: Presentation): string {
+    const totalQty = Number(product.stock?.quantity ?? 0);
+    const stockUnit = (product.stock?.unitMeasure ?? '').toString();
+
+    // NORMAL / UNIT: el stock total aplica directamente
+    if (!pres.isBulk && !pres.isFixedAmount) {
+      return `${totalQty} ${stockUnit}`;
+    }
+
+    // Ordenar presentaciones fijas de mayor a menor fixedAmount
+    const fixedPres = (product.presentations || [])
+      .filter(p => p.isFixedAmount && (p.fixedAmount ?? 0) > 0)
+      .sort((a, b) => (b.fixedAmount ?? 0) - (a.fixedAmount ?? 0));
+
+    let remaining = totalQty;
+    const stockMap = new Map<string, number>();
+
+    for (const fp of fixedPres) {
+      const amt = Number(fp.fixedAmount ?? 0);
+      if (amt <= 0) continue;
+      const count = Math.floor(remaining / amt);
+      stockMap.set(fp.barcode, count);
+      remaining = Math.round((remaining - count * amt) * 100000) / 100000;
+    }
+
+    if (pres.isFixedAmount) {
+      const count = stockMap.get(pres.barcode) ?? 0;
+      return `${count} ${this.packagingNoun(product.saleType)}`;
+    }
+
+    if (pres.isBulk) {
+      const qty = Math.round(remaining * 100) / 100;
+      if (product.saleType === ESaleType.LONGITUDE) {
+        return `${Math.round(qty / 100 * 100) / 100} m`;
+      }
+      return `${qty} ${stockUnit}`;
+    }
+
+    return `${totalQty} ${stockUnit}`;
   }
 
   // Determina si una presentación fija es "Bulto completo" o "Medio bulto" comparando contra el mayor fixedAmount del producto

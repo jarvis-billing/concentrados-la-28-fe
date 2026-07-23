@@ -53,6 +53,7 @@ import { ProfitReportComponent } from './reportes/pages/profit-report/profit-rep
 import { ProductMovementsReportComponent } from './reportes/pages/product-movements-report/product-movements-report.component';
 import { CashFlowReportComponent } from './reportes/pages/cash-flow-report/cash-flow-report.component';
 import { SalesMonthlyReportComponent } from './reportes/pages/sales-monthly-report/sales-monthly-report.component';
+import { ProductSalesPurchasesReportComponent } from './reportes/pages/product-sales-purchases-report/product-sales-purchases-report.component';
 import { ReturnsListPageComponent } from './devoluciones/pages/returns-list-page/returns-list-page.component';
 import { SaleReturnFormComponent } from './devoluciones/pages/sale-return-form/sale-return-form.component';
 import { PurchaseReturnFormComponent } from './devoluciones/pages/purchase-return-form/purchase-return-form.component';
@@ -62,14 +63,16 @@ import { PreventaListComponent } from './preventa/pages/preventa-list/preventa-l
 import { InventoryCountPageComponent } from './inventario/pages/inventory-count-page/inventory-count-page.component';
 import { InventoryCountReportPageComponent } from './inventario/pages/inventory-count-report-page/inventory-count-report-page.component';
 import { authGuard } from './auth/auth.guard';
+import { inventoryCountGuard } from './auth/inventory-count.guard';
 import { UsersPageComponent } from './configuracion/pages/users-page/users-page.component';
 import { CompanyPageComponent } from './configuracion/pages/company-page/company-page.component';
+import { FeaturePermissionsPageComponent } from './feature-permissions/pages/feature-permissions-page/feature-permissions-page.component';
 
 export const routes: Routes = [
     { path: '', pathMatch: 'full', redirectTo: '/login' },
     { path: 'preventa', component: PreventaPageComponent, canActivate: [authGuard] },
     { path: 'preventa/lista', component: PreventaListComponent, canActivate: [authGuard] },
-    { path: 'inventario/conteo', component: InventoryCountPageComponent, canActivate: [authGuard] },
+    { path: 'inventario/conteo', component: InventoryCountPageComponent, canActivate: [inventoryCountGuard] },
     { path: 'persona', component: PersonaComponent },
     { path: 'login', component: LoginComponent },
     { path: 'menu', component: MenuComponent },
@@ -161,6 +164,9 @@ export const routes: Routes = [
             path: 'configuracion/empresa', component: CompanyPageComponent
         },
         {
+            path: 'configuracion/permisos-funcionalidades', component: FeaturePermissionsPageComponent
+        },
+        {
             path: 'inventario', component: InventoryDashboardComponent
         },
         {
@@ -240,6 +246,9 @@ export const routes: Routes = [
         },
         {
             path: 'reportes/ventas-mes', component: SalesMonthlyReportComponent
+        },
+        {
+            path: 'reportes/ventas-compras-producto', component: ProductSalesPurchasesReportComponent
         },
         {
             path: 'devoluciones', component: ReturnsListPageComponent

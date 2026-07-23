@@ -400,6 +400,36 @@
   margin-left: auto;
 }
 
+.search-result-extra {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+  font-size: 0.78rem;
+  flex-wrap: wrap;
+}
+
+.search-result-brand {
+  background: #e9ecef;
+  color: #495057;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.search-result-category {
+  background: #e7f1ff;
+  color: #0d6efd;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.search-result-stock {
+  color: #198754;
+  font-weight: 500;
+  margin-left: auto;
+}
+
 /* ====== ITEMS SORT BAR ====== */
 .items-sort-bar {
   display: flex;

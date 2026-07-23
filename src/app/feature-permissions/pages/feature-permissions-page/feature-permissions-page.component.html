@@ -1,0 +1,218 @@
+<div class="container-fluid py-4">
+
+  <!-- Header -->
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+      <h4 class="mb-0"><i class="bi bi-shield-lock-fill me-2 text-primary"></i>Permisos de Funcionalidades</h4>
+      <p class="text-muted small mb-0">Otorga o revoca acceso a funcionalidades específicas por rol de usuario.</p>
+    </div>
+    <button class="btn btn-primary" (click)="showForm = !showForm">
+      <i class="bi bi-plus-circle me-1"></i>Nuevo Permiso
+    </button>
+  </div>
+
+  <!-- Formulario de creación -->
+  @if (showForm) {
+    <div class="card border-primary mb-4">
+      <div class="card-header bg-primary text-white d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-shield-plus me-1"></i>Crear permiso de acceso</span>
+        <button class="btn-close btn-close-white" (click)="showForm = false"></button>
+      </div>
+      <div class="card-body">
+        <form [formGroup]="form" (ngSubmit)="submit()">
+          <div class="row g-3">
+
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Funcionalidad</label>
+              <select class="form-select" formControlName="featureKey">
+                @for (f of featureKeys; track f.key) {
+                  <option [value]="f.key">{{ f.name }}</option>
+                }
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Tipo de permiso</label>
+              <select class="form-select" formControlName="type" (change)="onTypeChange()">
+                <option value="PERMANENT">Permanente (sin expiración)</option>
+                <option value="TEMPORARY">Temporal (con fecha límite)</option>
+              </select>
+            </div>
+
+            @if (form.get('type')?.value === 'TEMPORARY') {
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Expira el</label>
+                <input type="datetime-local" class="form-control" formControlName="expiresAt">
+                <div class="form-text text-muted">El permiso quedará inactivo automáticamente después de esta fecha.</div>
+              </div>
+            }
+
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Roles que reciben el permiso</label>
+              <div class="d-flex gap-3 mt-1">
+                @for (role of availableRoles; track role) {
+                  <div class="form-check form-check-inline">
+                    <input class="form-check-input"
+                           type="checkbox"
+                           [id]="'role-' + role"
+                           [checked]="isRoleSelected(role)"
+                           (change)="toggleRole(role)">
+                    <label class="form-check-label" [for]="'role-' + role">{{ role }}</label>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label fw-semibold">Notas <span class="text-muted fw-normal">(opcional)</span></label>
+              <input type="text" class="form-control" formControlName="notes"
+                     placeholder="ej. Conteo físico de fin de mes">
+            </div>
+
+          </div>
+
+          <div class="d-flex justify-content-end gap-2 mt-3">
+            <button type="button" class="btn btn-outline-secondary" (click)="showForm = false">Cancelar</button>
+            <button type="submit" class="btn btn-primary" [disabled]="form.invalid || isSaving">
+              @if (isSaving) { <span class="spinner-border spinner-border-sm me-1"></span> }
+              <i class="bi bi-check-lg me-1"></i>Crear permiso
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- Loading -->
+  @if (isLoading) {
+    <div class="text-center py-5">
+      <div class="spinner-border text-primary"></div>
+      <p class="text-muted mt-2">Cargando permisos…</p>
+    </div>
+  }
+
+  @if (!isLoading) {
+
+    <!-- Permisos activos -->
+    <div class="card mb-4">
+      <div class="card-header fw-semibold d-flex align-items-center gap-2">
+        <i class="bi bi-shield-check text-success"></i>
+        Permisos activos
+        <span class="badge bg-success ms-1">{{ activePermissions.length }}</span>
+      </div>
+      <div class="card-body p-0">
+        @if (activePermissions.length === 0) {
+          <div class="text-center py-4 text-muted">
+            <i class="bi bi-shield-slash fs-3 d-block mb-1"></i>
+            No hay permisos activos. Crea uno con el botón de arriba.
+          </div>
+        } @else {
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Funcionalidad</th>
+                  <th>Roles</th>
+                  <th>Tipo</th>
+                  <th>Expira</th>
+                  <th>Otorgado por</th>
+                  <th>Fecha</th>
+                  <th>Notas</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (perm of activePermissions; track perm.id) {
+                  <tr>
+                    <td>
+                      <span class="fw-semibold">{{ perm.featureName }}</span>
+                      <br><code class="text-muted" style="font-size:0.72rem">{{ perm.featureKey }}</code>
+                    </td>
+                    <td>
+                      @for (role of perm.grantedRoles; track role) {
+                        <span class="badge bg-primary me-1">{{ role }}</span>
+                      }
+                    </td>
+                    <td>
+                      <span class="badge"
+                            [class.bg-info]="perm.type === 'PERMANENT'"
+                            [class.bg-warning]="perm.type === 'TEMPORARY'"
+                            [class.text-dark]="perm.type === 'TEMPORARY'">
+                        {{ typeLabel(perm.type) }}
+                      </span>
+                    </td>
+                    <td class="text-nowrap">{{ perm.type === 'TEMPORARY' ? formatDate(perm.expiresAt) : '—' }}</td>
+                    <td>{{ perm.grantedBy }}</td>
+                    <td class="text-nowrap">{{ formatDate(perm.grantedAt) }}</td>
+                    <td class="text-muted small">{{ perm.notes || '—' }}</td>
+                    <td>
+                      <button class="btn btn-sm btn-outline-danger" (click)="revoke(perm)">
+                        <i class="bi bi-shield-x me-1"></i>Revocar
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Historial de inactivos / expirados -->
+    @if (inactivePermissions.length > 0) {
+      <div class="card">
+        <div class="card-header fw-semibold d-flex align-items-center gap-2 text-muted">
+          <i class="bi bi-shield-slash"></i>
+          Historial (revocados / expirados)
+          <span class="badge bg-secondary ms-1">{{ inactivePermissions.length }}</span>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0 text-muted">
+              <thead class="table-light">
+                <tr>
+                  <th>Funcionalidad</th>
+                  <th>Roles</th>
+                  <th>Tipo</th>
+                  <th>Expiró / Revocado</th>
+                  <th>Notas</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (perm of inactivePermissions; track perm.id) {
+                  <tr>
+                    <td>
+                      <span>{{ perm.featureName }}</span>
+                      <br><code class="text-muted" style="font-size:0.72rem">{{ perm.featureKey }}</code>
+                    </td>
+                    <td>
+                      @for (role of perm.grantedRoles; track role) {
+                        <span class="badge bg-secondary me-1">{{ role }}</span>
+                      }
+                    </td>
+                    <td>{{ typeLabel(perm.type) }}</td>
+                    <td class="text-nowrap">
+                      @if (perm.expired && perm.type === 'TEMPORARY') {
+                        {{ formatDate(perm.expiresAt) }}
+                      } @else {
+                        —
+                      }
+                    </td>
+                    <td class="small">{{ perm.notes || '—' }}</td>
+                    <td>
+                      <span class="badge {{ statusBadge(perm).cls }}">{{ statusBadge(perm).text }}</span>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    }
+
+  }
+
+</div>

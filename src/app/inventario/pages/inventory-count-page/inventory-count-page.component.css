@@ -167,6 +167,57 @@
   gap: 0.5rem;
 }
 
+/* ── Bulk mode: bloque por presentación ─────────────────────────────────── */
+.bulk-pres-block {
+  padding: 0.55rem 0;
+  border-bottom: 1px solid #e9ecef;
+}
+.bulk-pres-block:last-of-type { border-bottom: none; }
+
+/* Indicador visual de campo vacío (pendiente de llenar) */
+.bulk-pres-required .bulk-pres-top { opacity: 0.65; }
+.bulk-pres-required .qty-input-sm  { border-color: #ffc107; }
+
+.bulk-pres-top {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 0.3rem;
+}
+
+.bulk-pres-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.qty-row-sm {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-bottom: 0;
+}
+.qty-row-sm .qty-btn {
+  width: 28px;
+  height: 28px;
+  font-size: 1rem;
+  border-radius: 6px;
+}
+.qty-input-sm {
+  width: 64px;
+  text-align: center;
+  font-size: 1.05rem;
+  font-weight: 600;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 0.15rem 0.3rem;
+  color: #0d6efd;
+}
+.qty-input-sm:focus { outline: none; border-color: #0d6efd; box-shadow: 0 0 0 2px rgba(13,110,253,.15); }
+
 /* ── Lista contados ────────────────────────────────────────────────────── */
 .counted-section { margin-bottom: 0.5rem; }
 .counted-section-title {
@@ -185,11 +236,35 @@
   border-bottom: 1px solid #f0f0f0;
 }
 .counted-item:last-child { border-bottom: none; }
-.counted-name { font-size: 0.83rem; font-weight: 500; }
+.counted-left { flex: 1; min-width: 0; overflow: hidden; }
+.counted-name { font-size: 0.83rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .counted-sub  { font-size: 0.72rem; color: #6c757d; }
-.counted-right { text-align: right; }
+.counted-right { text-align: right; flex-shrink: 0; }
 .counted-qty  { font-size: 0.83rem; font-weight: 600; color: #198754; }
 .counted-diff { font-size: 0.72rem; font-weight: 500; }
+.counted-actions-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 3px;
+}
+.counted-action-btn {
+  background: none;
+  border: 1px solid #dee2e6;
+  border-radius: 5px;
+  padding: 2px 5px;
+  font-size: 0.72rem;
+  color: #6c757d;
+  cursor: pointer;
+  line-height: 1.4;
+  transition: background 0.12s, color 0.12s;
+}
+.counted-action-btn:hover        { background: #f0f6ff; color: #0d6efd; border-color: #0d6efd; }
+.counted-action-print:hover      { background: #f0fdf4; color: #198754; border-color: #198754; }
+.counted-action-print:active     { background: #d1fae5; }
+
+.counted-item-tap { cursor: pointer; }
+.counted-item-tap:active { opacity: 0.7; }
 
 /* ── Bottom bar ────────────────────────────────────────────────────────── */
 .bottom-bar {
@@ -269,3 +344,49 @@
   bottom: 0;
   background: #fff;
 }
+
+/* ── Label print sheet ─────────────────────────────────────────────────── */
+.label-sheet { max-height: 75vh; }
+
+.label-config-summary {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  color: #495057;
+  margin-bottom: 0.75rem;
+}
+
+.label-sheet-item {
+  padding: 0.6rem 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+.label-sheet-item:last-child { border-bottom: none; }
+.label-sheet-name { font-size: 0.85rem; font-weight: 600; margin-bottom: 2px; }
+.label-sheet-code { font-size: 0.72rem; color: #6c757d; display: block; margin-bottom: 0.4rem; }
+
+.label-sheet-copies {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+/* Botones qty extra-pequeños para el panel de etiquetas */
+.qty-btn-xs {
+  width: 26px !important;
+  height: 26px !important;
+  font-size: 0.9rem !important;
+  border-radius: 6px !important;
+}
+.qty-input-xs {
+  width: 52px;
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 0.1rem 0.2rem;
+  color: #0d6efd;
+}
+.qty-input-xs:focus { outline: none; border-color: #0d6efd; box-shadow: 0 0 0 2px rgba(13,110,253,.15); }

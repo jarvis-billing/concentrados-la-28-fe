@@ -23,11 +23,6 @@
                     </a>
                 </li>
 
-
-                <li class="nav-item mx-2">
-                    <a class="nav-link" routerLink="/main/orden" routerLinkActive="active" (click)="closeMenu()">Orden</a>
-                </li>
-
                 <li class="nav-item mx-2 dropdown">
                     <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" routerLinkActive="active" role="button" aria-haspopup="true" aria-expanded="false">Ventas</a>
                     <div class="dropdown-menu" style="background-color: white; border-color: black;">
@@ -106,16 +101,20 @@
                 <li class="nav-item mx-2 dropdown">
                     <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" routerLinkActive="active" role="button" aria-haspopup="true" aria-expanded="false">Inventario</a>
                     <div class="dropdown-menu" style="background-color: white; border-color: black;">
-                      <a class="dropdown-item" routerLink="/main/inventario" (click)="closeMenu()">
-                        <i class="bi bi-grid me-1"></i> Dashboard
-                      </a>
-                      <div class="dropdown-divider"></div>
+                      @if (isAdminOrFacturador) {
+                        <a class="dropdown-item" routerLink="/main/inventario" (click)="closeMenu()">
+                          <i class="bi bi-grid me-1"></i> Dashboard
+                        </a>
+                        <div class="dropdown-divider"></div>
+                      }
                       <a class="dropdown-item" routerLink="/inventario/conteo" (click)="closeMenu()">
                         <i class="bi bi-phone me-1"></i> Conteo Físico (móvil)
                       </a>
-                      <a class="dropdown-item" routerLink="/main/inventario/conteo/reporte" (click)="closeMenu()">
-                        <i class="bi bi-clipboard-data me-1"></i> Reportes de Conteo
-                      </a>
+                      @if (isAdminOrFacturador) {
+                        <a class="dropdown-item" routerLink="/main/inventario/conteo/reporte" (click)="closeMenu()">
+                          <i class="bi bi-clipboard-data me-1"></i> Reportes de Conteo
+                        </a>
+                      }
                     </div>
                 </li>
 
@@ -171,6 +170,9 @@
                       <a class="dropdown-item" routerLink="/main/reportes/ventas-mes" (click)="closeMenu()">
                         <i class="bi bi-calendar3 me-1"></i> Ventas por Mes
                       </a>
+                      <a class="dropdown-item" routerLink="/main/reportes/ventas-compras-producto" (click)="closeMenu()">
+                        <i class="bi bi-bar-chart-steps me-1"></i> Ventas vs Compras por Producto
+                      </a>
                     </div>
                 </li>
 
@@ -185,6 +187,12 @@
                       <a class="dropdown-item" routerLink="/main/configuracion/empresa" (click)="closeMenu()">
                         <i class="bi bi-building-fill me-2"></i>Empresa
                       </a>
+                      @if (isAdmin) {
+                        <div class="dropdown-divider"></div>
+                        <a class="dropdown-item" routerLink="/main/configuracion/permisos-funcionalidades" (click)="closeMenu()">
+                          <i class="bi bi-shield-lock-fill me-2"></i>Permisos de Funcionalidades
+                        </a>
+                      }
                     </div>
                 </li>
 

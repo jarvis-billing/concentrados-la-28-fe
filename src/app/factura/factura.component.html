@@ -337,7 +337,17 @@
                (mousedown)="selectProductSuggestion(s)">
             <div class="flex-grow-1 overflow-hidden me-2">
               <div class="fw-semibold text-truncate small">{{ s.displayName }}</div>
-              <div class="text-muted" style="font-size: 0.75rem;">{{ s.barcode }} <span *ngIf="s.brand" class="ms-1">· {{ s.brand }}</span></div>
+              <div class="d-flex align-items-center gap-2 mt-1 flex-wrap">
+                <span class="text-muted" style="font-size: 0.75rem;">{{ s.barcode }}</span>
+                <span *ngIf="s.brand" class="text-muted" style="font-size: 0.75rem;">· {{ s.brand }}</span>
+                <ng-container *ngIf="getPresBadge(s.product, s.presentation) as badge">
+                  <span class="badge bg-{{ badge.color }} text-{{ badge.color === 'warning' ? 'dark' : 'white' }}"
+                        style="font-size: 0.65rem;">{{ badge.label }}</span>
+                </ng-container>
+                <span class="text-success fw-semibold" style="font-size: 0.72rem;">
+                  <i class="bi bi-box-seam"></i> {{ getPresStockLabel(s.product, s.presentation) }}
+                </span>
+              </div>
             </div>
             <div class="flex-shrink-0 text-end">
               <div class="text-muted" style="font-size: 0.7rem;">Precio venta</div>
@@ -452,16 +462,7 @@
               </div>
               <div class="col-auto text-end">
                 <div class="small text-muted">Stock disponible</div>
-                <div class="fw-bold">
-                  {{ productToSell.stock?.quantity | number:'1.0-2' }}
-                  @if (productToSell.saleType === 'LONGITUDE') {
-                    m
-                  } @else if (productToSell.saleType === 'VOLUME') {
-                    CC
-                  } @else {
-                    {{ productToSell.stock?.unitMeasure || productToSell.selectedUnitMeasure || '' }}
-                  }
-                </div>
+                <div class="fw-bold">{{ getProductToSellStockLabel(productToSell) }}</div>
               </div>
             </div>
           </div>

@@ -1650,6 +1650,97 @@ export class FacturaComponent implements OnInit, AfterViewInit, OnDestroy {
     this.addOrAskAmount(this.mapPresentation(s.product, s.presentation));
   }
 
+  // ── Helpers de stock y presentación para el buscador ─────────────────────
+
+  /** Badge de tipo de presentación: { label, color } */
+  getPresBadge(product: Product, pres: Presentation): { label: string; color: string } | null {
+    if (pres.isBulk) return { label: 'Granel', color: 'warning' };
+    if (pres.isFixedAmount && (pres.fixedAmount ?? 0) > 0) {
+      const maxFixed = Math.max(
+        ...(product.presentations || [])
+          .filter(p => p.isFixedAmount && (p.fixedAmount ?? 0) > 0)
+          .map(p => Number(p.fixedAmount ?? 0))
+      );
+      if (product.saleType === ESaleType.LONGITUDE) {
+        return { label: 'Rollo completo', color: 'info' };
+      }
+      if (product.saleType === ESaleType.WEIGHT) {
+        return Number(pres.fixedAmount) === maxFixed
+          ? { label: 'Bulto completo', color: 'success' }
+          : { label: 'Medio bulto', color: 'info' };
+      }
+      return { label: 'Empaque', color: 'secondary' };
+    }
+    return null;
+  }
+
+  /** Stock disponible para una presentación específica (distribución greedy) */
+  getPresStockLabel(product: Product, pres: Presentation): string {
+    const totalQty = Number(product.stock?.quantity ?? 0);
+    const stockUnit = (product.stock?.unitMeasure ?? '').toString();
+
+    if (!pres.isBulk && !pres.isFixedAmount) {
+      return `${totalQty} ${stockUnit}`;
+    }
+
+    const fixedPres = (product.presentations || [])
+      .filter(p => p.isFixedAmount && (p.fixedAmount ?? 0) > 0)
+      .sort((a, b) => (b.fixedAmount ?? 0) - (a.fixedAmount ?? 0));
+
+    let remaining = totalQty;
+    const stockMap = new Map<string, number>();
+    for (const fp of fixedPres) {
+      const amt = Number(fp.fixedAmount ?? 0);
+      if (amt <= 0) continue;
+      const count = Math.floor(remaining / amt);
+      stockMap.set(fp.barcode, count);
+      remaining = Math.round((remaining - count * amt) * 100000) / 100000;
+    }
+
+    if (pres.isFixedAmount) {
+      const count = stockMap.get(pres.barcode) ?? 0;
+      if (product.saleType === ESaleType.WEIGHT)    return `${count} bultos`;
+      if (product.saleType === ESaleType.LONGITUDE)  return `${count} rollos`;
+      return `${count} unid.`;
+    }
+    if (pres.isBulk) {
+      const qty = Math.round(remaining * 100) / 100;
+      if (product.saleType === ESaleType.LONGITUDE) return `${Math.round(qty / 100 * 100) / 100} m`;
+      return `${qty} ${stockUnit}`;
+    }
+    return `${totalQty} ${stockUnit}`;
+  }
+
+  /** Stock formateado para el modal "Cantidad a Vender" */
+  getProductToSellStockLabel(p: Product): string {
+    const totalQty = Number(p.stock?.quantity ?? 0);
+
+    if ((p as any).hasFixedAmount && (p.fixedAmount ?? 0) > 0) {
+      const count = Math.floor(totalQty / (p.fixedAmount as number));
+      if (p.saleType === ESaleType.WEIGHT)   return `${count} bultos`;
+      if (p.saleType === ESaleType.LONGITUDE) return `${count} rollos`;
+      return `${count} unid.`;
+    }
+
+    if (p.isBulk) {
+      const fixedPres = (p.presentations || [])
+        .filter(pr => pr.isFixedAmount && (pr.fixedAmount ?? 0) > 0)
+        .sort((a, b) => (b.fixedAmount ?? 0) - (a.fixedAmount ?? 0));
+      let remaining = totalQty;
+      for (const fp of fixedPres) {
+        const amt = Number(fp.fixedAmount ?? 0);
+        const cnt = Math.floor(remaining / amt);
+        remaining = Math.round((remaining - cnt * amt) * 100000) / 100000;
+      }
+      if (p.saleType === ESaleType.LONGITUDE) return `${Math.round(remaining / 100 * 100) / 100} m`;
+      return `${Math.round(remaining * 100) / 100} ${p.stock?.unitMeasure ?? ''}`;
+    }
+
+    if (p.saleType === ESaleType.LONGITUDE) return `${Math.round(totalQty / 100 * 100) / 100} m`;
+    if (p.saleType === ESaleType.VOLUME)    return `${totalQty} CC`;
+    return `${totalQty} ${p.stock?.unitMeasure ?? ''}`;
+  }
+
   hideProductDropdownDelayed() {
     setTimeout(() => { this.showProductDropdown = false; this.productActiveIndex = -1; }, 200);
   }

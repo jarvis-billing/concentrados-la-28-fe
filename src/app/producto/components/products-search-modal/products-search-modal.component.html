@@ -29,13 +29,10 @@
                         <span class="text-muted ms-2">{{ producto.brand }} • {{ producto.category }}</span>
                       </div>
                       <div class="d-flex align-items-center gap-2">
-                        <span *ngIf="producto.displayStock?.label; else baseStockA" class="badge bg-primary"
+                        <span class="badge bg-primary"
                           [attr.title]="producto.displayStock?.packSize ? ('Tamaño pack: ' + producto.displayStock?.packSize + ' ' + producto.displayStock?.unit) : null">
-                          Stock: {{ producto.displayStock?.label }}
+                          Stock: {{ getProductStockLabel(producto) }}
                         </span>
-                        <ng-template #baseStockModal>
-                          <span class="badge bg-secondary">Stock: {{ producto.stock?.quantity }} {{ producto.stock?.unitMeasure }}</span>
-                        </ng-template>
                         <button type="button" class="btn btn-outline-success btn-sm" (click)="goToCreateOrEditProduct(producto); $event.stopPropagation();" title="Editar producto / presentaciones">
                           <i class="bi bi-pencil-square"></i>
                         </button>
@@ -51,6 +48,7 @@
                           <tr>
                             <th>Código Barra</th>
                             <th>Presentación</th>
+                            <th>Stock</th>
                             <th>Precio de Venta</th>
                             <th>Modo de venta</th>
                             <th></th>
@@ -60,6 +58,9 @@
                           <tr *ngFor="let pres of producto.presentations; let pIndex = index">
                             <td class="text-nowrap">{{ pres.barcode }}</td>
                             <td class="text-start">{{ pres.label }}</td>
+                            <td class="text-nowrap">
+                              <span class="badge bg-success">{{ getPresStockLabel(producto, pres) }}</span>
+                            </td>
                             <td class="text-nowrap">{{ pres.salePrice | currency:'$ ':'symbol':'.0-0' }}</td>
                             <td>
                               <ng-container *ngIf="pres.isFixedAmount; else nonFixedA">

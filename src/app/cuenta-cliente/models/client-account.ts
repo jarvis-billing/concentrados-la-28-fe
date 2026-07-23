@@ -54,6 +54,17 @@ export class AccountReportFilter {
     fromDate?: string;
     toDate?: string;
     onlyWithBalance?: boolean;       // Solo cuentas con saldo pendiente
+    page?: number;
+    size?: number;
+}
+
+/** Respuesta paginada del reporte */
+export interface PagedAccountReport {
+    content: AccountSummary[];
+    page: number;
+    size: number;
+    totalElements: number;
+    totalPages: number;
 }
 
 /**
@@ -71,6 +82,25 @@ export interface PaymentWithBalance {
     balanceAfter:  number;   // saldo DESPUÉS de este pago
 }
 
+/** Detalle de ítem de una factura */
+export interface SaleDetailItem {
+    id?: string;
+    product?: { description?: string; code?: string; barcode?: string; };
+    amount?: number;
+    unitPrice?: number;
+    subTotal?: number;
+}
+
+/** Factura a crédito resumida para el reporte */
+export interface CreditBilling {
+    id: string;
+    billNumber?: string;
+    dateTimeRecord?: string;
+    totalBilling?: number;
+    saleDetails?: SaleDetailItem[];
+    saleType?: string;
+}
+
 /**
  * Resumen de cuenta para reportes
  */
@@ -83,7 +113,8 @@ export class AccountSummary {
     currentBalance: number = 0;
     lastPaymentDate?: string;
     daysSinceLastPayment?: number;
-    payments?: PaymentWithBalance[];  // historial con saldo previo por pago
+    payments?: PaymentWithBalance[];          // historial con saldo previo por pago
+    creditBillings?: CreditBilling[];         // facturas a crédito del cliente
 }
 
 /**

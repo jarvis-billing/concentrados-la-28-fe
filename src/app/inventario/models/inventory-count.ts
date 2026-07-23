@@ -34,6 +34,11 @@ export interface RecordCountRequest {
   countedQty: number;
 }
 
+/** Conteo de múltiples presentaciones de un mismo producto en una sola llamada */
+export interface BulkCountRequest {
+  entries: RecordCountRequest[];
+}
+
 export interface UncountedProductDto {
   barcode: string;
   productId: string;

@@ -1,5 +1,5 @@
 import { Component, OnInit, AfterViewInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators, FormArray } from '@angular/forms';
+import { FormBuilder, FormGroup, Validators, FormArray, AbstractControl } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { toast } from 'ngx-sonner';
@@ -66,6 +66,75 @@ export class CrearProductoComponent implements OnInit, AfterViewInit {
       }),
       presentations: this.fb.array([])
     });
+  }
+
+  // ── Etiqueta automática ───────────────────────────────────────────────
+  // Construye la etiqueta de una presentación a partir de la descripción,
+  // modo de venta y unidad de medida. Reemplaza la closure interna.
+  buildLabelForGroup(ctrl: AbstractControl): string {
+    const desc = (this.productoForm.get('description')?.value || '').toString().trim();
+    const saleType = this.productoForm.get('saleType')?.value as ESaleType | undefined;
+    const unitKey = ctrl.get('unitMeasure')?.value as keyof typeof UnitMeasureLabels;
+    let unitLabel: string = (this.unitMeasureLabels as any)?.[unitKey] || unitKey || '';
+    const mode = ctrl.get('saleMode')?.value as string | null;
+    const packSize = Number(ctrl.get('packSize')?.value) || 0;
+
+    if (mode === 'BULK') {
+      if (saleType === ESaleType.VOLUME) unitLabel = this.unitMeasureLabels[UnitMeasure.MILILITROS];
+      return `${desc} - GRANEL ${unitLabel}`.trim();
+    }
+    if (mode === 'FIXED_FULL' || mode === 'FIXED_HALF') {
+      let displaySize = mode === 'FIXED_HALF' ? packSize / 2 : packSize;
+      if (saleType === ESaleType.VOLUME && displaySize > 0) {
+        if (unitKey === UnitMeasure.LITROS) displaySize = displaySize * 1000;
+        unitLabel = this.unitMeasureLabels[UnitMeasure.MILILITROS];
+      }
+      if (displaySize > 0) {
+        const prefix = mode === 'FIXED_HALF' ? 'MEDIO BULTO' : 'BULTO COMPLETO';
+        return `${desc} - ${prefix} ${displaySize} ${unitLabel}`.trim();
+      }
+      return desc;
+    }
+    // NORMAL → etiqueta = descripción del producto
+    return desc;
+  }
+
+  // ── Calcular costos derivados ─────────────────────────────────────────
+  // Usa el costo del Bulto Completo para derivar:
+  //   Medio Bulto = costo ÷ 2
+  //   Granel      = costo ÷ fixedAmount (costo por kg/unidad)
+  calculateDerivedCosts(): void {
+    const ctrls = this.presentations.controls;
+    if (!ctrls?.length) { toast.warning('Agrega presentaciones primero'); return; }
+
+    const fullCtrl = ctrls.find(c =>
+      c.get('saleMode')?.value === 'FIXED_FULL' &&
+      Number(c.get('costPrice')?.value) > 0
+    );
+    if (!fullCtrl) {
+      toast.warning('Se necesita un "Bulto Completo" con costo mayor a 0');
+      return;
+    }
+
+    const fullCost       = Number(fullCtrl.get('costPrice')?.value)  || 0;
+    const fullFixedAmt   = Number(fullCtrl.get('fixedAmount')?.value) || 0;
+
+    let changed = 0;
+    ctrls.forEach(c => {
+      const mode = c.get('saleMode')?.value as string | null;
+      if (mode === 'FIXED_HALF') {
+        c.get('costPrice')?.setValue(Math.round(fullCost / 2));
+        changed++;
+      } else if (mode === 'BULK' && fullFixedAmt > 0) {
+        // costo por unidad de medida (ej: por kg)
+        const unitCost = Math.round((fullCost / fullFixedAmt) * 100) / 100;
+        c.get('costPrice')?.setValue(unitCost);
+        changed++;
+      }
+    });
+
+    if (changed > 0) toast.success(`${changed} presentación(es) actualizadas`);
+    else toast.info('No hay Medio Bulto ni Granel para calcular');
   }
 
   // Toma el mayor barcode (numérico) entre las presentaciones del formulario y devuelve el siguiente, preservando el padding
@@ -178,6 +247,17 @@ export class CrearProductoComponent implements OnInit, AfterViewInit {
       }
     });
 
+    // Auto-mayúsculas + actualizar etiquetas cuando cambia la descripción
+    this.productoForm.get('description')?.valueChanges.subscribe((val: string) => {
+      const upper = (val || '').toUpperCase();
+      if (val !== upper) {
+        this.productoForm.get('description')?.setValue(upper, { emitEvent: false });
+      }
+      this.presentations.controls.forEach(ctrl => {
+        ctrl.get('label')?.setValue(this.buildLabelForGroup(ctrl), { emitEvent: false });
+      });
+    });
+
     // Al entrar en modo creación, solicitar siempre un nuevo código de producto
     if (!this.isEditMode) {
       this.productoService.fetchProductCode();
@@ -228,10 +308,11 @@ export class CrearProductoComponent implements OnInit, AfterViewInit {
         return;
       }
     }
+    const currentDesc = (this.productoForm.get('description')?.value || '').toString().trim();
     const group = this.fb.group({
       barcode: [presentation?.barcode || '', Validators.required],
       productCode: [presentation?.productCode || ''],
-      label: [presentation?.label || '', Validators.required],
+      label: [presentation?.label || currentDesc, Validators.required],
       salePrice: [presentation?.salePrice || 0, [Validators.required, Validators.min(0)]],
       costPrice: [presentation?.costPrice || 0, [Validators.required, Validators.min(0)]],
       unitMeasure: [presentation?.unitMeasure || '', Validators.required],
@@ -258,38 +339,7 @@ export class CrearProductoComponent implements OnInit, AfterViewInit {
     const labelCtrl = group.get('label');
     const unitCtrl = group.get('unitMeasure');
 
-    const buildAutoLabel = () => {
-      const desc = (this.productoForm.get('description')?.value || '').toString().trim();
-      const saleType = this.productoForm.get('saleType')?.value as ESaleType | undefined;
-      const unitKey = unitCtrl?.value as keyof typeof UnitMeasureLabels;
-      let unitLabel = (this.unitMeasureLabels as any)?.[unitKey] || unitKey || '';
-      const mode = saleModeCtrl?.value as string | null;
-      if (mode === 'BULK') {
-        // Para volumen, representar siempre en mililitros
-        if (saleType === ESaleType.VOLUME) {
-          unitLabel = this.unitMeasureLabels[UnitMeasure.MILILITROS];
-        }
-        return `${desc} - GRANEL ${unitLabel}`.trim();
-      }
-      if (mode === 'FIXED_FULL' || mode === 'FIXED_HALF') {
-        let size = Number(packSizeCtrl?.value) || 0;
-        // Para FIXED_HALF, mostrar la mitad del tamaño
-        let displaySize = mode === 'FIXED_HALF' ? size / 2 : size;
-        // Convertir a mL cuando sea volumen
-        if (saleType === ESaleType.VOLUME && displaySize > 0) {
-          if (unitKey === UnitMeasure.LITROS) {
-            displaySize = displaySize * 1000;
-          }
-          unitLabel = this.unitMeasureLabels[UnitMeasure.MILILITROS];
-        }
-        if (displaySize > 0) {
-          const prefix = mode === 'FIXED_HALF' ? 'MEDIO BULTO' : 'BULTO COMPLETO';
-          return `${desc} - ${prefix} ${displaySize} ${unitLabel}`.trim();
-        }
-        return desc;
-      }
-      return labelCtrl?.value;
-    };
+    const buildAutoLabel = () => this.buildLabelForGroup(group);
     
     const applyFixedValidators = (enabled: boolean) => {
       if (!fixedCtrl) return;
@@ -399,6 +449,8 @@ export class CrearProductoComponent implements OnInit, AfterViewInit {
         unitCtrl?.setValue(UnitMeasure.LITROS);
       } else if (saleType === ESaleType.LONGITUDE) {
         unitCtrl?.setValue(UnitMeasure.CENTIMETROS);
+      } else if (saleType === ESaleType.UNIT) {
+        unitCtrl?.setValue(UnitMeasure.UNIDAD);
       }
     }
   }

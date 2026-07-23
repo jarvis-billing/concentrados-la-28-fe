@@ -731,6 +731,54 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
     this.showSearchResults = this.searchResults.length > 0;
   }
 
+  // Noun de embalaje según tipo de venta
+  private packagingNoun(saleType: string | undefined): string {
+    switch (saleType) {
+      case ESaleType.WEIGHT:    return 'bultos';
+      case ESaleType.LONGITUDE: return 'rollos';
+      case ESaleType.VOLUME:    return 'unid.';
+      default:                  return 'unid.';
+    }
+  }
+
+  // Calcula el stock disponible para una presentación usando distribución greedy
+  getPresStockLabel(product: Product, pres: Presentation): string {
+    const totalQty = Number(product.stock?.quantity ?? 0);
+    const stockUnit = (product.stock?.unitMeasure ?? '').toString();
+
+    if (!pres.isBulk && !pres.isFixedAmount) {
+      return `${totalQty} ${stockUnit}`;
+    }
+
+    const fixedPres = (product.presentations || [])
+      .filter(p => p.isFixedAmount && (p.fixedAmount ?? 0) > 0)
+      .sort((a, b) => (b.fixedAmount ?? 0) - (a.fixedAmount ?? 0));
+
+    let remaining = totalQty;
+    const stockMap = new Map<string, number>();
+
+    for (const fp of fixedPres) {
+      const amt = Number(fp.fixedAmount ?? 0);
+      if (amt <= 0) continue;
+      const count = Math.floor(remaining / amt);
+      stockMap.set(fp.barcode, count);
+      remaining = Math.round((remaining - count * amt) * 100000) / 100000;
+    }
+
+    if (pres.isFixedAmount) {
+      const count = stockMap.get(pres.barcode) ?? 0;
+      return `${count} ${this.packagingNoun(product.saleType)}`;
+    }
+    if (pres.isBulk) {
+      const qty = Math.round(remaining * 100) / 100;
+      if (product.saleType === ESaleType.LONGITUDE) {
+        return `${Math.round(qty / 100 * 100) / 100} m`;
+      }
+      return `${qty} ${stockUnit}`;
+    }
+    return `${totalQty} ${stockUnit}`;
+  }
+
   selectSearchResult(result: { product: Product; presentation: Presentation }): void {
     this.activeSearchIndex = -1;
     const mapped = this.mapPresentation(result.product, result.presentation);

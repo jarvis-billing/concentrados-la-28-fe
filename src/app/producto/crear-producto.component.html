@@ -77,7 +77,9 @@
                             <div class="row">
                                 <div class="col-6 mb-3" formGroupName="stock">
                                     <label>Cantidad</label>
-                                    <input type="number" formControlName="quantity" min="0" class="form-control" />
+                                    <input type="number" formControlName="quantity" min="0"
+                                        [step]="productoForm.get('saleType')?.value === 'UNIT' ? '1' : '0.01'"
+                                        class="form-control" />
                                 </div>
                                 <div class="col-6 mb-3" formGroupName="stock">
                                     <label>Unidad de medida</label>
@@ -94,7 +96,7 @@
                                     Stock actual: {{ loadedDisplayStock?.label }}
                                 </span>
                                 <ng-template #baseStockForm>
-                                    <span class="badge bg-secondary">Stock actual: {{ productoForm.get('stock.quantity')?.value }} {{ productoForm.get('stock.unitMeasure')?.value }}</span>
+                                    <span class="badge bg-secondary">Stock actual: {{ productoForm.get('stock.quantity')?.value | number:'1.0-2' }} {{ productoForm.get('stock.unitMeasure')?.value }}</span>
                                 </ng-template>
                             </div>
                         </fieldset>
@@ -115,10 +117,18 @@
             <div class="col">
                 <div class="row mb-2">
                     <h3>Presentaciones</h3>
-                    <button type="button" class="btn btn-secondary mb-3 mt-2" (click)="addPresentation()">
-                        <i class="bi bi-plus-circle"></i>
-                        Agregar presentación
-                    </button>
+                    <div class="d-flex flex-wrap gap-2 mb-3 mt-2">
+                        <button type="button" class="btn btn-secondary" (click)="addPresentation()">
+                            <i class="bi bi-plus-circle"></i>
+                            Agregar presentación
+                        </button>
+                        <button type="button" class="btn btn-outline-info"
+                            *ngIf="presentations.length > 1 && productoForm.get('saleType')?.value !== 'UNIT'"
+                            (click)="calculateDerivedCosts()"
+                            title="Calcula el costo de Medio Bulto (÷ 2) y Granel (÷ kg del bulto) a partir del costo del Bulto Completo">
+                            <i class="bi bi-calculator me-1"></i>Calcular costos
+                        </button>
+                    </div>
                 </div>
                 <div formArrayName="presentations" class="presentation-item"
                     style="max-height: 600px; min-height: 350px; overflow-y: auto; overflow-x: auto; padding: 6px;">

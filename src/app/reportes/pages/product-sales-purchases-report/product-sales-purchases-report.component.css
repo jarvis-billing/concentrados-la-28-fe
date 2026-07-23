@@ -1,0 +1,33 @@
+.spr-product-row:hover {
+  background-color: rgba(var(--bs-primary-rgb), 0.04);
+}
+
+.spr-pres-row td {
+  border-left: 3px solid var(--bs-primary);
+}
+
+.spr-suggestions .dropdown-item:hover,
+.spr-suggestions .spr-suggestion-active {
+  background-color: rgba(var(--bs-primary-rgb), 0.12) !important;
+  color: var(--bs-primary-text-emphasis);
+}
+
+.spr-suggestions .dropdown-item:last-child {
+  border-bottom: none !important;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+  user-select: none;
+}
+
+.spr-table thead th {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.spr-table tbody td {
+  font-size: 0.85rem;
+}

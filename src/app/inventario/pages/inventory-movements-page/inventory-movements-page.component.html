@@ -115,7 +115,7 @@
                         'text-success fw-bold': movement.quantity > 0,
                         'text-danger fw-bold': movement.quantity < 0
                       }">
-                        {{ movement.quantity > 0 ? '+' : '' }}{{ movement.quantity }} {{ movement.unitMeasure }}
+                        {{ movement.quantity > 0 ? '+' : '' }}{{ movement.quantity | number:'1.0-2' }} {{ movement.unitMeasure }}
                       </span>
                     </td>
                     <td class="text-end">{{ movement.previousStock }} {{ movement.unitMeasure }}</td>

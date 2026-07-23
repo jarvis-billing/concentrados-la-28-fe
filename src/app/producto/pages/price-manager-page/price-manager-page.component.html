@@ -300,7 +300,7 @@
                                     <td class="text-center">
                                         @if (row.stockQuantity > 0) {
                                             <span class="badge bg-success-subtle text-success-emphasis">
-                                                {{ row.stockQuantity }} {{ row.stockUnit | lowercase }}
+                                                {{ row.stockQuantity | number:'1.0-2' }} {{ row.stockUnit | lowercase }}
                                             </span>
                                         } @else {
                                             <span class="badge bg-danger-subtle text-danger-emphasis">Sin stock</span>

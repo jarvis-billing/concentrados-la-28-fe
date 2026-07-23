@@ -2,7 +2,7 @@ import { Component, inject, OnInit, ViewChild } from '@angular/core';
 import { CommonModule, CurrencyPipe } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { ClientAccountService } from '../../services/client-account.service';
-import { AccountSummary, AccountReportFilter } from '../../models/client-account';
+import { AccountSummary, AccountReportFilter, PagedAccountReport } from '../../models/client-account';
 import { ManualCreditModalComponent } from '../../components/manual-credit-modal/manual-credit-modal.component';
 import { ClienteService } from '../../../cliente/cliente.service';
 import { Client } from '../../../cliente/cliente';
@@ -23,10 +23,21 @@ export class AccountsReceivableReportComponent implements OnInit {
 
     accounts:         AccountSummary[] = [];
     filteredAccounts: AccountSummary[] = [];
-    isLoading = false;
+    isLoading    = false;
+    isExportingPdf = false;
+
+    // ─── Paginación ──────────────────────────────────────────────
+    currentPage  = 0;
+    pageSize     = 20;
+    totalPages   = 0;
+    totalElements = 0;
 
     // ─── Fila expandida ──────────────────────────────────────────
     expandedClientId: string | null = null;
+    expandedBillingIds = new Set<string>();
+
+    // ─── Ordenamiento ────────────────────────────────────────────
+    sortOrder: 'asc' | 'desc' = 'asc';
 
     // ─── Filtro por cliente (autocomplete) ───────────────────────
     clients:             Client[] = [];
@@ -58,20 +69,26 @@ export class AccountsReceivableReportComponent implements OnInit {
 
     // ─── Carga ───────────────────────────────────────────────────
 
-    loadReport(): void {
+    loadReport(page = this.currentPage): void {
         this.isLoading = true;
         const f = this.filterForm.value;
         const filter: AccountReportFilter = {
             clientId:        this.selectedClient?.id || undefined,
             fromDate:        f.fromDate || undefined,
             toDate:          f.toDate   || undefined,
-            onlyWithBalance: f.onlyWithBalance
+            onlyWithBalance: f.onlyWithBalance,
+            page,
+            size: this.pageSize
         };
 
         this.accountService.getAccountsReport(filter).subscribe({
-            next: accounts => {
-                this.accounts         = accounts;
-                this.filteredAccounts = [...accounts];
+            next: (res: PagedAccountReport) => {
+                this.accounts         = res.content;
+                this.filteredAccounts = [...res.content];
+                this.currentPage      = res.page;
+                this.totalPages       = res.totalPages;
+                this.totalElements    = res.totalElements;
+                this.applySort();
                 this.calculateTotals();
                 this.isLoading = false;
             },
@@ -82,14 +99,37 @@ export class AccountsReceivableReportComponent implements OnInit {
         });
     }
 
-    applyFilters(): void { this.loadReport(); }
+    applyFilters(): void {
+        this.currentPage = 0;
+        this.loadReport(0);
+    }
 
     clearFilters(): void {
         this.filterForm.reset({ onlyWithBalance: true });
         this.selectedClient   = null;
         this.clientSearchText = '';
         this.filteredClients  = this.clients;
-        this.loadReport();
+        this.currentPage      = 0;
+        this.loadReport(0);
+    }
+
+    // ─── Paginación ──────────────────────────────────────────────
+
+    goToPage(p: number): void {
+        if (p < 0 || p >= this.totalPages) return;
+        this.currentPage = p;
+        this.loadReport(p);
+    }
+
+    prevPage(): void { this.goToPage(this.currentPage - 1); }
+    nextPage(): void { this.goToPage(this.currentPage + 1); }
+
+    get pageNumbers(): number[] {
+        const pages: number[] = [];
+        const start = Math.max(0, this.currentPage - 2);
+        const end   = Math.min(this.totalPages - 1, this.currentPage + 2);
+        for (let i = start; i <= end; i++) pages.push(i);
+        return pages;
     }
 
     calculateTotals(): void {
@@ -175,6 +215,31 @@ export class AccountsReceivableReportComponent implements OnInit {
 
     openManualCreditModal(): void { this.manualCreditModal?.openModal(); }
 
+    // ─── Ordenamiento ─────────────────────────────────────────────
+
+    toggleSort(): void {
+        this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
+        this.applySort();
+    }
+
+    applySort(): void {
+        this.filteredAccounts.sort((a, b) => {
+            const cmp = (a.clientName || '').localeCompare(b.clientName || '', 'es', { sensitivity: 'base' });
+            return this.sortOrder === 'asc' ? cmp : -cmp;
+        });
+    }
+
+    // ─── Facturas expandibles ──────────────────────────────────────
+
+    toggleBilling(id: string): void {
+        if (this.expandedBillingIds.has(id)) this.expandedBillingIds.delete(id);
+        else this.expandedBillingIds.add(id);
+    }
+
+    isBillingExpanded(id: string): boolean {
+        return this.expandedBillingIds.has(id);
+    }
+
     exportToCSV(): void {
         if (!this.filteredAccounts.length) { toast.warning('No hay datos para exportar'); return; }
         const headers = ['Cliente','Documento','Total Deuda','Total Pagado','Saldo Pendiente','Último Pago'];
@@ -191,4 +256,37 @@ export class AccountsReceivableReportComponent implements OnInit {
         link.click();
         toast.success('Reporte exportado exitosamente');
     }
+
+    // ─── Exportar PDF (JasperReports) ────────────────────────────
+
+    exportToPDF(): void {
+        if (this.isExportingPdf) return;
+        this.isExportingPdf = true;
+        const f = this.filterForm.value;
+        const filter: AccountReportFilter = {
+            clientId:        this.selectedClient?.id || undefined,
+            fromDate:        f.fromDate || undefined,
+            toDate:          f.toDate   || undefined,
+            onlyWithBalance: f.onlyWithBalance
+            // sin page/size → el BE usa Integer.MAX_VALUE para incluir todos
+        };
+        this.accountService.getAccountsReportPdf(filter).subscribe({
+            next: (blob: Blob) => {
+                const url  = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href  = url;
+                link.download = `cuentas_por_cobrar_${new Date().toISOString().split('T')[0]}.pdf`;
+                link.click();
+                URL.revokeObjectURL(url);
+                this.isExportingPdf = false;
+                toast.success('PDF generado exitosamente');
+            },
+            error: () => {
+                toast.error('Error al generar el PDF');
+                this.isExportingPdf = false;
+            }
+        });
+    }
+
 }
+

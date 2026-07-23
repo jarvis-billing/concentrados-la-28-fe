@@ -1,0 +1,374 @@
+<div class="container-fluid py-4">
+
+  <!-- Encabezado -->
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+      <h4 class="mb-0 fw-bold">
+        <i class="bi bi-bar-chart-steps me-2 text-primary"></i>Ventas vs Compras por Producto
+      </h4>
+      <p class="text-muted small mb-0">Compara cuánto se vendió y se compró de cada producto en el período</p>
+    </div>
+    @if (hasLoaded && filteredRows.length > 0) {
+      <button class="btn btn-success btn-sm" (click)="exportExcel()" [disabled]="isExporting">
+        @if (isExporting) {
+          <span class="spinner-border spinner-border-sm me-1"></span>Exportando...
+        } @else {
+          <i class="bi bi-file-earmark-excel me-1"></i>Exportar Excel
+        }
+      </button>
+    }
+  </div>
+
+  <!-- Panel de filtros -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-12 col-md-3">
+          <label class="form-label small fw-semibold">Fecha desde</label>
+          <input type="date" class="form-control form-control-sm" [(ngModel)]="fromDate" />
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label small fw-semibold">Fecha hasta</label>
+          <input type="date" class="form-control form-control-sm" [(ngModel)]="toDate" />
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label small fw-semibold">Marca</label>
+          <select class="form-select form-select-sm" [(ngModel)]="brandFilter" (ngModelChange)="applyFilters()">
+            <option value="">Todas las marcas</option>
+            @for (b of brands; track b) {
+              <option [value]="b">{{ b }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label small fw-semibold">Categoría</label>
+          <select class="form-select form-select-sm" [(ngModel)]="categoryFilter" (ngModelChange)="applyFilters()">
+            <option value="">Todas las categorías</option>
+            @for (c of categories; track c) {
+              <option [value]="c">{{ c }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label small fw-semibold">Buscar producto</label>
+          <div class="position-relative">
+            <div class="input-group input-group-sm">
+              <span class="input-group-text">
+                @if (selectedProduct) {
+                  <i class="bi bi-check-circle-fill text-success"></i>
+                } @else {
+                  <i class="bi bi-search"></i>
+                }
+              </span>
+              <input type="text" class="form-control"
+                [class.border-success]="selectedProduct"
+                placeholder="Nombre, barcode o marca..."
+                [(ngModel)]="productSearchText"
+                (ngModelChange)="onProductInput()"
+                (keydown)="onKeyDown($event)"
+                (blur)="hideSuggestions()"
+                (focus)="onProductInput()"
+                autocomplete="off" />
+              @if (productSearchText) {
+                <button class="btn btn-outline-secondary" type="button" (click)="clearProductSearch()">
+                  <i class="bi bi-x"></i>
+                </button>
+              }
+            </div>
+            <!-- Dropdown de sugerencias -->
+            @if (showSuggestions) {
+              <div class="spr-suggestions shadow-sm border rounded-2 bg-white position-absolute w-100 z-3 mt-1" style="max-height:220px;overflow-y:auto;">
+                @for (prod of productSuggestions; track prod.id; let i = $index) {
+                  <button type="button" class="dropdown-item px-3 py-2 text-start border-bottom"
+                    [class.spr-suggestion-active]="i === highlightedIndex"
+                    (mousedown)="selectProduct(prod)">
+                    <div class="fw-semibold small">{{ prod.description }}</div>
+                    <div class="d-flex gap-1 mt-1">
+                      @if (prod.brand) {
+                        <span class="badge bg-primary-subtle text-primary-emphasis" style="font-size:0.65rem;">{{ prod.brand }}</span>
+                      }
+                      @if (prod.category) {
+                        <span class="badge bg-secondary-subtle text-secondary-emphasis" style="font-size:0.65rem;">{{ prod.category }}</span>
+                      }
+                      @if (prod.presentations && prod.presentations.length > 0) {
+                        <span class="badge bg-light text-muted" style="font-size:0.65rem;">{{ prod.presentations.length }} presentaciones</span>
+                      }
+                    </div>
+                  </button>
+                }
+              </div>
+            }
+          </div>
+          @if (selectedProduct) {
+            <div class="small text-success mt-1">
+              <i class="bi bi-funnel-fill me-1"></i>Filtrando por: <strong>{{ selectedProduct.description }}</strong>
+            </div>
+          }
+        </div>
+        <div class="col-12 col-md-6 d-flex align-items-end gap-2">
+          <button class="btn btn-primary btn-sm" (click)="loadReport()" [disabled]="isLoading">
+            @if (isLoading) {
+              <span class="spinner-border spinner-border-sm me-1"></span>Cargando...
+            } @else {
+              <i class="bi bi-play-fill me-1"></i>Generar Reporte
+            }
+          </button>
+          @if (hasLoaded) {
+            <button class="btn btn-outline-secondary btn-sm" (click)="clearFilters()">
+              <i class="bi bi-x-circle me-1"></i>Limpiar filtros
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tarjetas resumen -->
+  @if (hasLoaded && !isLoading) {
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-2">
+        <div class="card border-0 shadow-sm h-100 text-center">
+          <div class="card-body py-3">
+            <div class="h4 fw-bold text-primary mb-0">{{ summary.totalProducts }}</div>
+            <div class="small text-muted">Productos</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-2">
+        <div class="card border-0 shadow-sm h-100 text-center">
+          <div class="card-body py-3">
+            <div class="h5 fw-bold text-danger mb-0">{{ formatNumber(summary.totalSold) }}</div>
+            <div class="small text-muted">Unid. Vendidas</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-2">
+        <div class="card border-0 shadow-sm h-100 text-center">
+          <div class="card-body py-3">
+            <div class="h5 fw-bold text-info mb-0">{{ formatNumber(summary.totalPurchased) }}</div>
+            <div class="small text-muted">Unid. Compradas</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-2">
+        <div class="card border-0 shadow-sm h-100 text-center">
+          <div class="card-body py-3">
+            <div class="h6 fw-bold text-danger mb-0">{{ formatCurrency(summary.totalSaleValue) }}</div>
+            <div class="small text-muted">Total Ventas</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-2">
+        <div class="card border-0 shadow-sm h-100 text-center">
+          <div class="card-body py-3">
+            <div class="h6 fw-bold text-info mb-0">{{ formatCurrency(summary.totalCostValue) }}</div>
+            <div class="small text-muted">Total Compras</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-2">
+        <div class="card border-0 shadow-sm h-100 text-center">
+          <div class="card-body py-3">
+            <div class="h6 fw-bold mb-0" [ngClass]="profitClass(summary.totalProfit)">
+              {{ formatCurrency(summary.totalProfit) }}
+            </div>
+            <div class="small text-muted">
+              Utilidad
+              @if (summary.totalSaleValue > 0) {
+                <span class="fw-semibold" [ngClass]="profitClass(summary.totalProfit)">
+                  ({{ formatPct(summary.totalProfit / summary.totalSaleValue) }})
+                </span>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabla de resultados -->
+    @if (filteredRows.length === 0) {
+      <div class="text-center py-5 text-muted">
+        <i class="bi bi-inbox display-4 d-block mb-3"></i>
+        <p>No se encontraron productos con movimientos en el período seleccionado.</p>
+      </div>
+    } @else {
+      <div class="card shadow-sm">
+        <div class="card-header bg-white d-flex align-items-center justify-content-between py-2">
+          <span class="small text-muted">
+            <strong>{{ filteredRows.length }}</strong> productos · Haz clic en una fila para ver el detalle por presentación
+          </span>
+          <span class="badge bg-secondary">{{ fromDate }} → {{ toDate }}</span>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0 spr-table">
+            <thead class="table-dark">
+              <tr>
+                <th class="cursor-pointer" (click)="toggleSort('description')">
+                  Producto <i [class]="'bi ms-1 ' + sortIcon('description')"></i>
+                </th>
+                <th class="cursor-pointer" (click)="toggleSort('brand')">
+                  Marca <i [class]="'bi ms-1 ' + sortIcon('brand')"></i>
+                </th>
+                <th class="cursor-pointer" (click)="toggleSort('category')">
+                  Categoría <i [class]="'bi ms-1 ' + sortIcon('category')"></i>
+                </th>
+                <th class="text-end cursor-pointer" (click)="toggleSort('totalSold')">
+                  Cant. Vendida <i [class]="'bi ms-1 ' + sortIcon('totalSold')"></i>
+                </th>
+                <th class="text-end cursor-pointer" (click)="toggleSort('totalPurchased')">
+                  Cant. Comprada <i [class]="'bi ms-1 ' + sortIcon('totalPurchased')"></i>
+                </th>
+                <th class="text-end cursor-pointer" (click)="toggleSort('totalSaleValue')">
+                  $ Ventas <i [class]="'bi ms-1 ' + sortIcon('totalSaleValue')"></i>
+                </th>
+                <th class="text-end cursor-pointer" (click)="toggleSort('totalCostValue')">
+                  $ Compras <i [class]="'bi ms-1 ' + sortIcon('totalCostValue')"></i>
+                </th>
+                <th class="text-end cursor-pointer" (click)="toggleSort('profit')">
+                  Utilidad <i [class]="'bi ms-1 ' + sortIcon('profit')"></i>
+                </th>
+                <th class="text-end cursor-pointer" (click)="toggleSort('profitPct')">
+                  Margen <i [class]="'bi ms-1 ' + sortIcon('profitPct')"></i>
+                </th>
+                <th class="text-center" style="width:40px;"></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of filteredRows; track row.productId) {
+                <!-- Fila producto -->
+                <tr class="spr-product-row" (click)="toggleExpand(row)" style="cursor:pointer;">
+                  <td class="fw-semibold">{{ row.description }}</td>
+                  <td>
+                    @if (row.brand) {
+                      <span class="badge bg-primary-subtle text-primary-emphasis fw-normal">{{ row.brand }}</span>
+                    }
+                  </td>
+                  <td>
+                    @if (row.category) {
+                      <span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal">{{ row.category }}</span>
+                    }
+                  </td>
+                  <td class="text-end">
+                    @if (row.totalSold > 0) {
+                      <span class="badge bg-danger-subtle text-danger-emphasis">{{ formatNumber(row.totalSold) }}</span>
+                    } @else {
+                      <span class="text-muted">—</span>
+                    }
+                  </td>
+                  <td class="text-end">
+                    @if (row.totalPurchased > 0) {
+                      <span class="badge bg-info-subtle text-info-emphasis">{{ formatNumber(row.totalPurchased) }}</span>
+                    } @else {
+                      <span class="text-muted">—</span>
+                    }
+                  </td>
+                  <td class="text-end fw-semibold">{{ formatCurrency(row.totalSaleValue) }}</td>
+                  <td class="text-end">{{ formatCurrency(row.totalCostValue) }}</td>
+                  <td class="text-end fw-semibold" [ngClass]="profitClass(row.profit)">
+                    {{ formatCurrency(row.profit) }}
+                  </td>
+                  <td class="text-end" [ngClass]="profitClass(row.profitPct)">
+                    {{ formatPct(row.profitPct) }}
+                  </td>
+                  <td class="text-center">
+                    <i [class]="'bi ' + (row.expanded ? 'bi-chevron-up text-primary' : 'bi-chevron-down text-muted')"></i>
+                  </td>
+                </tr>
+
+                <!-- Filas de presentaciones (expandidas) -->
+                @if (row.expanded) {
+                  @for (pres of row.presentations; track pres.barcode) {
+                    <tr class="spr-pres-row table-light">
+                      <td class="ps-5 text-muted small">
+                        <i class="bi bi-diagram-2 me-1"></i>
+                        {{ pres.label }}
+                        <span class="text-muted ms-1" style="font-size:0.7rem;">{{ pres.barcode }}</span>
+                      </td>
+                      <td></td>
+                      <td></td>
+                      <td class="text-end small">
+                        @if (pres.qtySold > 0) {
+                          {{ formatNumber(pres.qtySold) }}
+                        } @else {
+                          <span class="text-muted">—</span>
+                        }
+                      </td>
+                      <td class="text-end small">
+                        @if (pres.qtyPurchased > 0) {
+                          {{ formatNumber(pres.qtyPurchased) }}
+                        } @else {
+                          <span class="text-muted">—</span>
+                        }
+                      </td>
+                      <td class="text-end small">
+                        @if (pres.saleValue > 0) {
+                          {{ formatCurrency(pres.saleValue) }}
+                        } @else {
+                          <span class="text-muted">—</span>
+                        }
+                      </td>
+                      <td class="text-end small">
+                        @if (pres.costValue > 0) {
+                          {{ formatCurrency(pres.costValue) }}
+                        } @else {
+                          <span class="text-muted">—</span>
+                        }
+                      </td>
+                      <td class="text-end small" [ngClass]="profitClass(pres.saleValue - pres.costValue)">
+                        {{ formatCurrency(pres.saleValue - pres.costValue) }}
+                      </td>
+                      <td class="text-end small" [ngClass]="profitClass(pres.saleValue > 0 ? (pres.saleValue - pres.costValue) / pres.saleValue : 0)">
+                        @if (pres.saleValue > 0) {
+                          {{ formatPct((pres.saleValue - pres.costValue) / pres.saleValue) }}
+                        } @else {
+                          <span class="text-muted">—</span>
+                        }
+                      </td>
+                      <td></td>
+                    </tr>
+                  }
+                }
+              }
+            </tbody>
+            <tfoot>
+              <tr class="fw-bold table-secondary">
+                <td colspan="3">TOTALES ({{ filteredRows.length }} productos)</td>
+                <td class="text-end">{{ formatNumber(summary.totalSold) }}</td>
+                <td class="text-end">{{ formatNumber(summary.totalPurchased) }}</td>
+                <td class="text-end">{{ formatCurrency(summary.totalSaleValue) }}</td>
+                <td class="text-end">{{ formatCurrency(summary.totalCostValue) }}</td>
+                <td class="text-end" [ngClass]="profitClass(summary.totalProfit)">
+                  {{ formatCurrency(summary.totalProfit) }}
+                </td>
+                <td class="text-end" [ngClass]="profitClass(summary.totalSaleValue > 0 ? summary.totalProfit / summary.totalSaleValue : 0)">
+                  @if (summary.totalSaleValue > 0) {
+                    {{ formatPct(summary.totalProfit / summary.totalSaleValue) }}
+                  }
+                </td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    }
+  }
+
+  <!-- Estado inicial: sin cargar -->
+  @if (!hasLoaded && !isLoading) {
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-bar-chart-steps display-4 d-block mb-3 text-primary opacity-50"></i>
+      <p class="mb-1">Selecciona un rango de fechas y presiona <strong>Generar Reporte</strong>.</p>
+      <p class="small">Puedes filtrar por marca, categoría o buscar un producto específico.</p>
+    </div>
+  }
+
+  <!-- Loading spinner -->
+  @if (isLoading) {
+    <div class="text-center py-5">
+      <div class="spinner-border text-primary" role="status"></div>
+      <p class="text-muted mt-3">Cargando ventas y compras del período…</p>
+    </div>
+  }
+
+</div>

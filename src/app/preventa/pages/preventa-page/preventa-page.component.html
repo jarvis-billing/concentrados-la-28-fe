@@ -209,6 +209,17 @@
                   <span class="badge bg-warning text-dark">Granel</span>
                 }
               </div>
+              <div class="search-result-extra">
+                @if (r.product.brand) {
+                  <span class="search-result-brand">{{ r.product.brand }}</span>
+                }
+                @if (r.product.category) {
+                  <span class="search-result-category">{{ r.product.category }}</span>
+                }
+                <span class="search-result-stock">
+                  <i class="bi bi-box-seam"></i> {{ getPresStockLabel(r.product, r.presentation) }}
+                </span>
+              </div>
             </div>
           }
         </div>

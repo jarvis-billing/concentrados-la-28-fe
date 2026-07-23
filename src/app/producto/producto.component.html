@@ -52,7 +52,7 @@
                                             Stock: {{ producto.displayStock?.label }}
                                         </span>
                                         <ng-template #baseStockA>
-                                            <span class="badge bg-primary">Stock: {{ producto.stock?.quantity }} {{ producto.stock?.unitMeasure }}</span>
+                                            <span class="badge bg-primary">Stock: {{ producto.stock?.quantity | number:'1.0-2' }} {{ producto.stock?.unitMeasure }}</span>
                                         </ng-template>
                                     </div>
                                     <div class="ms-md-3 text-nowrap">
@@ -171,7 +171,7 @@
                                 Stock: {{ p.displayStock?.label }}
                             </span>
                             <ng-template #baseStockB>
-                                <span class="badge bg-secondary">Stock: {{ p.stock?.quantity }} {{ p.stock?.unitMeasure }}</span>
+                                <span class="badge bg-secondary">Stock: {{ p.stock?.quantity | number:'1.0-2' }} {{ p.stock?.unitMeasure }}</span>
                             </ng-template>
                         </div>
                     </div>

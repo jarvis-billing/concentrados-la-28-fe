@@ -3,6 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { urlConfig } from '../../../config/config';
 import {
+  BulkCountRequest,
   HideUncountedResultDto,
   InventoryCountReportDto,
   InventoryCountSessionDto,
@@ -36,6 +37,11 @@ export class InventoryCountService {
 
   recordCount(sessionId: string, request: RecordCountRequest): Observable<InventoryCountSessionDto> {
     return this.http.post<InventoryCountSessionDto>(`${this.base}/sessions/${sessionId}/entries`, request);
+  }
+
+  /** Guarda el conteo de múltiples presentaciones de un mismo producto y actualiza el stock */
+  recordBulkCount(sessionId: string, request: BulkCountRequest): Observable<InventoryCountSessionDto> {
+    return this.http.post<InventoryCountSessionDto>(`${this.base}/sessions/${sessionId}/entries/bulk`, request);
   }
 
   pauseSession(sessionId: string): Observable<InventoryCountSessionDto> {
