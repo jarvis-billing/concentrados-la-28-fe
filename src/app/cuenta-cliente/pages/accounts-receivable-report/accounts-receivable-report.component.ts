@@ -2,11 +2,14 @@ import { Component, inject, OnInit, ViewChild } from '@angular/core';
 import { CommonModule, CurrencyPipe } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { ClientAccountService } from '../../services/client-account.service';
-import { AccountSummary, AccountReportFilter, PagedAccountReport } from '../../models/client-account';
+import { AccountSummary, AccountReportFilter, PagedAccountReport, ManualTransaction } from '../../models/client-account';
 import { ManualCreditModalComponent } from '../../components/manual-credit-modal/manual-credit-modal.component';
 import { ClienteService } from '../../../cliente/cliente.service';
 import { Client } from '../../../cliente/cliente';
 import { toast } from 'ngx-sonner';
+
+type StatusFilter = 'all' | 'pending' | 'settled';
+type RowTab = 'facturas' | 'cuaderno' | 'pagos';
 
 @Component({
     selector: 'app-accounts-receivable-report',
@@ -21,25 +24,26 @@ export class AccountsReceivableReportComponent implements OnInit {
     clienteService  = inject(ClienteService);
     fb              = inject(FormBuilder);
 
-    accounts:         AccountSummary[] = [];
-    filteredAccounts: AccountSummary[] = [];
-    isLoading    = false;
+    accounts:    AccountSummary[] = [];
+    isLoading = false;
     isExportingPdf = false;
 
     // ─── Paginación ──────────────────────────────────────────────
-    currentPage  = 0;
-    pageSize     = 20;
-    totalPages   = 0;
+    currentPage   = 0;
+    pageSize      = 20;
+    pageSizes     = [10, 20, 50, 100];
+    totalPages    = 0;
     totalElements = 0;
 
-    // ─── Fila expandida ──────────────────────────────────────────
+    // ─── Estado expandido ─────────────────────────────────────────
     expandedClientId: string | null = null;
+    rowTabs: Record<string, RowTab> = {};
     expandedBillingIds = new Set<string>();
 
-    // ─── Ordenamiento ────────────────────────────────────────────
-    sortOrder: 'asc' | 'desc' = 'asc';
+    // ─── Filtro de estado ─────────────────────────────────────────
+    statusFilter: StatusFilter = 'all';
 
-    // ─── Filtro por cliente (autocomplete) ───────────────────────
+    // ─── Autocomplete cliente ─────────────────────────────────────
     clients:             Client[] = [];
     filteredClients:     Client[] = [];
     clientSearchText  = '';
@@ -47,15 +51,15 @@ export class AccountsReceivableReportComponent implements OnInit {
     selectedClient:     Client | null = null;
 
     filterForm: FormGroup = this.fb.group({
-        fromDate:       [''],
-        toDate:         [''],
-        onlyWithBalance:[true]
+        fromDate: [''],
+        toDate:   ['']
     });
 
-    // ─── Totales ─────────────────────────────────────────────────
-    totalDebt    = 0;
-    totalPaid    = 0;
-    totalBalance = 0;
+    // ─── Totales de página ────────────────────────────────────────
+    totalDebtSum = 0;
+    totalPending = 0;
+    totalPaidSum = 0;
+    pendingCount = 0;
 
     @ViewChild(ManualCreditModalComponent) manualCreditModal!: ManualCreditModalComponent;
 
@@ -76,20 +80,22 @@ export class AccountsReceivableReportComponent implements OnInit {
             clientId:        this.selectedClient?.id || undefined,
             fromDate:        f.fromDate || undefined,
             toDate:          f.toDate   || undefined,
-            onlyWithBalance: f.onlyWithBalance,
+            onlyWithBalance: this.statusFilter === 'pending' ? true : undefined,
+            onlySettled:     this.statusFilter === 'settled' ? true : undefined,
             page,
             size: this.pageSize
         };
 
         this.accountService.getAccountsReport(filter).subscribe({
             next: (res: PagedAccountReport) => {
-                this.accounts         = res.content;
-                this.filteredAccounts = [...res.content];
-                this.currentPage      = res.page;
-                this.totalPages       = res.totalPages;
-                this.totalElements    = res.totalElements;
-                this.applySort();
-                this.calculateTotals();
+                this.accounts      = res.content;
+                this.currentPage   = res.page;
+                this.totalPages    = res.totalPages;
+                this.totalElements = res.totalElements;
+                this.totalDebtSum  = res.totalDebtGlobal    ?? 0;
+                this.totalPaidSum  = res.totalPaidGlobal    ?? 0;
+                this.totalPending  = res.totalPendingGlobal ?? 0;
+                this.pendingCount  = res.pendingCountGlobal ?? 0;
                 this.isLoading = false;
             },
             error: () => {
@@ -101,15 +107,32 @@ export class AccountsReceivableReportComponent implements OnInit {
 
     applyFilters(): void {
         this.currentPage = 0;
+        this.expandedClientId = null;
         this.loadReport(0);
     }
 
     clearFilters(): void {
-        this.filterForm.reset({ onlyWithBalance: true });
+        this.filterForm.reset({ fromDate: '', toDate: '' });
         this.selectedClient   = null;
         this.clientSearchText = '';
         this.filteredClients  = this.clients;
+        this.statusFilter     = 'all';
         this.currentPage      = 0;
+        this.expandedClientId = null;
+        this.loadReport(0);
+    }
+
+    setStatusFilter(s: StatusFilter): void {
+        this.statusFilter     = s;
+        this.currentPage      = 0;
+        this.expandedClientId = null;
+        this.loadReport(0);
+    }
+
+    changePageSize(size: number): void {
+        this.pageSize         = size;
+        this.currentPage      = 0;
+        this.expandedClientId = null;
         this.loadReport(0);
     }
 
@@ -118,6 +141,7 @@ export class AccountsReceivableReportComponent implements OnInit {
     goToPage(p: number): void {
         if (p < 0 || p >= this.totalPages) return;
         this.currentPage = p;
+        this.expandedClientId = null;
         this.loadReport(p);
     }
 
@@ -133,19 +157,95 @@ export class AccountsReceivableReportComponent implements OnInit {
     }
 
     calculateTotals(): void {
-        this.totalDebt    = this.filteredAccounts.reduce((s, a) => s + (a.totalDebt    || 0), 0);
-        this.totalPaid    = this.filteredAccounts.reduce((s, a) => s + (a.totalPaid    || 0), 0);
-        this.totalBalance = this.filteredAccounts.reduce((s, a) => s + (a.currentBalance || 0), 0);
+        // Totals now come from backend global aggregates — kept for fallback
+        if (!this.totalDebtSum && !this.totalPending) {
+            this.totalDebtSum = this.accounts.reduce((s, a) => s + (a.totalDebt    || 0), 0);
+            this.totalPending = this.accounts.reduce((s, a) => s + Math.max(0, a.currentBalance || 0), 0);
+            this.totalPaidSum = this.accounts.reduce((s, a) => s + (a.totalPaid    || 0), 0);
+            this.pendingCount = this.accounts.filter(a => (a.currentBalance || 0) > 0).length;
+        }
     }
 
     // ─── Fila expandible ─────────────────────────────────────────
 
     toggleRow(clientId: string): void {
-        this.expandedClientId = this.expandedClientId === clientId ? null : clientId;
+        if (this.expandedClientId === clientId) {
+            this.expandedClientId = null;
+        } else {
+            this.expandedClientId = clientId;
+            if (!this.rowTabs[clientId]) {
+                const account = this.accounts.find(a => a.clientId === clientId);
+                if (account?.creditBillings?.length) {
+                    this.rowTabs[clientId] = 'facturas';
+                } else if (account?.manualTransactions?.length) {
+                    this.rowTabs[clientId] = 'cuaderno';
+                } else {
+                    this.rowTabs[clientId] = 'pagos';
+                }
+            }
+        }
     }
 
     isExpanded(clientId: string): boolean {
         return this.expandedClientId === clientId;
+    }
+
+    getRowTab(clientId: string): RowTab {
+        return this.rowTabs[clientId] || 'facturas';
+    }
+
+    setRowTab(clientId: string, tab: RowTab): void {
+        this.rowTabs[clientId] = tab;
+    }
+
+    toggleBilling(id: string): void {
+        if (this.expandedBillingIds.has(id)) this.expandedBillingIds.delete(id);
+        else this.expandedBillingIds.add(id);
+    }
+
+    isBillingExpanded(id: string): boolean {
+        return this.expandedBillingIds.has(id);
+    }
+
+    // ─── Estado del cliente ───────────────────────────────────────
+
+    isPending(a: AccountSummary): boolean { return (a.currentBalance || 0) > 0; }
+    isSettled(a: AccountSummary): boolean { return (a.currentBalance || 0) <= 0 && (a.totalDebt || 0) > 0; }
+
+    statusLabel(a: AccountSummary): string {
+        if (this.isPending(a)) return 'Con saldo';
+        if (this.isSettled(a)) return 'Saldado';
+        return 'Sin deuda';
+    }
+
+    statusClass(a: AccountSummary): string {
+        if (this.isPending(a)) return 'status-pending';
+        if (this.isSettled(a)) return 'status-settled';
+        return 'status-none';
+    }
+
+    // ─── Helpers de transacciones manuales ───────────────────────
+
+    isFromCuaderno(t: ManualTransaction): boolean {
+        return t.source === 'MIGRACION_CUADERNO' || t.type === 'MANUAL_DEBT';
+    }
+
+    manualTxLabel(t: ManualTransaction): string {
+        switch (t.type) {
+            case 'MANUAL_DEBT':       return 'Del cuaderno';
+            case 'ADJUSTMENT':        return 'Ajuste';
+            case 'RETURN_ADJUSTMENT': return 'Devolución';
+            default: return t.type;
+        }
+    }
+
+    manualTxBadgeClass(t: ManualTransaction): string {
+        switch (t.type) {
+            case 'MANUAL_DEBT':       return 'bg-warning text-dark';
+            case 'ADJUSTMENT':        return 'bg-info text-dark';
+            case 'RETURN_ADJUSTMENT': return 'bg-success';
+            default: return 'bg-secondary';
+        }
     }
 
     // ─── Autocomplete cliente ─────────────────────────────────────
@@ -164,8 +264,8 @@ export class AccountsReceivableReportComponent implements OnInit {
     }
 
     selectClient(c: Client): void {
-        this.selectedClient   = c;
-        this.clientSearchText = this.clientDisplayName(c);
+        this.selectedClient     = c;
+        this.clientSearchText   = this.clientDisplayName(c);
         this.showClientDropdown = false;
     }
 
@@ -181,17 +281,18 @@ export class AccountsReceivableReportComponent implements OnInit {
              : c.nickname?.trim()     ? c.nickname : 'Sin nombre';
     }
 
-    // ─── Helpers ─────────────────────────────────────────────────
+    // ─── Helpers de formato ───────────────────────────────────────
 
     formatDate(d: string | Date | undefined): string {
         if (!d) return '-';
-        return new Intl.DateTimeFormat('es-CO', { day:'2-digit', month:'2-digit', year:'numeric' }).format(new Date(d));
+        return new Intl.DateTimeFormat('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' })
+            .format(new Date(d));
     }
 
     formatDateTime(d: string | Date | undefined): string {
         if (!d) return '-';
         return new Intl.DateTimeFormat('es-CO', {
-            day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'
+            day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
         }).format(new Date(d));
     }
 
@@ -207,45 +308,23 @@ export class AccountsReceivableReportComponent implements OnInit {
     paymentMethodBadge(m: string | undefined): string {
         const map: Record<string, string> = {
             EFECTIVO: 'bg-success', TRANSFERENCIA: 'bg-primary',
-            TARJETA_DEBITO: 'bg-info', TARJETA_CREDITO: 'bg-info',
+            TARJETA_DEBITO: 'bg-info text-dark', TARJETA_CREDITO: 'bg-info text-dark',
             CHEQUE: 'bg-warning text-dark', SALDO_FAVOR: 'bg-secondary', OTRO: 'bg-secondary'
         };
         return m ? (map[m] ?? 'bg-secondary') : 'bg-secondary';
     }
 
+    // ─── Exportar ─────────────────────────────────────────────────
+
     openManualCreditModal(): void { this.manualCreditModal?.openModal(); }
 
-    // ─── Ordenamiento ─────────────────────────────────────────────
-
-    toggleSort(): void {
-        this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
-        this.applySort();
-    }
-
-    applySort(): void {
-        this.filteredAccounts.sort((a, b) => {
-            const cmp = (a.clientName || '').localeCompare(b.clientName || '', 'es', { sensitivity: 'base' });
-            return this.sortOrder === 'asc' ? cmp : -cmp;
-        });
-    }
-
-    // ─── Facturas expandibles ──────────────────────────────────────
-
-    toggleBilling(id: string): void {
-        if (this.expandedBillingIds.has(id)) this.expandedBillingIds.delete(id);
-        else this.expandedBillingIds.add(id);
-    }
-
-    isBillingExpanded(id: string): boolean {
-        return this.expandedBillingIds.has(id);
-    }
-
     exportToCSV(): void {
-        if (!this.filteredAccounts.length) { toast.warning('No hay datos para exportar'); return; }
-        const headers = ['Cliente','Documento','Total Deuda','Total Pagado','Saldo Pendiente','Último Pago'];
-        const rows = this.filteredAccounts.map(a => [
-            a.clientName, a.clientIdNumber,
+        if (!this.accounts.length) { toast.warning('No hay datos para exportar'); return; }
+        const headers = ['Cliente', 'Documento', 'Total Deuda', 'Total Pagado', 'Saldo Pendiente', 'Estado', 'Último Movimiento'];
+        const rows = this.accounts.map(a => [
+            `"${a.clientName}"`, a.clientIdNumber,
             a.totalDebt, a.totalPaid, a.currentBalance,
+            this.statusLabel(a),
             this.formatDate(a.lastPaymentDate)
         ]);
         const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
@@ -254,10 +333,8 @@ export class AccountsReceivableReportComponent implements OnInit {
         link.href = URL.createObjectURL(blob);
         link.download = `cuentas_por_cobrar_${new Date().toISOString().split('T')[0]}.csv`;
         link.click();
-        toast.success('Reporte exportado exitosamente');
+        toast.success('Reporte exportado');
     }
-
-    // ─── Exportar PDF (JasperReports) ────────────────────────────
 
     exportToPDF(): void {
         if (this.isExportingPdf) return;
@@ -267,8 +344,8 @@ export class AccountsReceivableReportComponent implements OnInit {
             clientId:        this.selectedClient?.id || undefined,
             fromDate:        f.fromDate || undefined,
             toDate:          f.toDate   || undefined,
-            onlyWithBalance: f.onlyWithBalance
-            // sin page/size → el BE usa Integer.MAX_VALUE para incluir todos
+            onlyWithBalance: this.statusFilter === 'pending' ? true : undefined,
+            onlySettled:     this.statusFilter === 'settled' ? true : undefined
         };
         this.accountService.getAccountsReportPdf(filter).subscribe({
             next: (blob: Blob) => {
@@ -287,6 +364,4 @@ export class AccountsReceivableReportComponent implements OnInit {
             }
         });
     }
-
 }
-

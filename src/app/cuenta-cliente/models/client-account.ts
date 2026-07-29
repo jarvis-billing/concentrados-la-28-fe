@@ -53,7 +53,8 @@ export class AccountReportFilter {
     clientId?: string;
     fromDate?: string;
     toDate?: string;
-    onlyWithBalance?: boolean;       // Solo cuentas con saldo pendiente
+    onlyWithBalance?: boolean;  // Solo cuentas con saldo pendiente
+    onlySettled?: boolean;      // Solo cuentas saldadas (balance = 0, con historial)
     page?: number;
     size?: number;
 }
@@ -65,6 +66,11 @@ export interface PagedAccountReport {
     size: number;
     totalElements: number;
     totalPages: number;
+    /** Totales sobre TODOS los registros del filtro (no solo la página actual) */
+    totalDebtGlobal?: number;
+    totalPaidGlobal?: number;
+    totalPendingGlobal?: number;
+    pendingCountGlobal?: number;
 }
 
 /**
@@ -101,6 +107,19 @@ export interface CreditBilling {
     saleType?: string;
 }
 
+/** Transacción manual: deuda de cuaderno, ajuste, devolución */
+export interface ManualTransaction {
+    id: string;
+    type: string;       // MANUAL_DEBT, ADJUSTMENT, RETURN_ADJUSTMENT
+    amount: number;
+    balanceAfter?: number;
+    notes?: string;
+    source?: string;    // MIGRACION_CUADERNO, etc.
+    transactionDate?: string;
+    createdBy?: string;
+    createdAt?: string;
+}
+
 /**
  * Resumen de cuenta para reportes
  */
@@ -115,6 +134,7 @@ export class AccountSummary {
     daysSinceLastPayment?: number;
     payments?: PaymentWithBalance[];          // historial con saldo previo por pago
     creditBillings?: CreditBilling[];         // facturas a crédito del cliente
+    manualTransactions?: ManualTransaction[]; // deudas del cuaderno y ajustes
 }
 
 /**

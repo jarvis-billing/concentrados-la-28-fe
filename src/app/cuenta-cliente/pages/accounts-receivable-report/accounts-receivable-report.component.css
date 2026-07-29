@@ -1,13 +1,129 @@
-.card {
-    border-radius: 0.5rem;
-}
-
-.table th {
+/* ── Status badges ─────────────────────────────────────── */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.72rem;
     font-weight: 600;
-    font-size: 0.875rem;
+    padding: 3px 10px;
+    border-radius: 12px;
+    white-space: nowrap;
+}
+.status-pending {
+    background: #fde8e8;
+    color: #c0392b;
+    border: 1px solid #f5c6c6;
+}
+.status-settled {
+    background: #e6f9f0;
+    color: #1a7a4a;
+    border: 1px solid #b2e8ce;
+}
+.status-none {
+    background: #f1f3f5;
+    color: #6c757d;
+    border: 1px solid #dee2e6;
 }
 
-.badge {
+/* ── Row states ────────────────────────────────────────── */
+.row-pending td:first-child {
+    border-left: 3px solid #e74c3c;
+}
+.row-expanded {
+    background-color: #f8f9fa !important;
+}
+
+/* ── Summary cards ─────────────────────────────────────── */
+.summary-card {
+    border-top-width: 3px;
+    border-radius: 8px;
+}
+
+/* ── Expanded panel ────────────────────────────────────── */
+.expanded-panel {
+    background: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+/* ── Mini-tabs ─────────────────────────────────────────── */
+.mini-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid #dee2e6;
+    background: #fff;
+    padding: 0 16px;
+}
+.mini-tab {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 8px 16px;
+    font-size: 0.82rem;
     font-weight: 500;
-    min-width: 40px;
+    color: #6c757d;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: color 0.15s, border-color 0.15s;
+    margin-bottom: -1px;
+}
+.mini-tab:hover {
+    color: #212529;
+}
+.mini-tab.active {
+    color: #0d6efd;
+    border-bottom-color: #0d6efd;
+    font-weight: 600;
+}
+.mini-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #6c757d;
+    color: #fff;
+    border-radius: 10px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 1px 6px;
+    min-width: 18px;
+}
+.mini-badge.warning { background: #f0ad4e; color: #333; }
+.mini-badge.success { background: #198754; }
+
+/* ── Tab body ──────────────────────────────────────────── */
+.tab-content-body {
+    padding: 12px 0 4px;
+}
+
+/* ── Billing cards ─────────────────────────────────────── */
+.billing-card {
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    margin: 0 16px 8px;
+    background: #fff;
+    overflow: hidden;
+}
+.billing-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px;
+    cursor: pointer;
+    background: #fffbf0;
+    border-bottom: 1px solid #f0e6c0;
+    transition: background 0.1s;
+}
+.billing-header:hover { background: #fff7e0; }
+.billing-items {
+    border-top: 1px solid #e9ecef;
+}
+
+/* ── Client dropdown ───────────────────────────────────── */
+.client-dropdown-item {
+    cursor: pointer;
+    transition: background 0.1s;
+}
+.client-dropdown-item:hover {
+    background: #f8f9fa;
 }
