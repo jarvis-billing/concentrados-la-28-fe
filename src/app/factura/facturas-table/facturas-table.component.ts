@@ -9,6 +9,7 @@ import { User } from '../../auth/user';
 import { ModalUsersListComponent } from "../../users/components/modal-users-list/modal-users-list.component";
 import { CommonModule, CurrencyPipe } from '@angular/common';
 import { ModalSaleDetailComponent } from "../components/modal-sale-detail/modal-sale-detail.component";
+import { EditBillingModalComponent } from "../components/edit-billing-modal/edit-billing-modal.component";
 import { toast } from 'ngx-sonner';
 import { LoginUserService } from '../../auth/login/loginUser.service';
 import { ProductsSearchModalComponent } from '../../producto/components/products-search-modal/products-search-modal.component';
@@ -19,7 +20,7 @@ import autoTable from 'jspdf-autotable';
 @Component({
   selector: 'app-facturas-table',
   standalone: true,
-  imports: [CommonModule, FormsModule, ModalClientsListComponent, ModalUsersListComponent, ReactiveFormsModule, CurrencyPipe, ModalSaleDetailComponent, ProductsSearchModalComponent],
+  imports: [CommonModule, FormsModule, ModalClientsListComponent, ModalUsersListComponent, ReactiveFormsModule, CurrencyPipe, ModalSaleDetailComponent, ProductsSearchModalComponent, EditBillingModalComponent],
   templateUrl: './facturas-table.component.html',
   styleUrl: './facturas-table.component.css'
 })
@@ -31,6 +32,7 @@ export class FacturasTableComponent implements OnInit {
   loginUserService = inject(LoginUserService);
   
   @ViewChild(ProductsSearchModalComponent, { static: false }) productsSearchModalComp!: ProductsSearchModalComponent;
+  @ViewChild(EditBillingModalComponent, { static: false }) editBillingModal!: EditBillingModalComponent;
 
   reportBilling: Billing[] = [];
   filteredBilling: Billing[] = [];
@@ -371,6 +373,16 @@ export class FacturasTableComponent implements OnInit {
 
   printTicketBilling(billing: Billing) {
     this.facturaService.generatedTicketBilling(billing);
+  }
+
+  openEditModal(billing: Billing): void {
+    this.editBillingModal?.open(billing);
+  }
+
+  onBillingUpdated(updated: Billing): void {
+    const idx = this.allServerResults.findIndex(b => b.id === updated.id);
+    if (idx >= 0) this.allServerResults[idx] = updated;
+    this.paginateResults();
   }
 
   // Métodos para visualización de pagos múltiples

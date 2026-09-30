@@ -20,8 +20,13 @@ export class FeaturePermissionsPageComponent implements OnInit {
   isSaving  = false;
   showForm  = false;
 
-  featureKeys = FEATURE_KEYS;
+  featureKeys = FEATURE_KEYS.filter(f => !f.isGlobal);
   availableRoles = ['VENDEDOR', 'FACTURADOR'];
+
+  // ── Toggles globales ──────────────────────────────────────────────────────
+  stockValidationEnabled = false;
+  isTogglingStockValidation = false;
+  private stockValidationPermId: string | null = null;
 
   form!: FormGroup;
 
@@ -33,9 +38,62 @@ export class FeaturePermissionsPageComponent implements OnInit {
   loadAll(): void {
     this.isLoading = true;
     this.service.findAll().subscribe({
-      next: (list) => { this.permissions = list; this.isLoading = false; },
+      next: (list) => {
+        this.permissions = list;
+        this.isLoading = false;
+        // Detectar estado del toggle de validación de stock
+        const svPerm = list.find(
+          p => p.featureKey === 'STOCK_VALIDATION' && p.active && !p.expired
+        );
+        this.stockValidationEnabled = !!svPerm;
+        this.stockValidationPermId = svPerm?.id ?? null;
+      },
       error: () => { toast.error('Error al cargar los permisos'); this.isLoading = false; },
     });
+  }
+
+  toggleStockValidation(): void {
+    if (this.isTogglingStockValidation) return;
+    this.isTogglingStockValidation = true;
+
+    if (this.stockValidationEnabled && this.stockValidationPermId) {
+      // Apagar: revocar el permiso activo
+      this.service.revoke(this.stockValidationPermId).subscribe({
+        next: (updated) => {
+          const idx = this.permissions.findIndex(p => p.id === updated.id);
+          if (idx >= 0) this.permissions[idx] = updated;
+          this.stockValidationEnabled = false;
+          this.stockValidationPermId = null;
+          this.isTogglingStockValidation = false;
+          toast.success('Validación de stock desactivada');
+        },
+        error: () => {
+          this.isTogglingStockValidation = false;
+          toast.error('Error al desactivar la validación de stock');
+        },
+      });
+    } else {
+      // Encender: crear permiso global
+      const req: CreatePermissionRequest = {
+        featureKey:   'STOCK_VALIDATION',
+        featureName:  'Validación de Stock en Ventas',
+        grantedRoles: ['SISTEMA'],
+        type:         'PERMANENT',
+      };
+      this.service.create(req).subscribe({
+        next: (created) => {
+          this.permissions.unshift(created);
+          this.stockValidationEnabled = true;
+          this.stockValidationPermId = created.id;
+          this.isTogglingStockValidation = false;
+          toast.success('Validación de stock activada');
+        },
+        error: () => {
+          this.isTogglingStockValidation = false;
+          toast.error('Error al activar la validación de stock');
+        },
+      });
+    }
   }
 
   initForm(): void {
@@ -144,10 +202,10 @@ export class FeaturePermissionsPageComponent implements OnInit {
   }
 
   get activePermissions(): FeaturePermissionDto[] {
-    return this.permissions.filter(p => p.active && !p.expired);
+    return this.permissions.filter(p => p.active && !p.expired && p.featureKey !== 'STOCK_VALIDATION');
   }
 
   get inactivePermissions(): FeaturePermissionDto[] {
-    return this.permissions.filter(p => !p.active || p.expired);
+    return this.permissions.filter(p => (!p.active || p.expired) && p.featureKey !== 'STOCK_VALIDATION');
   }
 }

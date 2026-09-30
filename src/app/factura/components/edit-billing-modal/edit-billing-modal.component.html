@@ -1,0 +1,182 @@
+@if (isOpen) {
+  <!-- Backdrop -->
+  <div class="modal-backdrop-custom" (click)="close()"></div>
+
+  <!-- Modal -->
+  <div class="modal-custom" role="dialog" aria-modal="true">
+    <div class="modal-custom-dialog">
+
+      <!-- Header -->
+      <div class="modal-custom-header">
+        <h5 class="mb-0">
+          <i class="bi bi-pencil-square me-2"></i>
+          Editar Factura <strong>{{ billing?.billNumber }}</strong>
+        </h5>
+        <button type="button" class="btn-close btn-close-white" (click)="close()"></button>
+      </div>
+
+      <!-- Body -->
+      <div class="modal-custom-body">
+        <form [formGroup]="form">
+
+          <!-- Fila 1: Fecha / Tipo venta / Tipo factura -->
+          <div class="row g-3 mb-4">
+            <div class="col-md-5">
+              <label class="form-label fw-semibold">Fecha y hora <span class="text-danger">*</span></label>
+              <input type="datetime-local" class="form-control" formControlName="dateTimeRecord"
+                     [class.is-invalid]="form.get('dateTimeRecord')?.invalid && form.get('dateTimeRecord')?.touched">
+              <div class="invalid-feedback">La fecha es requerida.</div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Tipo de venta <span class="text-danger">*</span></label>
+              <select class="form-select" formControlName="saleType">
+                <option value="CONTADO">Contado</option>
+                <option value="CREDITO">Crédito</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Tipo de factura</label>
+              <select class="form-select" formControlName="billingType">
+                <option value="FISICA">Física</option>
+                <option value="ELECTRONICA">Electrónica</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Cliente -->
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Cliente</label>
+            <div class="position-relative">
+              <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-person"></i></span>
+                <input type="text" class="form-control"
+                       [(ngModel)]="clientSearchText"
+                       [ngModelOptions]="{standalone:true}"
+                       (input)="filterClients(clientSearchText)"
+                       (focus)="showClientDropdown = filteredClients.length > 0"
+                       placeholder="Nombre o documento…"
+                       autocomplete="off">
+                @if (selectedClient) {
+                  <button class="btn btn-outline-danger" type="button" (click)="clearClient()">
+                    <i class="bi bi-x"></i>
+                  </button>
+                }
+              </div>
+              @if (showClientDropdown && filteredClients.length > 0) {
+                <div class="position-absolute w-100 bg-white border rounded shadow-sm mt-1 client-dropdown">
+                  @for (c of filteredClients; track c.id) {
+                    <div class="px-3 py-2 border-bottom client-dropdown-item" (mousedown)="selectClient(c)">
+                      <div class="fw-semibold small">{{ c.name }} {{ c.surname }}</div>
+                      <small class="text-muted">{{ c.documentType }} {{ c.idNumber }}</small>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+            @if (selectedClient) {
+              <div class="mt-1">
+                <span class="badge bg-primary">
+                  <i class="bi bi-check-circle me-1"></i>{{ selectedClient.name }} {{ selectedClient.surname }}
+                  — {{ selectedClient.idNumber }}
+                </span>
+              </div>
+            }
+          </div>
+
+          <!-- Métodos de pago -->
+          <div class="mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <label class="form-label fw-semibold mb-0">Medios de pago</label>
+              <button type="button" class="btn btn-sm btn-outline-primary" (click)="addPaymentRow()">
+                <i class="bi bi-plus"></i> Agregar
+              </button>
+            </div>
+            <div class="payment-rows">
+              @for (row of paymentRows; track $index; let i = $index) {
+                <div class="payment-row">
+                  <div class="row g-2 align-items-end">
+                    <div class="col-md-3">
+                      <label class="form-label small mb-1">Método</label>
+                      <select class="form-select form-select-sm" [(ngModel)]="row.method" [ngModelOptions]="{standalone:true}">
+                        @for (m of paymentMethods; track m) {
+                          <option [value]="m">{{ paymentLabel(m) }}</option>
+                        }
+                      </select>
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label small mb-1">Monto</label>
+                      <input type="number" class="form-control form-control-sm" min="0"
+                             [(ngModel)]="row.amount" [ngModelOptions]="{standalone:true}"
+                             placeholder="0">
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label small mb-1">
+                        @if (isTransfer(row.method)) { Cuenta bancaria } @else { Referencia }
+                      </label>
+                      @if (isTransfer(row.method)) {
+                        <input type="text" class="form-control form-control-sm"
+                               [(ngModel)]="row.bankAccountName" [ngModelOptions]="{standalone:true}"
+                               placeholder="Nombre de cuenta">
+                      } @else {
+                        <input type="text" class="form-control form-control-sm"
+                               [(ngModel)]="row.reference" [ngModelOptions]="{standalone:true}"
+                               placeholder="Referencia (opcional)">
+                      }
+                    </div>
+                    <div class="col-md-1 d-flex align-items-end">
+                      @if (paymentRows.length > 1) {
+                        <button type="button" class="btn btn-sm btn-outline-danger" (click)="removePaymentRow(i)">
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      }
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- Valores recibidos / vueltas -->
+          <div class="row g-3 mb-2">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Valor recibido</label>
+              <div class="input-group">
+                <span class="input-group-text">$</span>
+                <input type="number" class="form-control" formControlName="receivedValue" min="0">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Vueltas / Devuelto</label>
+              <div class="input-group">
+                <span class="input-group-text">$</span>
+                <input type="number" class="form-control" formControlName="returnedValue" min="0">
+              </div>
+            </div>
+          </div>
+
+          <!-- Nota: campos de solo lectura -->
+          <div class="alert alert-light border mt-3 mb-0 small">
+            <i class="bi bi-info-circle me-1"></i>
+            <strong>No se modifican:</strong> número de factura, productos vendidos, totales ni preventa asociada.
+          </div>
+
+        </form>
+      </div>
+
+      <!-- Footer -->
+      <div class="modal-custom-footer">
+        <button type="button" class="btn btn-outline-secondary" (click)="close()" [disabled]="isSaving">
+          Cancelar
+        </button>
+        <button type="button" class="btn btn-primary" (click)="save()" [disabled]="isSaving">
+          @if (isSaving) {
+            <span class="spinner-border spinner-border-sm me-1"></span>Guardando…
+          } @else {
+            <i class="bi bi-check-lg me-1"></i>Guardar cambios
+          }
+        </button>
+      </div>
+
+    </div>
+  </div>
+}

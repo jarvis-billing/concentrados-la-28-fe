@@ -32,4 +32,13 @@ export class FeaturePermissionService {
   revoke(id: string): Observable<FeaturePermissionDto> {
     return this.http.delete<FeaturePermissionDto>(`${this.base}/${id}`);
   }
+
+  /**
+   * Verifica si una funcionalidad global está habilitada, sin importar el rol.
+   * Retorna true si hay al menos un permiso activo y no expirado para la featureKey.
+   */
+  isEnabled(featureKey: string): Observable<{ enabled: boolean }> {
+    const params = new HttpParams().set('featureKey', featureKey);
+    return this.http.get<{ enabled: boolean }>(`${this.base}/is-enabled`, { params });
+  }
 }

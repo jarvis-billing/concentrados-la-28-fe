@@ -1,0 +1,89 @@
+/* ── Backdrop ──────────────────────────────────────────── */
+.modal-backdrop-custom {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1040;
+}
+
+/* ── Modal wrapper ─────────────────────────────────────── */
+.modal-custom {
+    position: fixed;
+    inset: 0;
+    z-index: 1050;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    overflow-y: auto;
+}
+
+.modal-custom-dialog {
+    background: #fff;
+    border-radius: 10px;
+    width: 100%;
+    max-width: 760px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
+}
+
+/* ── Header ────────────────────────────────────────────── */
+.modal-custom-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #0d6efd;
+    color: #fff;
+    padding: 14px 20px;
+    border-radius: 10px 10px 0 0;
+    flex-shrink: 0;
+}
+
+/* ── Body ──────────────────────────────────────────────── */
+.modal-custom-body {
+    padding: 20px 24px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* ── Footer ────────────────────────────────────────────── */
+.modal-custom-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 12px 24px;
+    border-top: 1px solid #dee2e6;
+    flex-shrink: 0;
+}
+
+/* ── Payment rows ──────────────────────────────────────── */
+.payment-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.payment-row {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 10px 12px;
+}
+
+/* ── Client dropdown ───────────────────────────────────── */
+.client-dropdown {
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1060;
+}
+
+.client-dropdown-item {
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.client-dropdown-item:hover {
+    background: #f8f9fa;
+}

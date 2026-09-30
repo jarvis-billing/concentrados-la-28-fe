@@ -1,0 +1,213 @@
+<div class="mobile-labels-page">
+
+  <!-- ── Header ──────────────────────────────────────────────────────────────── -->
+  <header class="mobile-header">
+    <a routerLink="/main/inventario" class="btn btn-icon">
+      <i class="bi bi-arrow-left"></i>
+    </a>
+    <div class="header-title">
+      <i class="bi bi-printer-fill text-primary me-2"></i>
+      <span>Etiquetas Móvil</span>
+    </div>
+    <a routerLink="/main/inventario/etiquetas" class="btn btn-icon" title="Modo escritorio">
+      <i class="bi bi-display"></i>
+    </a>
+  </header>
+
+  <!-- ── Presets de tamaño ────────────────────────────────────────────────────── -->
+  <div class="presets-bar">
+    @for (preset of presets; track $index) {
+      <button class="preset-chip"
+              [class.active]="selectedPresetIndex === $index"
+              (click)="selectPreset($index)">
+        {{ preset.presetName | slice:0:12 }}
+      </button>
+    }
+  </div>
+
+  <!-- ── Campos visibles ──────────────────────────────────────────────────────── -->
+  <div class="fields-bar">
+    <button class="field-chip" [class.active]="labelConfig.showCompanyName"  (click)="toggleField('showCompanyName')">
+      <i class="bi" [class.bi-check2]="labelConfig.showCompanyName" [class.bi-dash]="!labelConfig.showCompanyName"></i>
+      Empresa
+    </button>
+    <button class="field-chip" [class.active]="labelConfig.showBarcode"      (click)="toggleField('showBarcode')">
+      <i class="bi" [class.bi-check2]="labelConfig.showBarcode" [class.bi-dash]="!labelConfig.showBarcode"></i>
+      Barcode
+    </button>
+    <button class="field-chip" [class.active]="labelConfig.showBarcodeNumber" (click)="toggleField('showBarcodeNumber')">
+      <i class="bi" [class.bi-check2]="labelConfig.showBarcodeNumber" [class.bi-dash]="!labelConfig.showBarcodeNumber"></i>
+      Nro. código
+    </button>
+    <button class="field-chip" [class.active]="labelConfig.showDescription"  (click)="toggleField('showDescription')">
+      <i class="bi" [class.bi-check2]="labelConfig.showDescription" [class.bi-dash]="!labelConfig.showDescription"></i>
+      Descripción
+    </button>
+    <button class="field-chip" [class.active]="labelConfig.showBrand"        (click)="toggleField('showBrand')">
+      <i class="bi" [class.bi-check2]="labelConfig.showBrand" [class.bi-dash]="!labelConfig.showBrand"></i>
+      Marca
+    </button>
+    <button class="field-chip" [class.active]="labelConfig.showPrice"        (click)="toggleField('showPrice')">
+      <i class="bi" [class.bi-check2]="labelConfig.showPrice" [class.bi-dash]="!labelConfig.showPrice"></i>
+      Precio
+    </button>
+  </div>
+
+  <!-- ── Búsqueda ─────────────────────────────────────────────────────────────── -->
+  <div class="search-bar">
+    <i class="bi bi-search search-icon"></i>
+    <input type="text"
+           class="search-input"
+           placeholder="Buscar producto, presentación, código…"
+           [value]="searchTerm"
+           (input)="onSearchInput($any($event.target).value)"
+           autocomplete="off">
+    @if (searchTerm) {
+      <button class="search-clear" (click)="onSearchInput('')">
+        <i class="bi bi-x-circle-fill"></i>
+      </button>
+    }
+  </div>
+
+  <!-- ── Lista de presentaciones ──────────────────────────────────────────────── -->
+  <div class="pres-list" [class.with-bar]="cart.size > 0">
+
+    @if (isLoading) {
+      <div class="empty-state">
+        <div class="spinner-border text-primary mb-3"></div>
+        <p class="text-muted">Cargando productos…</p>
+      </div>
+    } @else if (filteredRows.length === 0) {
+      <div class="empty-state">
+        <i class="bi bi-search display-5 text-muted d-block mb-2"></i>
+        <p class="text-muted">Sin resultados para "{{ searchTerm }}"</p>
+      </div>
+    } @else {
+      @for (row of filteredRows; track row.barcode) {
+        <div class="pres-card" [class.in-cart]="inCart(row.barcode)">
+          <div class="pres-info">
+            <div class="pres-name">{{ row.productDescription }}</div>
+            @if (row.presentationLabel) {
+              <div class="pres-label">{{ row.presentationLabel }}</div>
+            }
+            <div class="pres-meta">
+              <code class="pres-barcode">{{ row.barcode }}</code>
+              @if (row.brand) {
+                <span class="pres-brand">· {{ row.brand }}</span>
+              }
+            </div>
+          </div>
+
+          <div class="pres-actions">
+            @if (inCart(row.barcode)) {
+              <!-- Controles de cantidad -->
+              <div class="qty-controls">
+                <button class="qty-btn" (click)="removeOne(row.barcode)">
+                  <i class="bi bi-dash-circle-fill"></i>
+                </button>
+                <span class="qty-value">{{ getQuantity(row.barcode) }}</span>
+                <button class="qty-btn add" (click)="addOne(row)">
+                  <i class="bi bi-plus-circle-fill"></i>
+                </button>
+              </div>
+            } @else {
+              <button class="add-btn" (click)="addOne(row)">
+                <i class="bi bi-plus-lg"></i>
+              </button>
+            }
+          </div>
+        </div>
+      }
+    }
+  </div>
+
+  <!-- ── Barra inferior flotante ──────────────────────────────────────────────── -->
+  @if (cart.size > 0) {
+    <div class="bottom-bar">
+      <button class="cart-toggle" (click)="toggleCart()">
+        <i class="bi bi-cart3"></i>
+        <span class="cart-badge">{{ totalLabels }}</span>
+        <span class="cart-label">{{ cart.size }} presentacion{{ cart.size !== 1 ? 'es' : '' }}</span>
+        <i class="bi" [class.bi-chevron-up]="!showCart" [class.bi-chevron-down]="showCart"></i>
+      </button>
+      <button class="share-btn"
+              [disabled]="isSharing"
+              (click)="shareLabels()">
+        @if (isSharing) {
+          <span class="spinner-border spinner-border-sm me-1"></span>
+        } @else {
+          <i class="bi bi-share-fill me-1"></i>
+        }
+        {{ canWebShare ? 'Compartir' : 'Descargar' }}
+      </button>
+    </div>
+  }
+
+  <!-- ── Carrito drawer ────────────────────────────────────────────────────────── -->
+  @if (showCart && cart.size > 0) {
+    <div class="cart-drawer">
+      <div class="cart-drawer-header">
+        <span class="fw-bold">Carrito de etiquetas</span>
+        <button class="btn btn-sm btn-outline-danger" (click)="clearCart()">
+          <i class="bi bi-trash me-1"></i>Limpiar
+        </button>
+      </div>
+      <div class="cart-items">
+        @for (item of cartList; track item.barcode) {
+          <div class="cart-item">
+            <!-- Preview canvas de la etiqueta -->
+            <div class="cart-preview">
+              @if (item.previewDataUrl) {
+                <img [src]="item.previewDataUrl" alt="Preview" class="label-preview-img">
+              } @else {
+                <div class="label-preview-placeholder">
+                  <i class="bi bi-tag text-muted"></i>
+                </div>
+              }
+            </div>
+            <div class="cart-item-info">
+              <div class="cart-item-name">{{ item.productDescription }}</div>
+              @if (item.presentationLabel) {
+                <div class="cart-item-label text-muted small">{{ item.presentationLabel }}</div>
+              }
+              <code class="cart-item-barcode">{{ item.barcode }}</code>
+            </div>
+            <div class="cart-item-controls">
+              <div class="qty-controls">
+                <button class="qty-btn" (click)="removeOne(item.barcode)">
+                  <i class="bi bi-dash-circle-fill"></i>
+                </button>
+                <span class="qty-value">{{ item.quantity }}</span>
+                <button class="qty-btn add" (click)="addOne({
+                  barcode: item.barcode,
+                  productDescription: item.productDescription,
+                  presentationLabel: item.presentationLabel,
+                  salePrice: item.salePrice,
+                  brand: item.brand,
+                  category: ''
+                })">
+                  <i class="bi bi-plus-circle-fill"></i>
+                </button>
+              </div>
+              <button class="remove-btn" (click)="removeFromCart(item.barcode)">
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Info de conexión con la app de impresión -->
+      <div class="printer-info">
+        <i class="bi bi-bluetooth text-primary me-2"></i>
+        <span class="small text-muted">
+          Al compartir, selecciona la app de la impresora térmica Bluetooth.
+          @if (!canWebShare) {
+            Descarga la imagen y ábrela desde la app.
+          }
+        </span>
+      </div>
+    </div>
+  }
+
+</div>

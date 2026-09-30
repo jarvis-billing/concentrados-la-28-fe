@@ -333,9 +333,9 @@
                         @if (getLastCostForRow(item.ctrl); as lc) {
                           <div class="last-purchase-info">
                             <i class="bi bi-clock-history"></i>
-                            Ant: ${{ lc.lastUnitCost | number:'1.0-0' }}/u
+                            Ant total: ${{ (lc.lastUnitTotalCost || lc.lastUnitCost) | number:'1.0-0' }}/u
                             @if (lc.lastUnitTotalCost && lc.lastUnitTotalCost !== lc.lastUnitCost) {
-                              <span style="color: var(--text-hint);">(total ${{ lc.lastUnitTotalCost | number:'1.0-0' }})</span>
+                              <span style="color: var(--text-hint);">(base ${{ lc.lastUnitCost | number:'1.0-0' }})</span>
                             }
                             @if (lc.lastSupplierName) {
                               <span class="lpi-sep">·</span>

@@ -518,9 +518,8 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Tendencia del costo BASE respecto a la última compra.
-   * Compara unitCost (base ingresado) vs lastUnitCost (base anterior) para no
-   * contaminar la señal con variaciones de IVA o flete que son configurables.
+   * Tendencia del costo TOTAL (con IVA + flete) respecto a la última compra.
+   * Compara getUnitTotal(g) vs lastUnitTotalCost para ser consistente con el modal de confirmación.
    * 'up' = subió, 'down' = bajó, 'same' = igual, 'first' = primera vez, 'none' = aún no consultado.
    */
   getCostTrend(g: FormGroup): 'up' | 'down' | 'same' | 'first' | 'none' {
@@ -528,24 +527,24 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
     if (!id) return 'none';
     if (!this.lastCostByPresentation.has(id)) return 'none';
     const info = this.lastCostByPresentation.get(id);
-    if (!info || info.lastUnitCost == null) return 'first';
-    const currentBase = this.normalizeToNumber(g.get('unitCost')?.value);
-    if (currentBase <= 0) return 'none';
-    const diff = currentBase - info.lastUnitCost;
+    if (!info || info.lastUnitTotalCost == null) return 'first';
+    const currentTotal = this.getUnitTotal(g);
+    if (currentTotal <= 0) return 'none';
+    const diff = currentTotal - info.lastUnitTotalCost;
     if (Math.abs(diff) < 0.5) return 'same';   // tolerancia de $0.5 para redondeos
     return diff > 0 ? 'up' : 'down';
   }
 
   /**
-   * Diferencia porcentual del costo BASE (positivo = subió, negativo = bajó).
+   * Diferencia porcentual del costo TOTAL (positivo = subió, negativo = bajó).
    * Devuelve valor absoluto — el signo lo indica la flecha del badge.
    */
   getCostDeltaPercent(g: FormGroup): number | null {
     const info = this.getLastCostForRow(g);
-    if (!info || !info.lastUnitCost) return null;
-    const currentBase = this.normalizeToNumber(g.get('unitCost')?.value);
-    if (currentBase <= 0) return null;
-    return Math.abs(((currentBase - info.lastUnitCost) / info.lastUnitCost) * 100);
+    if (!info || !info.lastUnitTotalCost) return null;
+    const currentTotal = this.getUnitTotal(g);
+    if (currentTotal <= 0) return null;
+    return Math.abs(((currentTotal - info.lastUnitTotalCost) / info.lastUnitTotalCost) * 100);
   }
 
   recalcItem(g: FormGroup) {

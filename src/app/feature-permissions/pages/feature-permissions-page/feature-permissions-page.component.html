@@ -11,6 +11,51 @@
     </button>
   </div>
 
+  <!-- ── Configuraciones globales del sistema ── -->
+  <div class="card mb-4">
+    <div class="card-header fw-semibold d-flex align-items-center gap-2">
+      <i class="bi bi-toggles text-warning"></i>
+      Validaciones del Sistema
+      <span class="badge bg-warning text-dark ms-1">Configuración global</span>
+    </div>
+    <div class="card-body">
+
+      <!-- Toggle: Validación de stock -->
+      <div class="d-flex align-items-center justify-content-between py-2">
+        <div style="max-width: 75%">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <i class="bi bi-box-seam fs-5"
+               [class.text-success]="stockValidationEnabled"
+               [class.text-secondary]="!stockValidationEnabled"></i>
+            <span class="fw-semibold">Validación de Stock en Ventas y Pre-ventas</span>
+            @if (stockValidationEnabled) {
+              <span class="badge bg-success">Activa</span>
+            } @else {
+              <span class="badge bg-secondary">Inactiva</span>
+            }
+          </div>
+          <p class="text-muted small mb-0">
+            Cuando está activa, el sistema advierte al operador si un producto tiene <strong>stock cero</strong>
+            antes de agregarlo a una venta o pre-venta, permitiendo que decida si continuar o cancelar.
+          </p>
+        </div>
+        <div class="form-check form-switch ms-3" style="transform: scale(1.4); transform-origin: right center;">
+          <input class="form-check-input"
+                 type="checkbox"
+                 role="switch"
+                 id="stockValidationToggle"
+                 [checked]="stockValidationEnabled"
+                 [disabled]="isTogglingStockValidation || isLoading"
+                 (change)="toggleStockValidation()">
+          <label class="form-check-label visually-hidden" for="stockValidationToggle">
+            Validación de stock
+          </label>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <!-- Formulario de creación -->
   @if (showForm) {
     <div class="card border-primary mb-4">

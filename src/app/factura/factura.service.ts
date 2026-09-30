@@ -66,4 +66,8 @@ export class FacturaService {
   getSalesTotals(filter: BillingReportFilter): Observable<SalesTotals> {
     return this.http.post<SalesTotals>(`${this.url}/report/sales-totals`, filter);
   }
+
+  updateBilling(id: string, billing: Partial<Billing>): Observable<Billing> {
+    return this.http.put<Billing>(`${this.url}/${id}`, billing);
+  }
 }

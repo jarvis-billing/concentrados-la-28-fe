@@ -261,6 +261,9 @@
                 <div class="dropdown-menu" style="background-color: white; border-color: black;">
                   <button class="dropdown-item" (click)="openSaleDetailModal(billing)">Ver detalle</button>
                   <button class="dropdown-item" (click)="printTicketBilling(billing)">Imprimir factura</button>
+                  <button class="dropdown-item" (click)="openEditModal(billing)">
+                    <i class="bi bi-pencil me-1"></i>Editar factura
+                  </button>
                   <button class="dropdown-item">Enviar a la DIAN</button>
                 </div>
               </td>
@@ -499,3 +502,5 @@
 </div>
 
 <app-products-search-modal (selectPresentation)="onProductSelected($event)"></app-products-search-modal>
+
+<app-edit-billing-modal (billingUpdated)="onBillingUpdated($event)"></app-edit-billing-modal>

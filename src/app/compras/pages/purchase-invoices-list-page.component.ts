@@ -2,7 +2,9 @@ import { Component, ElementRef, OnInit, ViewChild, inject } from '@angular/core'
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { PurchaseInvoice } from '../models/purchase-invoice';
+import { PurchaseItem } from '../models/purchase-item';
 import { Supplier } from '../models/supplier';
+import { BulkLastCostItem } from '../models/purchase-cost-history';
 import { PurchasesService, PurchaseListFilter } from '../services/purchases.service';
 import { SupplierService } from '../services/supplier.service';
 import { toast } from 'ngx-sonner';
@@ -15,7 +17,41 @@ import { LinkPaymentsModalComponent } from '../components/link-payments-modal/li
   selector: 'app-purchase-invoices-list-page',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, FormsModule, ProductsSearchModalComponent, LinkPaymentsModalComponent],
-  templateUrl: './purchase-invoices-list-page.component.html'
+  templateUrl: './purchase-invoices-list-page.component.html',
+  styles: [`
+    .trend-tip { position: relative; display: inline-flex; align-items: center; cursor: default; }
+    .trend-tip-box {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #212529;
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      white-space: nowrap;
+      z-index: 9999;
+      min-width: 230px;
+      text-align: left;
+      box-shadow: 0 4px 14px rgba(0,0,0,.35);
+      line-height: 1.7;
+      pointer-events: none;
+    }
+    .trend-tip-box::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: #212529;
+    }
+    .trend-tip:hover .trend-tip-box { display: block; }
+    .tip-row { display: flex; justify-content: space-between; gap: 16px; }
+    .tip-lbl { opacity: .7; }
+  `]
 })
 export class PurchaseInvoicesListPageComponent implements OnInit {
   private fb               = inject(FormBuilder);
@@ -47,6 +83,11 @@ export class PurchaseInvoicesListPageComponent implements OnInit {
 
   // ── Detalle expandido ─────────────────────────────────────────────────────
   expandedInvoiceId: string | null = null;
+
+  // ── Tendencias de costo por presentación (para fila expandida) ────────────
+  lastCostForExpanded: Map<string, BulkLastCostItem> = new Map();
+  expandedTrendSummary: { up: number; down: number; same: number; first: number } = { up: 0, down: 0, same: 0, first: 0 };
+  loadingCostsForInvoiceId: string | null = null;
 
   @ViewChild(ProductsSearchModalComponent, { static: false }) productsSearchModalComp!: ProductsSearchModalComponent;
   @ViewChild(LinkPaymentsModalComponent,   { static: false }) linkPaymentsModal!: LinkPaymentsModalComponent;
@@ -231,10 +272,97 @@ export class PurchaseInvoicesListPageComponent implements OnInit {
 
   toggleInvoiceDetails(invoiceId: string | undefined): void {
     if (!invoiceId) return;
-    this.expandedInvoiceId = this.expandedInvoiceId === invoiceId ? null : invoiceId;
+    const wasExpanded = this.expandedInvoiceId === invoiceId;
+    this.expandedInvoiceId = wasExpanded ? null : invoiceId;
+    if (!wasExpanded) {
+      const invoice = this.invoices.find(i => i.id === invoiceId);
+      if (invoice) this.loadCostsForInvoice(invoice);
+    }
   }
 
   isExpanded(invoiceId: string | undefined): boolean { return invoiceId === this.expandedInvoiceId; }
+
+  // ── Tendencias de costo ──────────────────────────────────────────────────
+
+  loadCostsForInvoice(invoice: PurchaseInvoice): void {
+    const barcodes = (invoice.items || [])
+      .map(i => i.presentationBarcode)
+      .filter((b): b is string => !!b);
+    if (!barcodes.length) return;
+    this.loadingCostsForInvoiceId = invoice.id ?? null;
+    this.lastCostForExpanded.clear();
+    this.purchasesService.bulkGetLastCost(barcodes).subscribe({
+      next: (results) => {
+        // Backend sets presentationId = barcode (not MongoDB ObjectId), so key by barcode
+        results.forEach(r => this.lastCostForExpanded.set(r.barcode, r));
+        this.loadingCostsForInvoiceId = null;
+        this.computeTrendSummary(invoice);
+      },
+      error: () => { this.loadingCostsForInvoiceId = null; }
+    });
+  }
+
+  computeTrendSummary(invoice: PurchaseInvoice): void {
+    const s = { up: 0, down: 0, same: 0, first: 0 };
+    (invoice.items || []).forEach(item => {
+      const t = this.getItemTrend(item, invoice);
+      if (t === 'up')    s.up++;
+      else if (t === 'down')  s.down++;
+      else if (t === 'same')  s.same++;
+      else if (t === 'first') s.first++;
+    });
+    this.expandedTrendSummary = s;
+  }
+
+  /**
+   * Compara el costo total de este ítem en ESTA factura vs el costo total MÁS RECIENTE
+   * conocido para esa presentación.
+   * - Si son iguales (lastInvoiceId === invoice.id): esta ES la compra más reciente → 'same'
+   * - Si el costo de esta factura > costo actual: desde entonces bajó el precio → badge 'down'
+   * - Si el costo de esta factura < costo actual: desde entonces subió el precio → badge 'up'
+   */
+  getItemTrend(item: PurchaseItem, invoice: PurchaseInvoice): 'up' | 'down' | 'same' | 'first' | 'none' {
+    const lc = this.lastCostForExpanded.get(item.presentationBarcode);
+    if (!lc) return 'none';
+    if (lc.lastUnitTotalCost == null) return 'first';
+    const itemTotal = this.resolveItemUnitTotal(item, invoice);
+    if (itemTotal <= 0) return 'none';
+    // Si esta factura es la más reciente, lc.lastUnitTotalCost === itemTotal → 'same'
+    const diff = itemTotal - lc.lastUnitTotalCost;
+    if (Math.abs(diff) < 0.5) return 'same';
+    // itemTotal > lc → en esta factura pagamos más de lo que cuesta ahora → precio bajó desde entonces
+    return diff > 0 ? 'down' : 'up';
+  }
+
+  getItemDeltaPercent(item: PurchaseItem, invoice: PurchaseInvoice): number | null {
+    const lc = this.lastCostForExpanded.get(item.presentationBarcode);
+    if (!lc || !lc.lastUnitTotalCost) return null;
+    const itemTotal = this.resolveItemUnitTotal(item, invoice);
+    if (itemTotal <= 0) return null;
+    // Base = precio de ESTA factura (el punto de referencia)
+    return Math.abs(((lc.lastUnitTotalCost - itemTotal) / itemTotal) * 100);
+  }
+
+  /** Diferencia absoluta en pesos (valor de esta factura − precio actual). */
+  getItemDeltaAmount(item: PurchaseItem, invoice: PurchaseInvoice): number | null {
+    const lc = this.lastCostForExpanded.get(item.presentationBarcode);
+    if (!lc || !lc.lastUnitTotalCost) return null;
+    const itemTotal = this.resolveItemUnitTotal(item, invoice);
+    if (itemTotal <= 0) return null;
+    return Math.abs(itemTotal - lc.lastUnitTotalCost);
+  }
+
+  /** Resuelve el costo total/u del ítem: usa el campo almacenado si existe, sino lo calcula. */
+  resolveItemUnitTotal(item: PurchaseItem, invoice: PurchaseInvoice): number {
+    if (item.unitTotalCost != null && item.unitTotalCost > 0) return item.unitTotalCost;
+    const freightPerUnit = item.applyFreight && invoice.freightRate > 0 ? invoice.freightRate : 0;
+    return item.unitCost + item.unitCost * (item.vatRate / 100) + freightPerUnit;
+  }
+
+  getLastCostInfoForItem(item: PurchaseItem): BulkLastCostItem | null {
+    // Backend keys BulkLastCostItem by barcode, not by presentationId (ObjectId)
+    return this.lastCostForExpanded.get(item.presentationBarcode) ?? null;
+  }
 
   // ── Navegación ────────────────────────────────────────────────────────────
 

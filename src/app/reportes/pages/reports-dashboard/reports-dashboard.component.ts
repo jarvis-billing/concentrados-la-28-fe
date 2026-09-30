@@ -52,6 +52,14 @@ export class ReportsDashboardComponent {
       route: '/main/reportes/ventas-mes',
       color: 'primary',
       tags: ['Ventas', 'Mensual', 'Utilidad']
+    },
+    {
+      title: 'Valor de Inventario Físico',
+      description: 'Reporte PDF del valor del inventario basado en conteos físicos del período. Incluye productos sin costo y sin conteo registrado.',
+      icon: 'bi-boxes',
+      route: '/main/reportes/valor-inventario',
+      color: 'success',
+      tags: ['Inventario', 'Conteo', 'Costo']
     }
   ];
 }

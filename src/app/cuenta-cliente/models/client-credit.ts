@@ -123,4 +123,8 @@ export class CreditSummary {
     totalDeposited: number = 0;
     totalUsed: number = 0;
     lastTransactionDate?: string;
+    transactions: CreditTransaction[] = [];
+    lastDepositDate?: string;
+    lastDepositMethod?: string;
+    lastDepositBankAccount?: string;
 }

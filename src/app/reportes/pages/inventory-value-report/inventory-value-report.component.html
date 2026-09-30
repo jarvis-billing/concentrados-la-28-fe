@@ -1,0 +1,736 @@
+<div class="container-fluid py-3">
+
+  <!-- ── Encabezado ──────────────────────────────────────────────────────────── -->
+  <div class="d-flex align-items-center gap-3 mb-3">
+    <a routerLink="/main/reportes" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Reportes
+    </a>
+    <div class="d-flex align-items-center gap-2">
+      <div class="bg-success bg-opacity-10 rounded-3 p-2">
+        <i class="bi bi-boxes fs-4 text-success"></i>
+      </div>
+      <div>
+        <h5 class="mb-0 fw-bold">Valor de Inventario Físico</h5>
+        <p class="text-muted mb-0 small">Cruzado con el catálogo de productos como fuente de verdad</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Filtros ──────────────────────────────────────────────────────────────── -->
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2">
+      <div class="d-flex align-items-end flex-wrap gap-2">
+        <div>
+          <label class="form-label small mb-1">Desde</label>
+          <input type="date" class="form-control form-control-sm" [(ngModel)]="fromDate">
+        </div>
+        <div>
+          <label class="form-label small mb-1">Hasta</label>
+          <input type="date" class="form-control form-control-sm" [(ngModel)]="toDate">
+        </div>
+        <button class="btn btn-primary btn-sm" [disabled]="isLoading" (click)="search()">
+          @if (isLoading) {
+            <span class="spinner-border spinner-border-sm me-1"></span>Cargando...
+          } @else {
+            <i class="bi bi-search me-1"></i>Consultar
+          }
+        </button>
+        <!-- Selector de registros por página -->
+        @if (data) {
+          <div class="d-flex align-items-center gap-1 ms-3">
+            <label class="form-label mb-0 small text-muted">Por página:</label>
+            <select class="form-select form-select-sm" style="width:75px"
+                    [(ngModel)]="pageSize" (change)="onPageSizeChange()">
+              @for (opt of pageSizeOptions; track opt) {
+                <option [value]="opt">{{ opt }}</option>
+              }
+            </select>
+          </div>
+        }
+        @if (data) {
+          <button class="btn btn-danger btn-sm ms-auto" [disabled]="isGeneratingPdf" (click)="downloadPdf()">
+            @if (isGeneratingPdf) {
+              <span class="spinner-border spinner-border-sm me-1"></span>Generando...
+            } @else {
+              <i class="bi bi-file-earmark-pdf me-1"></i>Descargar PDF
+            }
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Resultados ──────────────────────────────────────────────────────────── -->
+  @if (data) {
+
+    <!-- Chips resumen -->
+    <div class="row g-2 mb-3">
+      <div class="col-6 col-sm-3">
+        <div class="card border-0 bg-primary bg-opacity-10 text-center py-2">
+          <div class="fs-5 fw-bold text-primary">{{ data.rows.length }}</div>
+          <div class="small text-muted">Presentaciones contadas</div>
+        </div>
+      </div>
+      <div class="col-6 col-sm-3">
+        <div class="card border-0 text-center py-2"
+             [class.bg-danger]="data.noCostRows.length > 0"
+             [class.text-white]="data.noCostRows.length > 0"
+             [class.bg-light]="data.noCostRows.length === 0"
+             [class.border]="data.noCostRows.length === 0">
+          <div class="fs-5 fw-bold" [class.text-muted]="data.noCostRows.length === 0">
+            {{ data.noCostRows.length }}
+          </div>
+          <div class="small"
+               [class.text-white-50]="data.noCostRows.length > 0"
+               [class.text-muted]="data.noCostRows.length === 0">
+            Sin costo
+          </div>
+        </div>
+      </div>
+      @if ((data.noCostZeroRows?.length ?? 0) > 0) {
+        <div class="col-6 col-sm-3">
+          <div class="card border-0 text-center py-2 bg-warning bg-opacity-25">
+            <div class="fs-5 fw-bold text-warning-emphasis">{{ data.noCostZeroRows!.length }}</div>
+            <div class="small text-muted">Sin costo (stock 0)</div>
+          </div>
+        </div>
+      }
+      <div class="col-6 col-sm-3">
+        <div class="card border-0 text-center py-2"
+             [class.bg-warning]="data.uncountedProducts.length > 0"
+             [class.bg-light]="data.uncountedProducts.length === 0"
+             [class.border]="data.uncountedProducts.length === 0">
+          <div class="fs-5 fw-bold"
+               [class.text-dark]="data.uncountedProducts.length > 0"
+               [class.text-muted]="data.uncountedProducts.length === 0">
+            {{ data.uncountedProducts.length }}
+          </div>
+          <div class="small"
+               [class.text-dark]="data.uncountedProducts.length > 0"
+               [class.text-muted]="data.uncountedProducts.length === 0">
+            Sin conteo
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-sm-3">
+        <div class="card border-0 text-center py-2"
+             [class.bg-dark]="(data.nullBarcodeRows?.length ?? 0) > 0"
+             [class.text-white]="(data.nullBarcodeRows?.length ?? 0) > 0"
+             [class.bg-light]="(data.nullBarcodeRows?.length ?? 0) === 0"
+             [class.border]="(data.nullBarcodeRows?.length ?? 0) === 0">
+          <div class="fs-5 fw-bold" [class.text-muted]="(data.nullBarcodeRows?.length ?? 0) === 0">
+            {{ data.nullBarcodeRows?.length ?? 0 }}
+          </div>
+          <div class="small"
+               [class.text-white-50]="(data.nullBarcodeRows?.length ?? 0) > 0"
+               [class.text-muted]="(data.nullBarcodeRows?.length ?? 0) === 0">
+            Sin código
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-sm-3">
+        <div class="card border-0 bg-success bg-opacity-10 text-center py-2">
+          <div class="fs-5 fw-bold text-success">
+            ${{ data.grandTotal | number:'1.0-0' }}
+          </div>
+          <div class="small text-muted">Valor total</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-3">
+      <li class="nav-item">
+        <button class="nav-link" [class.active]="activeTab === 'counted'" (click)="setTab('counted')">
+          <i class="bi bi-clipboard-check me-1 text-primary"></i>
+          Contados
+          <span class="badge bg-primary ms-1">{{ _filteredCounted.length }}</span>
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" [class.active]="activeTab === 'no-cost'" (click)="setTab('no-cost')">
+          <i class="bi bi-exclamation-triangle me-1 text-danger"></i>
+          Sin costo
+          <span class="badge ms-1"
+                [class.bg-danger]="data.noCostRows.length > 0"
+                [class.bg-secondary]="data.noCostRows.length === 0">
+            {{ data.noCostRows.length }}
+          </span>
+        </button>
+      </li>
+      @if ((data.noCostZeroRows?.length ?? 0) > 0) {
+        <li class="nav-item">
+          <button class="nav-link" [class.active]="activeTab === 'no-cost-zero'" (click)="setTab('no-cost-zero')">
+            <i class="bi bi-dash-circle me-1 text-warning"></i>
+            Sin costo (stock 0)
+            <span class="badge bg-warning text-dark ms-1">{{ data.noCostZeroRows!.length }}</span>
+          </button>
+        </li>
+      }
+      <li class="nav-item">
+        <button class="nav-link" [class.active]="activeTab === 'uncounted'" (click)="setTab('uncounted')">
+          <i class="bi bi-x-circle me-1 text-warning"></i>
+          Sin conteo
+          <span class="badge ms-1"
+                [class.bg-warning]="data.uncountedProducts.length > 0"
+                [class.bg-secondary]="data.uncountedProducts.length === 0">
+            {{ data.uncountedProducts.length }}
+          </span>
+        </button>
+      </li>
+      @if ((data.nullBarcodeRows?.length ?? 0) > 0) {
+        <li class="nav-item">
+          <button class="nav-link" [class.active]="activeTab === 'null-barcode'" (click)="setTab('null-barcode')">
+            <i class="bi bi-slash-circle me-1 text-dark"></i>
+            Sin código
+            <span class="badge bg-dark ms-1">{{ data.nullBarcodeRows!.length }}</span>
+          </button>
+        </li>
+      }
+    </ul>
+
+    <!-- ── Tab: Contados ───────────────────────────────────────────────────── -->
+    @if (activeTab === 'counted') {
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom py-2">
+          <input type="text" class="form-control form-control-sm"
+                 placeholder="Filtrar por descripción o código…"
+                 [value]="countedSearch"
+                 (input)="onCountedSearch($any($event.target).value)">
+        </div>
+        <div class="card-body p-0">
+          @if (_filteredCounted.length === 0) {
+            <div class="text-center py-5 text-muted">
+              <i class="bi bi-inbox display-5 d-block mb-2"></i>
+              <p class="mb-0">No hay presentaciones contadas en este período</p>
+            </div>
+          } @else {
+            <div class="table-scroll">
+              <table class="table table-sm align-middle mb-0">
+                <thead class="table-dark">
+                  <tr>
+                    <th class="ps-3">Descripción</th>
+                    <th>Presentación</th>
+                    <th>Código</th>
+                    <th class="text-center">Fecha conteo</th>
+                    <th class="text-end">Stock físico</th>
+                    <th class="text-center">U/M</th>
+                    <th class="text-end">Costo unit.</th>
+                    <th class="text-end">Precio venta</th>
+                    <th class="text-end">Utilidad</th>
+                    <th class="text-end pe-3">Valor total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (r of pagedCounted; track $index) {
+                    <tr>
+                      <td class="ps-3 fw-medium small">{{ r.description }}</td>
+                      <td class="small text-muted">{{ r.presentationLabel }}</td>
+                      <td><code class="small">{{ r.barcode }}</code></td>
+                      <td class="text-center small text-muted">{{ r.countDate }}</td>
+                      <td class="text-end small">
+                        {{ r.physicalStock | number:'1.0-2' }}
+                        @if (r.fixedAmount && r.fixedAmount > 1) {
+                          <div class="text-muted" style="font-size:0.7em">
+                            = {{ r.physicalStock * r.fixedAmount | number:'1.0-2' }} {{ r.unitMeasure | lowercase }}
+                          </div>
+                        }
+                      </td>
+                      <td class="text-center small text-muted">{{ r.unitMeasure }}</td>
+                      <td class="text-end small">${{ r.unitCost | number:'1.0-0' }}</td>
+                      <td class="text-end small">${{ r.salePrice | number:'1.0-0' }}</td>
+                      <td class="text-end small"
+                          [class.text-success]="r.grossProfitPct >= 20"
+                          [class.text-warning]="r.grossProfitPct > 0 && r.grossProfitPct < 20"
+                          [class.text-danger]="r.grossProfitPct <= 0 && r.salePrice > 0">
+                        {{ r.grossProfitPct | number:'1.0-1' }}%
+                      </td>
+                      <td class="text-end pe-3 fw-semibold small text-success">
+                        ${{ r.totalValue | number:'1.0-0' }}
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+                <tfoot class="table-light">
+                  <tr>
+                    <td colspan="9" class="ps-3 fw-bold text-end">VALOR TOTAL</td>
+                    <td class="text-end pe-3 fw-bold text-success">
+                      ${{ data.grandTotal | number:'1.0-0' }}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            <!-- Paginación contados -->
+            @if (countedTotalPages > 1) {
+              <div class="d-flex align-items-center justify-content-between py-2 px-3 border-top bg-white">
+                <span class="small text-muted">
+                  Pág. {{ countedPage + 1 }} de {{ countedTotalPages }}
+                  &nbsp;({{ _filteredCounted.length }} registros)
+                </span>
+                <div class="d-flex gap-1">
+                  <button class="btn btn-sm btn-outline-secondary" [disabled]="countedPage === 0"
+                          (click)="goToPage('counted', 0)" title="Primera">
+                    <i class="bi bi-chevron-double-left"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-secondary" [disabled]="countedPage === 0"
+                          (click)="goToPage('counted', countedPage - 1)" title="Anterior">
+                    <i class="bi bi-chevron-left"></i>
+                  </button>
+                  @for (p of countedPages; track p) {
+                    <button class="btn btn-sm"
+                            [class.btn-primary]="p === countedPage"
+                            [class.btn-outline-secondary]="p !== countedPage"
+                            (click)="goToPage('counted', p)">
+                      {{ p + 1 }}
+                    </button>
+                  }
+                  @if (countedPages[countedPages.length - 1] < countedTotalPages - 1) {
+                    <span class="btn btn-sm btn-outline-secondary disabled pe-none">…</span>
+                  }
+                  <button class="btn btn-sm btn-outline-secondary" [disabled]="countedPage >= countedTotalPages - 1"
+                          (click)="goToPage('counted', countedPage + 1)" title="Siguiente">
+                    <i class="bi bi-chevron-right"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-secondary" [disabled]="countedPage >= countedTotalPages - 1"
+                          (click)="goToPage('counted', countedTotalPages - 1)" title="Última">
+                    <i class="bi bi-chevron-double-right"></i>
+                  </button>
+                </div>
+              </div>
+            }
+          }
+        </div>
+      </div>
+    }
+
+    <!-- ── Tab: Sin costo ──────────────────────────────────────────────────── -->
+    @if (activeTab === 'no-cost') {
+      <div class="card border-0 shadow-sm">
+        @if (data.noCostRows.length > 0) {
+          <div class="card-header bg-danger bg-opacity-10 border-bottom py-2">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+              <span class="small text-danger fw-semibold">
+                <i class="bi bi-exclamation-triangle me-1"></i>
+                Estas presentaciones fueron contadas pero no tienen costo. Ingrese el costo y guarde para corregir el valor de inventario.
+              </span>
+              <button class="btn btn-success btn-sm"
+                      [disabled]="isSavingCosts || pendingCostUpdates === 0"
+                      (click)="saveCosts()">
+                @if (isSavingCosts) {
+                  <span class="spinner-border spinner-border-sm me-1"></span>Guardando...
+                } @else {
+                  <i class="bi bi-floppy me-1"></i>
+                  Guardar costos
+                  @if (pendingCostUpdates > 0) {
+                    <span class="badge bg-white text-success ms-1">{{ pendingCostUpdates }}</span>
+                  }
+                }
+              </button>
+            </div>
+          </div>
+          <div class="card-header bg-white border-bottom py-2">
+            <input type="text" class="form-control form-control-sm"
+                   placeholder="Filtrar…"
+                   [value]="noCostSearch"
+                   (input)="onNoCostSearch($any($event.target).value)">
+          </div>
+        }
+        <div class="card-body p-0">
+          @if (data.noCostRows.length === 0) {
+            <div class="text-center py-5 text-muted">
+              <i class="bi bi-check-circle-fill text-success display-5 d-block mb-2"></i>
+              <p class="mb-0">Todas las presentaciones contadas tienen precio de costo</p>
+            </div>
+          } @else {
+            <div class="table-scroll">
+              <table class="table table-sm align-middle mb-0">
+                <thead class="table-danger">
+                  <tr>
+                    <th class="ps-3">Descripción</th>
+                    <th>Presentación</th>
+                    <th>Código</th>
+                    <th class="text-end">Stock físico</th>
+                    <th class="text-center">U/M</th>
+                    <th class="text-end">Precio venta</th>
+                    <th class="text-end" style="min-width:120px">Nuevo costo</th>
+                    <th class="text-end">Utilidad %</th>
+                    <th class="text-end pe-3">Utilidad $</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (r of pagedNoCost; track $index) {
+                    <tr [class.table-warning]="hasCostWarning(r)">
+                      <td class="ps-3 fw-medium small">{{ r.description }}</td>
+                      <td class="small text-muted">{{ r.presentationLabel }}</td>
+                      <td><code class="small">{{ r.barcode }}</code></td>
+                      <td class="text-end small">
+                        {{ r.physicalStock | number:'1.0-2' }}
+                        @if (r.fixedAmount && r.fixedAmount > 1) {
+                          <div class="text-muted" style="font-size:0.7em">
+                            = {{ r.physicalStock * r.fixedAmount | number:'1.0-2' }} {{ r.unitMeasure | lowercase }}
+                          </div>
+                        }
+                      </td>
+                      <td class="text-center small text-muted">{{ r.unitMeasure }}</td>
+                      <td class="text-end small fw-semibold">${{ r.salePrice | number:'1.0-0' }}</td>
+                      <td class="text-end">
+                        <input type="text"
+                               inputmode="numeric"
+                               class="form-control form-control-sm text-end"
+                               style="width:110px"
+                               placeholder="0"
+                               [value]="formatCost(editedCosts[r.barcode])"
+                               (input)="onCostInput(r.barcode, $event)">
+                        @if (hasCostWarning(r)) {
+                          <div class="small text-danger mt-1 text-end">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                            Costo supera precio de venta
+                          </div>
+                        }
+                      </td>
+                      <td class="text-end small">
+                        @if ((editedCosts[r.barcode] ?? 0) > 0 && r.salePrice > 0) {
+                          <span [class.text-success]="!hasCostWarning(r)"
+                                [class.text-danger]="hasCostWarning(r)">
+                            {{ grossProfitPctDynamic(r.salePrice, editedCosts[r.barcode]) | number:'1.0-1' }}%
+                          </span>
+                        } @else {
+                          <span class="text-muted">—</span>
+                        }
+                      </td>
+                      <td class="text-end pe-3 small">
+                        @if ((editedCosts[r.barcode] ?? 0) > 0 && r.salePrice > 0) {
+                          <span [class.text-success]="!hasCostWarning(r)"
+                                [class.text-danger]="hasCostWarning(r)">
+                            ${{ grossProfitMoneyDynamic(r.salePrice, editedCosts[r.barcode]) | number:'1.0-0' }}
+                          </span>
+                        } @else {
+                          <span class="text-muted">—</span>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Paginación sin costo -->
+            @if (noCostTotalPages > 1) {
+              <div class="d-flex align-items-center justify-content-between py-2 px-3 border-top bg-white">
+                <span class="small text-muted">
+                  Pág. {{ noCostPage + 1 }} de {{ noCostTotalPages }}
+                  &nbsp;({{ _filteredNoCost.length }} registros)
+                </span>
+                <div class="d-flex gap-1">
+                  <button class="btn btn-sm btn-outline-secondary" [disabled]="noCostPage === 0"
+                          (click)="goToPage('no-cost', 0)" title="Primera">
+                    <i class="bi bi-chevron-double-left"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-secondary" [disabled]="noCostPage === 0"
+                          (click)="goToPage('no-cost', noCostPage - 1)" title="Anterior">
+                    <i class="bi bi-chevron-left"></i>
+                  </button>
+                  @for (p of noCostPages; track p) {
+                    <button class="btn btn-sm"
+                            [class.btn-primary]="p === noCostPage"
+                            [class.btn-outline-secondary]="p !== noCostPage"
+                            (click)="goToPage('no-cost', p)">
+                      {{ p + 1 }}
+                    </button>
+                  }
+                  @if (noCostPages[noCostPages.length - 1] < noCostTotalPages - 1) {
+                    <span class="btn btn-sm btn-outline-secondary disabled pe-none">…</span>
+                  }
+                  <button class="btn btn-sm btn-outline-secondary" [disabled]="noCostPage >= noCostTotalPages - 1"
+                          (click)="goToPage('no-cost', noCostPage + 1)" title="Siguiente">
+                    <i class="bi bi-chevron-right"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-secondary" [disabled]="noCostPage >= noCostTotalPages - 1"
+                          (click)="goToPage('no-cost', noCostTotalPages - 1)" title="Última">
+                    <i class="bi bi-chevron-double-right"></i>
+                  </button>
+                </div>
+              </div>
+            }
+          }
+        </div>
+      </div>
+    }
+
+    <!-- ── Tab: Sin costo (stock 0) ─────────────────────────────────────────── -->
+    @if (activeTab === 'no-cost-zero') {
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-warning bg-opacity-10 border-bottom py-2">
+          <span class="small text-warning-emphasis fw-semibold">
+            <i class="bi bi-dash-circle me-1"></i>
+            Estas presentaciones fueron contadas con stock 0 y no tienen costo asignado. Asigne un costo si corresponde.
+          </span>
+        </div>
+        <div class="card-header bg-white border-bottom py-2">
+          <input type="text" class="form-control form-control-sm"
+                 placeholder="Filtrar…"
+                 [value]="noCostZeroSearch"
+                 (input)="onNoCostZeroSearch($any($event.target).value)">
+        </div>
+        <div class="card-body p-0">
+          @if (_filteredNoCostZero.length === 0) {
+            <div class="text-center py-5 text-muted">
+              <i class="bi bi-check-circle-fill text-success display-5 d-block mb-2"></i>
+              <p class="mb-0">Sin presentaciones en esta categoría</p>
+            </div>
+          } @else {
+            <div class="table-scroll">
+              <table class="table table-sm align-middle mb-0">
+                <thead class="table-warning">
+                  <tr>
+                    <th class="ps-3">Descripción</th>
+                    <th>Presentación</th>
+                    <th>Código</th>
+                    <th class="text-center">Fecha conteo</th>
+                    <th class="text-end">Stock físico</th>
+                    <th class="text-center">U/M</th>
+                    <th class="text-end pe-3">Precio venta</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (r of pagedNoCostZero; track $index) {
+                    <tr>
+                      <td class="ps-3 fw-medium small">{{ r.description }}</td>
+                      <td class="small text-muted">{{ r.presentationLabel }}</td>
+                      <td><code class="small">{{ r.barcode }}</code></td>
+                      <td class="text-center small text-muted">{{ r.countDate }}</td>
+                      <td class="text-end small text-muted">0</td>
+                      <td class="text-center small text-muted">{{ r.unitMeasure }}</td>
+                      <td class="text-end pe-3 small">${{ r.salePrice | number:'1.0-0' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            @if (noCostZeroTotalPages > 1) {
+              <div class="d-flex align-items-center justify-content-between py-2 px-3 border-top bg-white">
+                <span class="small text-muted">
+                  Pág. {{ noCostZeroPage + 1 }} de {{ noCostZeroTotalPages }}
+                  &nbsp;({{ _filteredNoCostZero.length }} registros)
+                </span>
+                <div class="d-flex gap-1">
+                  <button class="btn btn-sm btn-outline-secondary" [disabled]="noCostZeroPage === 0"
+                          (click)="goToPage('no-cost-zero', 0)" title="Primera">
+                    <i class="bi bi-chevron-double-left"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-secondary" [disabled]="noCostZeroPage === 0"
+                          (click)="goToPage('no-cost-zero', noCostZeroPage - 1)" title="Anterior">
+                    <i class="bi bi-chevron-left"></i>
+                  </button>
+                  @for (p of noCostZeroPages; track p) {
+                    <button class="btn btn-sm"
+                            [class.btn-warning]="p === noCostZeroPage"
+                            [class.btn-outline-secondary]="p !== noCostZeroPage"
+                            (click)="goToPage('no-cost-zero', p)">
+                      {{ p + 1 }}
+                    </button>
+                  }
+                  @if (noCostZeroPages[noCostZeroPages.length - 1] < noCostZeroTotalPages - 1) {
+                    <span class="btn btn-sm btn-outline-secondary disabled pe-none">…</span>
+                  }
+                  <button class="btn btn-sm btn-outline-secondary"
+                          [disabled]="noCostZeroPage >= noCostZeroTotalPages - 1"
+                          (click)="goToPage('no-cost-zero', noCostZeroPage + 1)" title="Siguiente">
+                    <i class="bi bi-chevron-right"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-secondary"
+                          [disabled]="noCostZeroPage >= noCostZeroTotalPages - 1"
+                          (click)="goToPage('no-cost-zero', noCostZeroTotalPages - 1)" title="Última">
+                    <i class="bi bi-chevron-double-right"></i>
+                  </button>
+                </div>
+              </div>
+            }
+          }
+        </div>
+      </div>
+    }
+
+    <!-- ── Tab: Sin código ───────────────────────────────────────────────────── -->
+    @if (activeTab === 'null-barcode') {
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-dark bg-opacity-10 border-bottom py-2">
+          <div class="d-flex align-items-start gap-2">
+            <i class="bi bi-slash-circle text-dark mt-1"></i>
+            <span class="small fw-semibold text-dark">
+              Estas presentaciones no tienen código de barras asignado en el catálogo de productos.
+              Usa el botón <strong>Eliminar</strong> para limpiar la presentación del producto
+              y su registro de conteo de la base de datos.
+            </span>
+          </div>
+        </div>
+        <div class="card-header bg-white border-bottom py-2">
+          <input type="text" class="form-control form-control-sm"
+                 placeholder="Filtrar…"
+                 [value]="nullBarcodeSearch"
+                 (input)="onNullBarcodeSearch($any($event.target).value)">
+        </div>
+        <div class="card-body p-0">
+          @if (_filteredNullBarcode.length === 0) {
+            <div class="text-center py-5 text-muted">
+              <i class="bi bi-check-circle-fill text-success display-5 d-block mb-2"></i>
+              <p class="mb-0">Sin resultados</p>
+            </div>
+          } @else {
+            <div class="table-scroll">
+              <table class="table table-sm align-middle mb-0">
+                <thead class="table-dark">
+                  <tr>
+                    <th class="ps-3">Producto</th>
+                    <th>Presentación</th>
+                    <th class="text-end">Stock contado</th>
+                    <th class="text-center">U/M</th>
+                    <th class="text-center">Fecha conteo</th>
+                    <th class="text-end pe-3">Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (r of pagedNullBarcode; track $index) {
+                    <tr>
+                      <td class="ps-3 fw-medium small">{{ r.description }}</td>
+                      <td class="small text-muted">{{ r.presentationLabel || '—' }}</td>
+                      <td class="text-end small">{{ r.physicalStock | number:'1.0-2' }}</td>
+                      <td class="text-center small text-muted">{{ r.unitMeasure }}</td>
+                      <td class="text-center small text-muted">{{ r.countDate }}</td>
+                      <td class="text-end pe-3">
+                        <button class="btn btn-sm btn-outline-danger"
+                                [disabled]="isDeletingNullBarcode"
+                                (click)="deleteNullBarcodeRow(r)"
+                                title="Eliminar presentación y conteo">
+                          <i class="bi bi-trash me-1"></i>Eliminar
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            @if (nullBarcodeTotalPages > 1) {
+              <div class="d-flex align-items-center justify-content-between py-2 px-3 border-top bg-white">
+                <span class="small text-muted">
+                  Pág. {{ nullBarcodePage + 1 }} de {{ nullBarcodeTotalPages }}
+                  &nbsp;({{ _filteredNullBarcode.length }} registros)
+                </span>
+                <div class="d-flex gap-1">
+                  <button class="btn btn-sm btn-outline-secondary" [disabled]="nullBarcodePage === 0"
+                          (click)="goToPage('null-barcode', 0)"><i class="bi bi-chevron-double-left"></i></button>
+                  <button class="btn btn-sm btn-outline-secondary" [disabled]="nullBarcodePage === 0"
+                          (click)="goToPage('null-barcode', nullBarcodePage - 1)"><i class="bi bi-chevron-left"></i></button>
+                  @for (p of nullBarcodePages; track p) {
+                    <button class="btn btn-sm"
+                            [class.btn-primary]="p === nullBarcodePage"
+                            [class.btn-outline-secondary]="p !== nullBarcodePage"
+                            (click)="goToPage('null-barcode', p)">{{ p + 1 }}</button>
+                  }
+                  <button class="btn btn-sm btn-outline-secondary" [disabled]="nullBarcodePage >= nullBarcodeTotalPages - 1"
+                          (click)="goToPage('null-barcode', nullBarcodePage + 1)"><i class="bi bi-chevron-right"></i></button>
+                  <button class="btn btn-sm btn-outline-secondary" [disabled]="nullBarcodePage >= nullBarcodeTotalPages - 1"
+                          (click)="goToPage('null-barcode', nullBarcodeTotalPages - 1)"><i class="bi bi-chevron-double-right"></i></button>
+                </div>
+              </div>
+            }
+          }
+        </div>
+      </div>
+    }
+
+    <!-- ── Tab: Sin conteo ─────────────────────────────────────────────────── -->
+    @if (activeTab === 'uncounted') {
+      <div class="card border-0 shadow-sm">
+        @if (data.uncountedProducts.length > 0) {
+          <div class="card-header bg-warning bg-opacity-10 border-bottom py-2">
+            <span class="small text-warning fw-semibold">
+              <i class="bi bi-exclamation-circle me-1"></i>
+              Presentaciones activas del catálogo que no tienen conteo físico en el período seleccionado.
+            </span>
+          </div>
+          <div class="card-header bg-white border-bottom py-2">
+            <input type="text" class="form-control form-control-sm"
+                   placeholder="Filtrar…"
+                   [value]="uncountedSearch"
+                   (input)="onUncountedSearch($any($event.target).value)">
+          </div>
+        }
+        <div class="card-body p-0">
+          @if (data.uncountedProducts.length === 0) {
+            <div class="text-center py-5 text-muted">
+              <i class="bi bi-check-circle-fill text-success display-5 d-block mb-2"></i>
+              <p class="mb-0">Todas las presentaciones del catálogo fueron contadas en el período</p>
+            </div>
+          } @else {
+            <div class="table-scroll">
+              <table class="table table-sm align-middle mb-0">
+                <thead class="table-warning">
+                  <tr>
+                    <th class="ps-3">Descripción</th>
+                    <th>Presentación</th>
+                    <th>Código</th>
+                    <th class="text-center pe-3">U/M</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (u of pagedUncounted; track $index) {
+                    <tr>
+                      <td class="ps-3 fw-medium small">{{ u.description }}</td>
+                      <td class="small text-muted">{{ u.label || '—' }}</td>
+                      <td><code class="small">{{ u.barcode }}</code></td>
+                      <td class="text-center pe-3 small text-muted">{{ u.unitMeasure }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Paginación sin conteo -->
+            @if (uncountedTotalPages > 1) {
+              <div class="d-flex align-items-center justify-content-between py-2 px-3 border-top bg-white">
+                <span class="small text-muted">
+                  Pág. {{ uncountedPage + 1 }} de {{ uncountedTotalPages }}
+                  &nbsp;({{ _filteredUncounted.length }} registros)
+                </span>
+                <div class="d-flex gap-1">
+                  <button class="btn btn-sm btn-outline-secondary" [disabled]="uncountedPage === 0"
+                          (click)="goToPage('uncounted', 0)" title="Primera">
+                    <i class="bi bi-chevron-double-left"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-secondary" [disabled]="uncountedPage === 0"
+                          (click)="goToPage('uncounted', uncountedPage - 1)" title="Anterior">
+                    <i class="bi bi-chevron-left"></i>
+                  </button>
+                  @for (p of uncountedPages; track p) {
+                    <button class="btn btn-sm"
+                            [class.btn-primary]="p === uncountedPage"
+                            [class.btn-outline-secondary]="p !== uncountedPage"
+                            (click)="goToPage('uncounted', p)">
+                      {{ p + 1 }}
+                    </button>
+                  }
+                  @if (uncountedPages[uncountedPages.length - 1] < uncountedTotalPages - 1) {
+                    <span class="btn btn-sm btn-outline-secondary disabled pe-none">…</span>
+                  }
+                  <button class="btn btn-sm btn-outline-secondary" [disabled]="uncountedPage >= uncountedTotalPages - 1"
+                          (click)="goToPage('uncounted', uncountedPage + 1)" title="Siguiente">
+                    <i class="bi bi-chevron-right"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-secondary" [disabled]="uncountedPage >= uncountedTotalPages - 1"
+                          (click)="goToPage('uncounted', uncountedTotalPages - 1)" title="Última">
+                    <i class="bi bi-chevron-double-right"></i>
+                  </button>
+                </div>
+              </div>
+            }
+          }
+        </div>
+      </div>
+    }
+  }
+
+</div>

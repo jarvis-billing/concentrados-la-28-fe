@@ -848,3 +848,22 @@
     (cancelled)="onBatchSelectionCancelled()">
   </app-batch-selector-modal>
 }
+
+<!-- Advertencia de stock cero -->
+<app-stock-warning-modal
+  [show]="showStockWarning"
+  [productName]="stockWarningProduct?.description ?? ''"
+  [stockQty]="stockWarningProduct?.stock?.quantity ?? 0"
+  [stockUnit]="stockWarningProduct?.stock?.unitMeasure ?? ''"
+  [productId]="stockWarningProduct?.id ?? ''"
+  (confirmed)="onStockWarningConfirmed()"
+  (cancelled)="onStockWarningCancelled()"
+  (viewTrace)="onStockWarningViewTrace()">
+</app-stock-warning-modal>
+
+<app-product-stock-trace-modal
+  [show]="showStockTrace"
+  [productId]="traceProductId"
+  [productName]="traceProductName"
+  (closed)="onStockTraceClosed()">
+</app-product-stock-trace-modal>

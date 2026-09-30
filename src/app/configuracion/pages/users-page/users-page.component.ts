@@ -78,15 +78,16 @@ export class UsersPageComponent implements OnInit {
   openEdit(user: User): void {
     this.isEditMode = true;
     this.selectedUser = user;
+    const normalizedRol = (user.rol as string).replace(/^ROLE_/, '');
     this.userForm.patchValue({
       numberIdentity: user.numberIdentity,
       name: user.name,
       surname: user.surname,
       phone: user.phone,
       address: user.address,
-      rol: user.rol,
+      rol: normalizedRol,
     });
-    this.userForm.get('numberIdentity')!.disable();
+    this.userForm.get('numberIdentity')!.enable();
     this.userForm.get('password')!.clearValidators();
     this.userForm.get('password')!.updateValueAndValidity();
     this.showUserModal = true;
@@ -102,6 +103,7 @@ export class UsersPageComponent implements OnInit {
 
     if (this.isEditMode && this.selectedUser) {
       const req: UpdateUserRequest = {
+        numberIdentity: v.numberIdentity!,
         name: v.name!,
         surname: v.surname!,
         phone: v.phone || '',

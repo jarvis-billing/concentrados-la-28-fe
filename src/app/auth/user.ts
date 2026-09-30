@@ -31,6 +31,7 @@ export interface CreateUserRequest {
 }
 
 export interface UpdateUserRequest {
+    numberIdentity: string;
     name: string;
     surname: string;
     phone: string;

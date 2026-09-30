@@ -26,11 +26,14 @@ import {
   PreSaleItemDto,
   PreventaDraft,
 } from '../../models/pre-sale';
+import { FeaturePermissionService } from '../../../feature-permissions/services/feature-permission.service';
+import { StockWarningModalComponent } from '../../../shared/components/stock-warning-modal/stock-warning-modal.component';
+import { ProductStockTraceModalComponent } from '../../../shared/components/product-stock-trace-modal/product-stock-trace-modal.component';
 
 @Component({
   selector: 'app-preventa-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, CurrencyPipe, DecimalPipe, RouterLink, ChangePasswordModalComponent],
+  imports: [CommonModule, FormsModule, CurrencyPipe, DecimalPipe, RouterLink, ChangePasswordModalComponent, StockWarningModalComponent, ProductStockTraceModalComponent],
   templateUrl: './preventa-page.component.html',
   styleUrl: './preventa-page.component.css',
 })
@@ -92,6 +95,14 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
   isPendingLoading = false;
   canDismiss = false;
 
+  // ── Validación de stock ────────────────────────────────────────────────────
+  stockValidationEnabled = false;
+  showStockWarning = false;
+  pendingProductToAdd: Product | null = null;
+  showStockTrace = false;
+  traceProductId = '';
+  traceProductName = '';
+
   private allProducts: Product[] = [];
   private sessionAmountsMap = new Map<string, number[]>();
 
@@ -104,6 +115,7 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
   private productoService = inject(ProductoService);
   private router = inject(Router);
   private loginUserService = inject(LoginUserService);
+  private featurePermissionService = inject(FeaturePermissionService);
 
   private onlineHandler = () => this.onReconnect();
   private offlineHandler = () => { this.isOffline = true; };
@@ -124,6 +136,7 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
     this.pendingSyncCount = this.offlineQueue.queueLength;
     this.loadProducts();
     this.restoreDraft();
+    this.loadStockValidation();
 
     if (navigator.onLine && this.pendingSyncCount > 0) {
       setTimeout(() => this.syncOfflineQueue(), 1500);
@@ -271,6 +284,13 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
     return draft.clientName ? draft.clientName : `#${draft.tabIndex + 1}`;
   }
 
+  private loadStockValidation(): void {
+    this.featurePermissionService.isEnabled('STOCK_VALIDATION').subscribe({
+      next: ({ enabled }) => { this.stockValidationEnabled = enabled; },
+      error: () => { this.stockValidationEnabled = false; },
+    });
+  }
+
   private loadProducts(): void {
     this.productoService.getAll().subscribe({
       next: (products) => {
@@ -373,6 +393,44 @@ export class PreventaPageComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private addOrAccumulate(product: Product): void {
+    if (this.stockValidationEnabled && (product.stock?.quantity ?? 0) <= 0) {
+      this.pendingProductToAdd = product;
+      this.showStockWarning = true;
+      return;
+    }
+    this._doAddOrAccumulate(product);
+  }
+
+  onStockWarningConfirmed(): void {
+    this.showStockWarning = false;
+    if (this.pendingProductToAdd) {
+      this._doAddOrAccumulate(this.pendingProductToAdd);
+    }
+    this.pendingProductToAdd = null;
+  }
+
+  onStockWarningCancelled(): void {
+    this.showStockWarning = false;
+    this.pendingProductToAdd = null;
+  }
+
+  onStockWarningViewTrace(): void {
+    if (this.pendingProductToAdd) {
+      this.traceProductId = this.pendingProductToAdd.id ?? '';
+      this.traceProductName = this.pendingProductToAdd.description ?? '';
+      this.showStockTrace = true;
+    }
+  }
+
+  onStockTraceClosed(): void {
+    this.showStockTrace = false;
+  }
+
+  get stockWarningProduct(): Product | null {
+    return this.pendingProductToAdd;
+  }
+
+  private _doAddOrAccumulate(product: Product): void {
     const code = (product.barcode || '').toLowerCase();
     const existingIdx = this.items.findIndex(
       (i) => (i.barcode || '').toLowerCase() === code

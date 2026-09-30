@@ -59,4 +59,63 @@ export class InventoryCountService {
   hideUncounted(sessionId: string): Observable<HideUncountedResultDto> {
     return this.http.post<HideUncountedResultDto>(`${this.base}/sessions/${sessionId}/hide-uncounted`, {});
   }
+
+  getValueReportData(fromDate: string, toDate: string): Observable<InventoryValueReportData> {
+    return this.http.post<InventoryValueReportData>(`${this.base}/report/value-data`, { fromDate, toDate });
+  }
+
+  generateValuePdf(fromDate: string, toDate: string): Observable<Blob> {
+    return this.http.post(`${this.base}/report/value-pdf`, { fromDate, toDate }, { responseType: 'blob' });
+  }
+
+  bulkUpdatePresentationCosts(updates: CostUpdateItem[]): Observable<unknown> {
+    const productBase = urlConfig.baseUrl + '/api/product';
+    return this.http.post(`${productBase}/presentations/bulk-price-update`, { updates });
+  }
+
+  deleteNullBarcodeRow(productId: string, piId: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/report/null-barcode-row`, {
+      params: { productId, piId },
+    });
+  }
+}
+
+export interface InventoryValueRow {
+  productId: string;
+  physicalInventoryId: string;
+  description: string;
+  presentationLabel: string;
+  barcode: string;
+  countDate: string;
+  physicalStock: number;
+  unitMeasure: string;
+  fixedAmount: number | null;
+  unitCost: number;
+  salePrice: number;
+  totalValue: number;
+}
+
+export interface CostUpdateItem {
+  productId: string;
+  barcode: string;
+  costPrice: number;
+}
+
+export interface InventoryUncountedRow {
+  description: string;
+  label: string;
+  barcode: string;
+  unitMeasure: string;
+}
+
+export interface InventoryValueReportData {
+  fromDate: string;
+  toDate: string;
+  generatedAt: string;
+  grandTotal: number;
+  rows: InventoryValueRow[];
+  noCostRows: InventoryValueRow[];
+  noCostZeroRows: InventoryValueRow[];
+  nullBarcodeRows: InventoryValueRow[];
+  uncountedProducts: InventoryUncountedRow[];
 }

@@ -73,6 +73,9 @@
                                     <button type="button" class="btn btn-outline-primary btn-sm me-2" data-bs-toggle="offcanvas" data-bs-target="#productoDetails" (click)="viewDetails(producto)">
                                         <i class="fas fa-eye"></i> Detalles
                                     </button>
+                                    <button type="button" class="btn btn-outline-info btn-sm me-2" (click)="viewStockTrace(producto)" title="Ver historial de stock">
+                                        <i class="bi bi-graph-up"></i> Stock
+                                    </button>
                                     <button type="button" class="btn btn-danger btn-sm" (click)="eliminarProducto(producto.id)">
                                         <i class="fas fa-trash-alt"></i> Eliminar
                                     </button>
@@ -250,3 +253,10 @@
 
 <!-- Floating Expenses FAB (reusable) -->
 <app-expenses-fab [source]="'producto'"></app-expenses-fab>
+
+<app-product-stock-trace-modal
+  [show]="showStockTrace"
+  [productId]="traceProductId"
+  [productName]="traceProductName"
+  (closed)="onStockTraceClosed()">
+</app-product-stock-trace-modal>

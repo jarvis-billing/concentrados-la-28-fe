@@ -7,11 +7,12 @@ import { ProductoService } from './producto.service';
 import { Router, RouterModule } from '@angular/router';
 import { debounceTime, Subject } from 'rxjs';
 import { ExpensesFabComponent } from '../expenses/expenses-fab.component';
+import { ProductStockTraceModalComponent } from '../shared/components/product-stock-trace-modal/product-stock-trace-modal.component';
 
 @Component({
   selector: 'app-producto',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, ExpensesFabComponent],
+  imports: [CommonModule, FormsModule, RouterModule, ExpensesFabComponent, ProductStockTraceModalComponent],
   templateUrl: './producto.component.html'
 })
 export class ProductoComponent implements OnInit, AfterViewInit {
@@ -26,6 +27,9 @@ export class ProductoComponent implements OnInit, AfterViewInit {
   totalPaginas: number = 0;
 
   selectedProduct: Product | null = null;
+  showStockTrace = false;
+  traceProductId = '';
+  traceProductName = '';
 
   constructor(private service: ProductoService) {
     this.searchTerms.pipe(
@@ -225,6 +229,16 @@ export class ProductoComponent implements OnInit, AfterViewInit {
     } else {
       toast.warning('No hay código de barras para editar');
     }
+  }
+
+  viewStockTrace(product: Product): void {
+    this.traceProductId = product.id ?? '';
+    this.traceProductName = product.description ?? '';
+    this.showStockTrace = true;
+  }
+
+  onStockTraceClosed(): void {
+    this.showStockTrace = false;
   }
 
 }

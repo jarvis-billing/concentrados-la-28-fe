@@ -32,6 +32,9 @@ import { PreSaleWebSocketService } from '../preventa/services/pre-sale-websocket
 import { PreSaleService } from '../preventa/services/pre-sale.service';
 import { PreSaleNotification } from '../preventa/models/pre-sale';
 import { filter } from 'rxjs/operators';
+import { FeaturePermissionService } from '../feature-permissions/services/feature-permission.service';
+import { StockWarningModalComponent } from '../shared/components/stock-warning-modal/stock-warning-modal.component';
+import { ProductStockTraceModalComponent } from '../shared/components/product-stock-trace-modal/product-stock-trace-modal.component';
 
 interface ProductSuggestion {
   product: Product;
@@ -58,6 +61,8 @@ interface ProductSuggestion {
     BatchSelectorModalComponent,
     BatchExpirationAlertComponent,
     BankAccountSelectComponent,
+    StockWarningModalComponent,
+    ProductStockTraceModalComponent,
   ],
   templateUrl: './factura.component.html',
   styleUrl: './factura.component.css'
@@ -87,13 +92,56 @@ export class FacturaComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // Handler al seleccionar una presentación desde el modal hijo
   onPresentationSelected(mappedProduct: Product) {
+    this.checkStockThen(mappedProduct, () => this.continuarConProducto(mappedProduct));
+  }
+
+  private checkStockThen(product: Product, action: () => void): void {
+    if (this.stockValidationEnabled && (product.stock?.quantity ?? 0) <= 0) {
+      this.pendingMappedProduct = product;
+      this.pendingConfirmAction = action;
+      this.showStockWarning = true;
+      return;
+    }
+    action();
+  }
+
+  onStockWarningConfirmed(): void {
+    this.showStockWarning = false;
+    this.pendingConfirmAction?.();
+    this.pendingMappedProduct = null;
+    this.pendingConfirmAction = null;
+  }
+
+  onStockWarningCancelled(): void {
+    this.showStockWarning = false;
+    this.pendingMappedProduct = null;
+    this.pendingConfirmAction = null;
+  }
+
+  onStockWarningViewTrace(): void {
+    if (this.pendingMappedProduct) {
+      this.traceProductId = this.pendingMappedProduct.id ?? '';
+      this.traceProductName = this.pendingMappedProduct.description ?? '';
+      this.showStockTrace = true;
+    }
+  }
+
+  onStockTraceClosed(): void {
+    this.showStockTrace = false;
+  }
+
+  get stockWarningProduct(): Product | null {
+    return this.pendingMappedProduct;
+  }
+
+  private continuarConProducto(mappedProduct: Product): void {
     // Verificar si el producto requiere selección de lote (ANIMALES VIVOS)
     if (this.requiresBatchSelection(mappedProduct)) {
       this.productForBatchSelection = mappedProduct;
       this.openBatchSelectorModal();
       return;
     }
-    
+
     this.ProductToSell(mappedProduct);
     // Abrir modal para ingresar cantidad (packs o unidades) o total en caso de granel
     setTimeout(() => {
@@ -160,6 +208,10 @@ export class FacturaComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnInit(): void {
     this.getClients();
     this.onInitBilling();
+    this.featurePermissionService.isEnabled('STOCK_VALIDATION').subscribe({
+      next: ({ enabled }) => { this.stockValidationEnabled = enabled; },
+      error: () => { this.stockValidationEnabled = false; },
+    });
     // Recalcular vueltos cuando cambia el control de dinero recibido
     this.reciveValue.valueChanges.subscribe((val) => {
       this.onCalculateMoneyChange(val as unknown);
@@ -258,6 +310,7 @@ export class FacturaComponent implements OnInit, AfterViewInit, OnDestroy {
   batchService = inject(BatchService);
   private preSaleWebSocketService = inject(PreSaleWebSocketService);
   private preSaleService = inject(PreSaleService);
+  private featurePermissionService = inject(FeaturePermissionService);
 
   pendingPreSaleNotifications: PreSaleNotification[] = [];
   showPreventaPanel = false;
@@ -269,6 +322,15 @@ export class FacturaComponent implements OnInit, AfterViewInit, OnDestroy {
   // Lotes para productos de ANIMALES VIVOS
   showBatchSelectorModal = false;
   productForBatchSelection: Product | null = null;
+
+  // ── Validación de stock ────────────────────────────────────────────────────
+  stockValidationEnabled = false;
+  showStockWarning = false;
+  pendingMappedProduct: Product | null = null;
+  private pendingConfirmAction: (() => void) | null = null;
+  showStockTrace = false;
+  traceProductId = '';
+  traceProductName = '';
   availableBatches: Batch[] = [];
 
   // Saldo a favor del cliente
@@ -781,6 +843,12 @@ export class FacturaComponent implements OnInit, AfterViewInit, OnDestroy {
     return saleDetail;
   }
 
+  private remapDetailAtIndex(index: number): void {
+    const existingBatchId = this.saleDetails[index].batchId;
+    if (existingBatchId) (this.product as any).batchId = existingBatchId;
+    this.saleDetails[index] = this.mapProductToSaleDetail(this.product);
+  }
+
   // Handle selected products
   addProduct(product: Product) {
     const detail = this.saleDetails.find(detail => detail.product.barcode === product.barcode);
@@ -838,7 +906,7 @@ export class FacturaComponent implements OnInit, AfterViewInit, OnDestroy {
     this.product = this.saleDetails[index].product;
     this.product.amount = parseInt(nuevoValor);
     this.product.totalValue = this.product.amount * this.product.price;
-    this.saleDetails[index] = this.mapProductToSaleDetail(this.product);
+    this.remapDetailAtIndex(index);
   }
 
   onUnitValueChange(event: any, index: number) {
@@ -848,7 +916,7 @@ export class FacturaComponent implements OnInit, AfterViewInit, OnDestroy {
     this.product.amount = this.saleDetails[index].amount;
     this.product.price = parseInt(unitPrice);
     this.product.totalValue = this.product.amount * this.product.price;
-    this.saleDetails[index] = this.mapProductToSaleDetail(this.product);
+    this.remapDetailAtIndex(index);
   }
 
   sumarCantidad(index: number) {
@@ -858,7 +926,7 @@ export class FacturaComponent implements OnInit, AfterViewInit, OnDestroy {
     this.product.vatValue = this.saleDetails[index].totalVat;
     this.product.amount += 1;
     this.product.totalValue = this.product.amount * this.product.price;
-    this.saleDetails[index] = this.mapProductToSaleDetail(this.product);
+    this.remapDetailAtIndex(index);
     this.totalBilling = this.saleDetails.reduce((total, producto) => total + producto.subTotal, 0);
   }
 
@@ -870,7 +938,7 @@ export class FacturaComponent implements OnInit, AfterViewInit, OnDestroy {
       this.product.vatValue = this.saleDetails[index].totalVat;
       this.product.amount = this.product.amount - 1;
       this.product.totalValue = this.product.amount * this.product.price;
-      this.saleDetails[index] = this.mapProductToSaleDetail(this.product);
+      this.remapDetailAtIndex(index);
       this.totalBilling = this.saleDetails.reduce((total, producto) => total + producto.subTotal, 0);
     }
 
@@ -1828,6 +1896,10 @@ export class FacturaComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private addOrAskAmount(mapped: Product) {
+    this.checkStockThen(mapped, () => this._doAddOrAskAmount(mapped));
+  }
+
+  private _doAddOrAskAmount(mapped: Product) {
     const code = (mapped.barcode || '').toLowerCase();
     const existingIndex = this.saleDetails.findIndex(
       d => (d.product.barcode || '').toLowerCase() === code
@@ -1851,8 +1923,8 @@ export class FacturaComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    // Granel o requiere lote → flujo normal (abre modal de cantidad/lote)
-    this.onPresentationSelected(mapped);
+    // Granel o requiere lote → continuar sin re-chequear stock
+    this.continuarConProducto(mapped);
   }
 
   private findPresentationByBarcode(barcode: string): { product: Product; presentation: Presentation } | null {

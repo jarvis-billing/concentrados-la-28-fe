@@ -1,147 +1,379 @@
 <div class="container-fluid py-4">
-    <div class="row mb-4">
-        <div class="col-12 d-flex justify-content-between align-items-center">
+
+    <!-- HEADER -->
+    <div class="row mb-3">
+        <div class="col-12 d-flex justify-content-between align-items-center flex-wrap gap-2">
             <h4 class="mb-0">
-                <i class="bi bi-wallet2 me-2"></i>
-                Reporte de Anticipos / Saldos a Favor
+                <i class="bi bi-wallet2 me-2"></i>Reporte de Anticipos / Saldos a Favor
             </h4>
-            <div class="d-flex gap-2">
-                <button class="btn btn-success" (click)="exportToCSV()" [disabled]="filteredCredits.length === 0">
-                    <i class="bi bi-file-earmark-spreadsheet me-1"></i>
-                    Exportar CSV
+            <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-outline-secondary btn-sm" (click)="exportToCSV()" [disabled]="!filteredCredits.length">
+                    <i class="bi bi-file-earmark-spreadsheet me-1"></i>CSV
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Filtros -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <form [formGroup]="filterForm" (ngSubmit)="applyFilters()" class="row g-3 align-items-end">
-                        <div class="col-md-3">
-                            <label class="form-label">Desde</label>
-                            <input type="date" class="form-control" formControlName="fromDate">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Hasta</label>
-                            <input type="date" class="form-control" formControlName="toDate">
-                        </div>
-                        <div class="col-md-3">
-                            <div class="form-check mt-4">
-                                <input type="checkbox" class="form-check-input" id="onlyWithBalance" formControlName="onlyWithBalance">
-                                <label class="form-check-label" for="onlyWithBalance">Solo con saldo a favor</label>
-                            </div>
-                        </div>
-                        <div class="col-md-3 d-flex gap-2">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-search me-1"></i> Filtrar
-                            </button>
-                            <button type="button" class="btn btn-outline-secondary" (click)="clearFilters()">
-                                <i class="bi bi-x-lg me-1"></i> Limpiar
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- FILTROS -->
+    <div class="card shadow-sm mb-3">
+        <div class="card-body py-3">
+            <form [formGroup]="filterForm" (ngSubmit)="applyFilters()">
+                <div class="row g-2 align-items-end">
 
-    <!-- Resumen -->
-    <div class="row mb-4">
-        <div class="col-md-4">
-            <div class="card shadow-sm border-primary">
-                <div class="card-body text-center">
-                    <h6 class="text-muted mb-2">Total Depositado</h6>
-                    <h3 class="text-primary mb-0">
-                        {{ totalDeposited | currency:'COP':'symbol-narrow':'1.0-0' }}
-                    </h3>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card shadow-sm border-warning">
-                <div class="card-body text-center">
-                    <h6 class="text-muted mb-2">Total Usado</h6>
-                    <h3 class="text-warning mb-0">
-                        {{ totalUsed | currency:'COP':'symbol-narrow':'1.0-0' }}
-                    </h3>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card shadow-sm border-success">
-                <div class="card-body text-center">
-                    <h6 class="text-muted mb-2">Saldo a Favor Total</h6>
-                    <h3 class="text-success mb-0">
-                        {{ totalBalance | currency:'COP':'symbol-narrow':'1.0-0' }}
-                    </h3>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Tabla -->
-    <div class="row">
-        <div class="col-12">
-            <div class="card shadow-sm">
-                <div class="card-body p-0">
-                    @if (isLoading) {
-                        <div class="text-center py-5">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Cargando...</span>
+                    <!-- Cliente autocomplete -->
+                    <div class="col-12 col-md-5">
+                        <label class="form-label small fw-semibold mb-1">Cliente</label>
+                        <div class="position-relative">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text"><i class="bi bi-person"></i></span>
+                                <input type="text" class="form-control"
+                                    [(ngModel)]="clientSearchText"
+                                    [ngModelOptions]="{standalone:true}"
+                                    (input)="filterClients(clientSearchText)"
+                                    (focus)="showClientDropdown = filteredClients.length > 0"
+                                    placeholder="Nombre o documento…"
+                                    autocomplete="off">
+                                @if (selectedClient) {
+                                    <button class="btn btn-outline-danger" type="button" (click)="clearClientFilter()">
+                                        <i class="bi bi-x"></i>
+                                    </button>
+                                }
                             </div>
-                        </div>
-                    } @else if (filteredCredits.length === 0) {
-                        <div class="text-center py-5 text-muted">
-                            <i class="bi bi-inbox fs-1"></i>
-                            <p class="mt-2">No hay anticipos registrados</p>
-                        </div>
-                    } @else {
-                        <div class="table-responsive">
-                            <table class="table table-hover mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Cliente</th>
-                                        <th>Documento</th>
-                                        <th class="text-end">Total Depositado</th>
-                                        <th class="text-end">Total Usado</th>
-                                        <th class="text-end">Saldo a Favor</th>
-                                        <th>Última Transacción</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @for (credit of filteredCredits; track credit.clientId) {
-                                        <tr>
-                                            <td class="fw-bold">{{ credit.clientName }}</td>
-                                            <td>{{ credit.clientIdNumber }}</td>
-                                            <td class="text-end">{{ credit.totalDeposited | currency:'COP':'symbol-narrow':'1.0-0' }}</td>
-                                            <td class="text-end text-warning">{{ credit.totalUsed | currency:'COP':'symbol-narrow':'1.0-0' }}</td>
-                                            <td class="text-end fw-bold text-success">
-                                                {{ credit.currentBalance | currency:'COP':'symbol-narrow':'1.0-0' }}
-                                            </td>
-                                            <td>{{ formatDate(credit.lastTransactionDate) }}</td>
-                                        </tr>
+                            @if (showClientDropdown && filteredClients.length > 0) {
+                                <div class="position-absolute w-100 bg-white border rounded shadow-sm mt-1"
+                                     style="max-height:200px;overflow-y:auto;z-index:1000;">
+                                    @for (c of filteredClients; track c.id) {
+                                        <div class="px-3 py-2 border-bottom client-dropdown-item"
+                                             (mousedown)="selectClient(c)">
+                                            <div class="fw-semibold small">{{ clientDisplayName(c) }}</div>
+                                            <small class="text-muted">{{ c.documentType }} {{ c.idNumber }}</small>
+                                        </div>
                                     }
-                                </tbody>
-                                <tfoot class="table-light fw-bold">
-                                    <tr>
-                                        <td colspan="2">TOTALES</td>
-                                        <td class="text-end">{{ totalDeposited | currency:'COP':'symbol-narrow':'1.0-0' }}</td>
-                                        <td class="text-end text-warning">{{ totalUsed | currency:'COP':'symbol-narrow':'1.0-0' }}</td>
-                                        <td class="text-end text-success">{{ totalBalance | currency:'COP':'symbol-narrow':'1.0-0' }}</td>
-                                        <td></td>
-                                    </tr>
-                                </tfoot>
-                            </table>
+                                </div>
+                            }
                         </div>
-                    }
+                    </div>
+
+                    <!-- Fecha desde / hasta -->
+                    <div class="col-6 col-md-2">
+                        <label class="form-label small fw-semibold mb-1">Desde</label>
+                        <input type="date" class="form-control form-control-sm" formControlName="fromDate">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label small fw-semibold mb-1">Hasta</label>
+                        <input type="date" class="form-control form-control-sm" formControlName="toDate">
+                    </div>
+
+                    <!-- Acciones -->
+                    <div class="col-12 col-md-3 d-flex gap-2 align-items-end">
+                        <button type="submit" class="btn btn-primary btn-sm flex-fill">
+                            <i class="bi bi-search me-1"></i>Filtrar
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" (click)="clearFilters()">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- PILLS DE ESTADO -->
+    <div class="d-flex gap-2 mb-3 flex-wrap align-items-center">
+        <span class="text-muted small me-1">Mostrar:</span>
+        <button class="btn btn-sm"
+                [class.btn-dark]="statusFilter === 'all'"
+                [class.btn-outline-secondary]="statusFilter !== 'all'"
+                (click)="setStatusFilter('all')">
+            Todos
+        </button>
+        <button class="btn btn-sm"
+                [class.btn-success]="statusFilter === 'with-balance'"
+                [class.btn-outline-success]="statusFilter !== 'with-balance'"
+                (click)="setStatusFilter('with-balance')">
+            <i class="bi bi-wallet me-1"></i>Con saldo a favor
+        </button>
+        <button class="btn btn-sm"
+                [class.btn-secondary]="statusFilter === 'no-balance'"
+                [class.btn-outline-secondary]="statusFilter !== 'no-balance'"
+                (click)="setStatusFilter('no-balance')">
+            <i class="bi bi-dash-circle me-1"></i>Sin saldo
+        </button>
+    </div>
+
+    <!-- TARJETAS RESUMEN -->
+    <div class="row g-3 mb-3">
+        <div class="col-md-4">
+            <div class="card summary-card border-primary h-100">
+                <div class="card-body text-center py-3">
+                    <p class="text-muted small mb-1">Total Anticipo acumulado</p>
+                    <h4 class="text-primary mb-0 fw-bold">{{ totalDeposited | currency:'COP':'symbol-narrow':'1.0-0' }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card summary-card border-warning h-100">
+                <div class="card-body text-center py-3">
+                    <p class="text-muted small mb-1">Total Usado</p>
+                    <h4 class="text-warning mb-0 fw-bold">{{ totalUsed | currency:'COP':'symbol-narrow':'1.0-0' }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card summary-card border-success h-100">
+                <div class="card-body text-center py-3">
+                    <p class="text-muted small mb-1">Saldo a Favor Total</p>
+                    <h4 class="text-success mb-0 fw-bold">{{ totalBalance | currency:'COP':'symbol-narrow':'1.0-0' }}</h4>
+                    <small class="text-muted">{{ filteredCredits.length }} cliente{{ filteredCredits.length !== 1 ? 's' : '' }}</small>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- TABLA PRINCIPAL -->
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+
+            @if (isLoading) {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary"></div>
+                    <p class="mt-2 text-muted small">Cargando anticipos…</p>
+                </div>
+            } @else if (!filteredCredits.length) {
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                    <p class="mb-0">No hay anticipos para los filtros seleccionados.</p>
+                </div>
+            } @else {
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:2rem"></th>
+                                <th style="width:9rem">Estado</th>
+                                <th>Cliente</th>
+                                <th>Documento</th>
+                                <th class="text-end">Total Anticipo</th>
+                                <th class="text-end">Total Usado</th>
+                                <th class="text-end">Saldo a Favor</th>
+                                <th>Fecha anticipo</th>
+                                <th>Medio de pago</th>
+                                <th>Cuenta</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (credit of filteredCredits; track credit.clientId) {
+
+                                <!-- Fila principal -->
+                                <tr [class.row-expanded]="isExpanded(credit.clientId)"
+                                    [class.row-with-balance]="hasBalance(credit)"
+                                    style="cursor:pointer"
+                                    (click)="toggleRow(credit.clientId)">
+                                    <td class="text-center text-muted ps-3">
+                                        <i class="bi"
+                                           [class.bi-chevron-down]="isExpanded(credit.clientId)"
+                                           [class.bi-chevron-right]="!isExpanded(credit.clientId)"></i>
+                                    </td>
+                                    <td>
+                                        @if (hasBalance(credit)) {
+                                            <span class="status-badge status-with-balance">
+                                                <i class="bi bi-wallet me-1"></i>Con saldo
+                                            </span>
+                                        } @else {
+                                            <span class="status-badge status-none">
+                                                <i class="bi bi-dash-circle me-1"></i>Sin saldo
+                                            </span>
+                                        }
+                                    </td>
+                                    <td class="fw-semibold">{{ credit.clientName }}</td>
+                                    <td class="text-muted small">{{ credit.clientIdNumber }}</td>
+                                    <td class="text-end">
+                                        {{ credit.totalDeposited | currency:'COP':'symbol-narrow':'1.0-0' }}
+                                    </td>
+                                    <td class="text-end text-warning">
+                                        {{ credit.totalUsed | currency:'COP':'symbol-narrow':'1.0-0' }}
+                                    </td>
+                                    <td class="text-end fw-bold"
+                                        [class.text-success]="hasBalance(credit)"
+                                        [class.text-muted]="!hasBalance(credit)">
+                                        {{ credit.currentBalance | currency:'COP':'symbol-narrow':'1.0-0' }}
+                                    </td>
+                                    <td class="small text-muted">{{ formatDate(credit.lastDepositDate) }}</td>
+                                    <td class="small">
+                                        @if (credit.lastDepositMethod) {
+                                            <span class="badge bg-light text-dark border">
+                                                {{ paymentMethodLabel(credit.lastDepositMethod) }}
+                                            </span>
+                                        } @else {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td class="small text-muted">
+                                        {{ credit.lastDepositBankAccount || (credit.lastDepositMethod === 'TRANSFERENCIA' ? '—' : '') }}
+                                    </td>
+                                </tr>
+
+                                <!-- Fila expandida -->
+                                @if (isExpanded(credit.clientId)) {
+                                    <tr>
+                                        <td colspan="10" class="p-0 border-0">
+                                            <div class="expanded-panel">
+
+                                                <!-- Mini-tabs -->
+                                                <div class="mini-tabs">
+                                                    <button class="mini-tab"
+                                                            [class.active]="getRowTab(credit.clientId) === 'depositos'"
+                                                            (click)="setRowTab(credit.clientId, 'depositos', $event)">
+                                                        <i class="bi bi-arrow-down-circle me-1"></i>
+                                                        Depósitos / Abonos
+                                                        @if (deposits(credit).length) {
+                                                            <span class="mini-badge success">{{ deposits(credit).length }}</span>
+                                                        }
+                                                    </button>
+                                                    <button class="mini-tab"
+                                                            [class.active]="getRowTab(credit.clientId) === 'consumos'"
+                                                            (click)="setRowTab(credit.clientId, 'consumos', $event)">
+                                                        <i class="bi bi-arrow-up-circle me-1"></i>
+                                                        Consumos / Usos
+                                                        @if (consumptions(credit).length) {
+                                                            <span class="mini-badge warning">{{ consumptions(credit).length }}</span>
+                                                        }
+                                                    </button>
+                                                </div>
+
+                                                <!-- Tab: Depósitos -->
+                                                @if (getRowTab(credit.clientId) === 'depositos') {
+                                                    @if (!deposits(credit).length) {
+                                                        <p class="text-muted small p-3 mb-0">
+                                                            <i class="bi bi-info-circle me-1"></i>
+                                                            Sin depósitos registrados para este cliente.
+                                                        </p>
+                                                    } @else {
+                                                        <div class="tab-content-body">
+                                                            <div class="table-responsive">
+                                                                <table class="table table-sm mb-0">
+                                                                    <thead class="table-light">
+                                                                        <tr>
+                                                                            <th class="ps-3">Tipo</th>
+                                                                            <th>Fecha</th>
+                                                                            <th>Método de pago</th>
+                                                                            <th class="text-end text-success">Monto</th>
+                                                                            <th class="text-end">Saldo después</th>
+                                                                            <th>Referencia</th>
+                                                                            <th class="pe-3">Registrado por</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        @for (tx of deposits(credit); track tx.id) {
+                                                                            <tr>
+                                                                                <td class="ps-3">
+                                                                                    <span class="badge" [ngClass]="txTypeBadge(tx.type)">
+                                                                                        {{ txTypeLabel(tx.type) }}
+                                                                                    </span>
+                                                                                </td>
+                                                                                <td class="small">{{ formatDateTime(tx.transactionDate) }}</td>
+                                                                                <td>
+                                                                                    @if (tx.paymentMethod) {
+                                                                                        <span class="badge bg-light text-dark border">
+                                                                                            {{ paymentMethodLabel(tx.paymentMethod) }}
+                                                                                        </span>
+                                                                                    } @else {
+                                                                                        <span class="text-muted small">-</span>
+                                                                                    }
+                                                                                </td>
+                                                                                <td class="text-end fw-bold text-success small">
+                                                                                    {{ tx.amount | currency:'COP':'symbol-narrow':'1.0-0' }}
+                                                                                </td>
+                                                                                <td class="text-end small">
+                                                                                    {{ tx.balanceAfter | currency:'COP':'symbol-narrow':'1.0-0' }}
+                                                                                </td>
+                                                                                <td class="small text-muted">{{ tx.reference || '-' }}</td>
+                                                                                <td class="pe-3 small text-muted">{{ tx.createdBy || '-' }}</td>
+                                                                            </tr>
+                                                                        }
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+                                                    }
+                                                }
+
+                                                <!-- Tab: Consumos -->
+                                                @if (getRowTab(credit.clientId) === 'consumos') {
+                                                    @if (!consumptions(credit).length) {
+                                                        <p class="text-muted small p-3 mb-0">
+                                                            <i class="bi bi-info-circle me-1"></i>
+                                                            Sin consumos registrados para este cliente.
+                                                        </p>
+                                                    } @else {
+                                                        <div class="tab-content-body">
+                                                            <div class="table-responsive">
+                                                                <table class="table table-sm mb-0">
+                                                                    <thead class="table-light">
+                                                                        <tr>
+                                                                            <th class="ps-3">Tipo</th>
+                                                                            <th>Fecha</th>
+                                                                            <th>Factura / Nota</th>
+                                                                            <th class="text-end text-warning">Monto usado</th>
+                                                                            <th class="text-end">Saldo después</th>
+                                                                            <th class="pe-3">Registrado por</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        @for (tx of consumptions(credit); track tx.id) {
+                                                                            <tr>
+                                                                                <td class="ps-3">
+                                                                                    <span class="badge" [ngClass]="txTypeBadge(tx.type)">
+                                                                                        {{ txTypeLabel(tx.type) }}
+                                                                                    </span>
+                                                                                </td>
+                                                                                <td class="small">{{ formatDateTime(tx.transactionDate) }}</td>
+                                                                                <td class="small text-muted">
+                                                                                    @if (tx.billingId) {
+                                                                                        <i class="bi bi-receipt me-1"></i>{{ tx.reference || tx.billingId.substring(0,8) }}
+                                                                                    } @else {
+                                                                                        {{ tx.notes || '-' }}
+                                                                                    }
+                                                                                </td>
+                                                                                <td class="text-end fw-bold text-warning small">
+                                                                                    {{ tx.amount | currency:'COP':'symbol-narrow':'1.0-0' }}
+                                                                                </td>
+                                                                                <td class="text-end small">
+                                                                                    {{ tx.balanceAfter | currency:'COP':'symbol-narrow':'1.0-0' }}
+                                                                                </td>
+                                                                                <td class="pe-3 small text-muted">{{ tx.createdBy || '-' }}</td>
+                                                                            </tr>
+                                                                        }
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+                                                    }
+                                                }
+
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                        <tfoot class="table-light fw-semibold small">
+                            <tr>
+                                <td colspan="4" class="ps-3">
+                                    {{ filteredCredits.length }} cliente{{ filteredCredits.length !== 1 ? 's' : '' }}
+                                </td>
+                                <td class="text-end">{{ totalDeposited | currency:'COP':'symbol-narrow':'1.0-0' }}</td>
+                                <td class="text-end text-warning">{{ totalUsed | currency:'COP':'symbol-narrow':'1.0-0' }}</td>
+                                <td class="text-end text-success">{{ totalBalance | currency:'COP':'symbol-narrow':'1.0-0' }}</td>
+                                <td colspan="3"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
 </div>
 
-<!-- Modal para migrar créditos del cuaderno -->
 <app-manual-credit-modal (creditRegistered)="loadReport()"></app-manual-credit-modal>

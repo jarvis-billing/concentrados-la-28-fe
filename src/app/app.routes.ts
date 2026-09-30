@@ -33,6 +33,7 @@ import { StockAlertsPageComponent } from './inventario/pages/stock-alerts-page/s
 import { InventoryAdjustmentsPageComponent } from './inventario/pages/inventory-adjustments-page/inventory-adjustments-page.component';
 import { InventoryReportPageComponent } from './inventario/pages/inventory-report-page/inventory-report-page.component';
 import { BarcodeLabelsPageComponent } from './inventario/pages/barcode-labels-page/barcode-labels-page.component';
+import { MobileLabelsPageComponent } from './inventario/pages/mobile-labels-page/mobile-labels-page.component';
 import { BarcodeAlbumPageComponent } from './inventario/pages/barcode-album-page/barcode-album-page.component';
 import { LabelAlbumBuilderComponent } from './inventario/pages/label-album-builder/label-album-builder.component';
 import { ClientAccountViewComponent } from './cuenta-cliente/components/client-account-view/client-account-view.component';
@@ -54,6 +55,7 @@ import { ProductMovementsReportComponent } from './reportes/pages/product-moveme
 import { CashFlowReportComponent } from './reportes/pages/cash-flow-report/cash-flow-report.component';
 import { SalesMonthlyReportComponent } from './reportes/pages/sales-monthly-report/sales-monthly-report.component';
 import { ProductSalesPurchasesReportComponent } from './reportes/pages/product-sales-purchases-report/product-sales-purchases-report.component';
+import { InventoryValueReportComponent } from './reportes/pages/inventory-value-report/inventory-value-report.component';
 import { ReturnsListPageComponent } from './devoluciones/pages/returns-list-page/returns-list-page.component';
 import { SaleReturnFormComponent } from './devoluciones/pages/sale-return-form/sale-return-form.component';
 import { PurchaseReturnFormComponent } from './devoluciones/pages/purchase-return-form/purchase-return-form.component';
@@ -188,6 +190,9 @@ export const routes: Routes = [
             path: 'inventario/etiquetas', component: BarcodeLabelsPageComponent
         },
         {
+            path: 'inventario/etiquetas-movil', component: MobileLabelsPageComponent
+        },
+        {
             path: 'inventario/album-barcodes', component: BarcodeAlbumPageComponent
         },
         {
@@ -249,6 +254,9 @@ export const routes: Routes = [
         },
         {
             path: 'reportes/ventas-compras-producto', component: ProductSalesPurchasesReportComponent
+          },
+          {
+            path: 'reportes/valor-inventario', component: InventoryValueReportComponent
         },
         {
             path: 'devoluciones', component: ReturnsListPageComponent

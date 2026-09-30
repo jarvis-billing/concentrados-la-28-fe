@@ -179,7 +179,38 @@
                 <tr *ngIf="isExpanded(invoice.id)">
                   <td colspan="10" class="bg-light">
                     <div class="p-3">
-                      <h6 class="mb-3">Detalle de ítems</h6>
+
+                      <!-- Cabecera con resumen de tendencias -->
+                      <div class="d-flex align-items-center justify-content-between mb-3">
+                        <h6 class="mb-0">Detalle de ítems</h6>
+                        <div *ngIf="loadingCostsForInvoiceId === invoice.id" class="spinner-border spinner-border-sm text-secondary" role="status">
+                          <span class="visually-hidden">Cargando tendencias...</span>
+                        </div>
+                        <div *ngIf="loadingCostsForInvoiceId !== invoice.id && lastCostForExpanded.size > 0"
+                             class="d-flex gap-2 align-items-center small">
+                          <span *ngIf="expandedTrendSummary.up > 0"
+                                class="badge bg-danger"
+                                title="Productos cuyo precio subió desde esta compra">
+                            <i class="bi bi-arrow-up me-1"></i>{{ expandedTrendSummary.up }} subieron
+                          </span>
+                          <span *ngIf="expandedTrendSummary.down > 0"
+                                class="badge bg-success"
+                                title="Productos cuyo precio bajó desde esta compra">
+                            <i class="bi bi-arrow-down me-1"></i>{{ expandedTrendSummary.down }} bajaron
+                          </span>
+                          <span *ngIf="expandedTrendSummary.same > 0"
+                                class="badge bg-secondary"
+                                title="Productos cuyo precio no cambió">
+                            <i class="bi bi-dash me-1"></i>{{ expandedTrendSummary.same }} igual
+                          </span>
+                          <span *ngIf="expandedTrendSummary.first > 0"
+                                class="badge bg-warning text-dark"
+                                title="Primeras compras de estos productos">
+                            <i class="bi bi-star me-1"></i>{{ expandedTrendSummary.first }} primera vez
+                          </span>
+                        </div>
+                      </div>
+
                       <div class="table-responsive">
                         <table class="table table-sm table-bordered m-0">
                           <thead class="table-secondary">
@@ -192,7 +223,8 @@
                               <th class="text-end">Flete/Unid</th>
                               <th class="text-end">% IVA</th>
                               <th class="text-end">IVA/Unid</th>
-                              <th class="text-end">Total/Unid</th>
+                              <th class="text-end">Total Costo/Unid</th>
+                              <th class="text-center">Tendencia</th>
                               <th class="text-end">Total ítem</th>
                             </tr>
                           </thead>
@@ -206,7 +238,68 @@
                               <td class="text-end">{{ item.applyFreight ? formatCurrency(invoice.freightRate) : '-' }}</td>
                               <td class="text-end">{{ item.vatRate }}%</td>
                               <td class="text-end">{{ formatCurrency(item.unitCost * (item.vatRate / 100)) }}</td>
-                              <td class="text-end fw-semibold">{{ formatCurrency(item.unitCost + (item.unitCost * (item.vatRate / 100)) + (item.applyFreight ? invoice.freightRate : 0)) }}</td>
+                              <td class="text-end fw-semibold">{{ formatCurrency(resolveItemUnitTotal(item, invoice)) }}</td>
+                              <!-- Tendencia vs precio actual -->
+                              <td class="text-center">
+                                <ng-container *ngIf="getLastCostInfoForItem(item) as lc; else noTrend">
+                                  <ng-container [ngSwitch]="getItemTrend(item, invoice)">
+
+                                    <!-- Subió desde esta compra -->
+                                    <span *ngSwitchCase="'up'" class="badge bg-danger trend-tip">
+                                      <i class="bi bi-arrow-up"></i>
+                                      {{ getItemDeltaPercent(item, invoice) | number:'1.0-1' }}%
+                                      <span style="opacity:.85;font-size:.85em"> +{{ formatCurrency(getItemDeltaAmount(item, invoice)) }}</span>
+                                      <div class="trend-tip-box">
+                                        <div style="font-weight:600;margin-bottom:4px">📈 Precio subió desde esta compra</div>
+                                        <div class="tip-row"><span class="tip-lbl">En esta factura:</span><span>{{ formatCurrency(resolveItemUnitTotal(item, invoice)) }}/u</span></div>
+                                        <div class="tip-row"><span class="tip-lbl">Precio actual:</span><span>{{ formatCurrency(lc.lastUnitTotalCost) }}/u</span></div>
+                                        <div class="tip-row" style="margin-top:4px;border-top:1px solid rgba(255,255,255,.2);padding-top:4px">
+                                          <span class="tip-lbl">Diferencia:</span>
+                                          <span>+{{ formatCurrency(getItemDeltaAmount(item, invoice)) }} (+{{ getItemDeltaPercent(item, invoice) | number:'1.1-1' }}%)</span>
+                                        </div>
+                                      </div>
+                                    </span>
+
+                                    <!-- Bajó desde esta compra -->
+                                    <span *ngSwitchCase="'down'" class="badge bg-success trend-tip">
+                                      <i class="bi bi-arrow-down"></i>
+                                      {{ getItemDeltaPercent(item, invoice) | number:'1.0-1' }}%
+                                      <span style="opacity:.85;font-size:.85em"> -{{ formatCurrency(getItemDeltaAmount(item, invoice)) }}</span>
+                                      <div class="trend-tip-box">
+                                        <div style="font-weight:600;margin-bottom:4px">📉 Precio bajó desde esta compra</div>
+                                        <div class="tip-row"><span class="tip-lbl">En esta factura:</span><span>{{ formatCurrency(resolveItemUnitTotal(item, invoice)) }}/u</span></div>
+                                        <div class="tip-row"><span class="tip-lbl">Precio actual:</span><span>{{ formatCurrency(lc.lastUnitTotalCost) }}/u</span></div>
+                                        <div class="tip-row" style="margin-top:4px;border-top:1px solid rgba(255,255,255,.2);padding-top:4px">
+                                          <span class="tip-lbl">Diferencia:</span>
+                                          <span>-{{ formatCurrency(getItemDeltaAmount(item, invoice)) }} (-{{ getItemDeltaPercent(item, invoice) | number:'1.1-1' }}%)</span>
+                                        </div>
+                                      </div>
+                                    </span>
+
+                                    <!-- Sin cambio -->
+                                    <span *ngSwitchCase="'same'" class="badge bg-secondary trend-tip">
+                                      <i class="bi bi-dash"></i> Igual
+                                      <div class="trend-tip-box">
+                                        <div style="font-weight:600;margin-bottom:4px">➡️ Sin cambio de precio</div>
+                                        <div class="tip-row"><span class="tip-lbl">Total/u:</span><span>{{ formatCurrency(lc.lastUnitTotalCost) }}</span></div>
+                                      </div>
+                                    </span>
+
+                                    <!-- Primera compra -->
+                                    <span *ngSwitchCase="'first'" class="badge bg-warning text-dark trend-tip">
+                                      <i class="bi bi-star"></i> 1ª vez
+                                      <div class="trend-tip-box">
+                                        <div style="font-weight:600;margin-bottom:4px">⭐ Primera compra registrada</div>
+                                        <div class="tip-row"><span class="tip-lbl">Total/u:</span><span>{{ formatCurrency(resolveItemUnitTotal(item, invoice)) }}</span></div>
+                                      </div>
+                                    </span>
+
+                                  </ng-container>
+                                </ng-container>
+                                <ng-template #noTrend>
+                                  <span *ngIf="loadingCostsForInvoiceId === invoice.id" class="text-muted small">…</span>
+                                </ng-template>
+                              </td>
                               <td class="text-end fw-semibold">{{ formatCurrency(item.totalCost + item.vatAmount + item.freightAmount) }}</td>
                             </tr>
                           </tbody>
@@ -214,25 +307,25 @@
                             <tr>
                               <td colspan="4" class="text-end">Subtotal:</td>
                               <td class="text-end">{{ formatCurrency(invoice.subtotal) }}</td>
-                              <td colspan="4"></td>
+                              <td colspan="5"></td>
                               <td class="text-end">{{ formatCurrency(invoice.subtotal) }}</td>
                             </tr>
                             <tr>
                               <td colspan="4" class="text-end">Total IVA:</td>
                               <td class="text-end">{{ formatCurrency(invoice.totalVat) }}</td>
-                              <td colspan="4"></td>
+                              <td colspan="5"></td>
                               <td class="text-end">{{ formatCurrency(invoice.totalVat) }}</td>
                             </tr>
                             <tr>
                               <td colspan="4" class="text-end">Total Flete:</td>
                               <td class="text-end">{{ formatCurrency(invoice.freightCost) }}</td>
-                              <td colspan="4"></td>
+                              <td colspan="5"></td>
                               <td class="text-end">{{ formatCurrency(invoice.freightCost) }}</td>
                             </tr>
                             <tr class="table-primary">
                               <td colspan="4" class="text-end fw-bold">TOTAL FACTURA:</td>
                               <td class="text-end fw-bold">{{ formatCurrency(invoice.total) }}</td>
-                              <td colspan="4"></td>
+                              <td colspan="5"></td>
                               <td class="text-end fw-bold">{{ formatCurrency(invoice.total) }}</td>
                             </tr>
                           </tfoot>

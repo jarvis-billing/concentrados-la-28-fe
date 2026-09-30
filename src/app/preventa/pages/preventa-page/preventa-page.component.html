@@ -49,6 +49,11 @@
             <button class="user-dropdown-item text-body" (click)="showChangePassword = true; showUserMenu = false">
               <i class="bi bi-key-fill me-2"></i>Cambiar contraseña
             </button>
+            <a class="user-dropdown-item text-body text-decoration-none d-flex align-items-center"
+               routerLink="/main/inventario/etiquetas-movil"
+               (click)="showUserMenu = false">
+              <i class="bi bi-printer-fill me-2"></i>Etiquetas Móvil
+            </a>
             <div class="user-dropdown-divider"></div>
             <button class="user-dropdown-item" (click)="logout()">
               <i class="bi bi-box-arrow-right me-2"></i>Cerrar sesión
@@ -481,4 +486,22 @@
   [show]="showChangePassword"
   (closed)="showChangePassword = false">
 </app-change-password-modal>
+
+<app-stock-warning-modal
+  [show]="showStockWarning"
+  [productName]="stockWarningProduct?.description ?? ''"
+  [stockQty]="stockWarningProduct?.stock?.quantity ?? 0"
+  [stockUnit]="stockWarningProduct?.stock?.unitMeasure ?? ''"
+  [productId]="stockWarningProduct?.id ?? ''"
+  (confirmed)="onStockWarningConfirmed()"
+  (cancelled)="onStockWarningCancelled()"
+  (viewTrace)="onStockWarningViewTrace()">
+</app-stock-warning-modal>
+
+<app-product-stock-trace-modal
+  [show]="showStockTrace"
+  [productId]="traceProductId"
+  [productName]="traceProductName"
+  (closed)="onStockTraceClosed()">
+</app-product-stock-trace-modal>
 
