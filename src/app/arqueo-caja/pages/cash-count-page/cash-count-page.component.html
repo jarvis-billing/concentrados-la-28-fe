@@ -190,6 +190,112 @@
                     </div>
                 </div>
 
+                <!-- Modo de conteo -->
+                <div class="col-12 mb-4">
+                    <div class="card shadow-sm">
+                        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <h6 class="mb-0"><i class="bi bi-cash-stack me-2"></i>Efectivo en Caja</h6>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="btn-group btn-group-sm" role="group" aria-label="Modo de conteo">
+                                    <button type="button" class="btn"
+                                            [ngClass]="countMode === 'TOTAL' ? 'btn-primary' : 'btn-outline-primary'"
+                                            [disabled]="existingSession?.status === 'CERRADO'"
+                                            (click)="setCountMode('TOTAL')">
+                                        <i class="bi bi-lightning-charge me-1"></i>Rápido
+                                    </button>
+                                    <button type="button" class="btn"
+                                            [ngClass]="countMode === 'DENOMINACIONES' ? 'btn-primary' : 'btn-outline-primary'"
+                                            [disabled]="existingSession?.status === 'CERRADO'"
+                                            (click)="setCountMode('DENOMINACIONES')">
+                                        <i class="bi bi-grid-3x3-gap me-1"></i>Detallado
+                                    </button>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-secondary"
+                                        title="Configuración del arqueo" (click)="toggleConfigPanel()">
+                                    <i class="bi bi-gear"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        @if (showConfigPanel) {
+                            <div class="card-body border-bottom bg-light">
+                                <h6 class="fw-semibold mb-3"><i class="bi bi-sliders me-1"></i>Configuración del arqueo</h6>
+                                <div class="row g-3 align-items-end">
+                                    <div class="col-md-6">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="requireNoteSwitch"
+                                                   [(ngModel)]="configDraft.requireNoteOnDifference">
+                                            <label class="form-check-label" for="requireNoteSwitch">
+                                                Exigir nota cuando la diferencia supere el umbral
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small mb-1">Umbral de diferencia</label>
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text">$</span>
+                                            <input type="text" class="form-control"
+                                                   [value]="formatCurrencyInput(configDraft.differenceThreshold)"
+                                                   (input)="onThresholdInput($event)"
+                                                   [disabled]="!configDraft.requireNoteOnDifference">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 d-flex gap-2">
+                                        <button class="btn btn-sm btn-primary" (click)="saveConfig()" [disabled]="isSavingConfig">
+                                            @if (isSavingConfig) {
+                                                <span class="spinner-border spinner-border-sm me-1"></span>
+                                            }
+                                            Guardar
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-secondary" (click)="showConfigPanel = false">Cancelar</button>
+                                    </div>
+                                </div>
+                                <div class="form-text mt-2">
+                                    Si está activo, al cerrar el arqueo con un sobrante o faltante mayor al umbral
+                                    se pedirá una explicación obligatoria.
+                                </div>
+                            </div>
+                        }
+
+                        @if (countMode === 'TOTAL') {
+                            <div class="card-body">
+                                <label class="form-label fw-semibold">¿Cuánto efectivo hay en la caja?</label>
+                                <div class="row align-items-center g-3">
+                                    <div class="col-md-6">
+                                        <div class="input-group input-group-lg">
+                                            <span class="input-group-text">$</span>
+                                            <input type="text" class="form-control fw-bold"
+                                                   [value]="formatCurrencyInput(manualTotal)"
+                                                   (input)="onManualTotalInput($event)"
+                                                   [disabled]="existingSession?.status === 'CERRADO'"
+                                                   placeholder="0" inputmode="numeric">
+                                        </div>
+                                        <div class="form-text">Digite el total de billetes y monedas que quedan en la caja.</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        @if (existingSession?.status !== 'CERRADO') {
+                                            <button type="button" class="btn btn-outline-secondary"
+                                                    (click)="setCountMode('DENOMINACIONES')">
+                                                <i class="bi bi-grid-3x3-gap me-1"></i>
+                                                ¿No cuadra? Desglosar por billetes y monedas
+                                            </button>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        } @else if (manualTotal > 0 && manualTotal !== totalByDenominations) {
+                            <div class="card-body py-2">
+                                <small class="text-muted">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    Total digitado en modo rápido: <strong>{{ formatCurrency(manualTotal) }}</strong>
+                                    &nbsp;·&nbsp; Contado por denominaciones: <strong>{{ formatCurrency(totalByDenominations) }}</strong>
+                                </small>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                @if (countMode === 'DENOMINACIONES') {
                 <!-- Billetes -->
                 <div class="col-lg-6 mb-4 scrollable-section">
                     <div class="card shadow-sm h-100">
@@ -279,6 +385,7 @@
                         </div>
                     </div>
                 </div>
+                }
 
                 <!-- Resumen del conteo -->
                 <div class="col-12">
@@ -351,6 +458,13 @@
                                                         Contado: {{ formatCurrency(totalCashCounted) }} &nbsp;·&nbsp;
                                                         Esperado: {{ formatCurrency(expectedTotalCash) }}
                                                     </small>
+                                                </div>
+                                            }
+                                            @if (differenceRequiresNote && existingSession?.status !== 'CERRADO') {
+                                                <div class="mt-2 small text-danger-emphasis">
+                                                    <i class="bi bi-exclamation-triangle me-1"></i>
+                                                    Supera el umbral de {{ formatCurrency(config.differenceThreshold) }}:
+                                                    al cerrar deberá explicar la diferencia.
                                                 </div>
                                             }
                                         </div>
@@ -1059,11 +1173,32 @@
                     </div>
                 }
 
+                <!-- Explicación de la diferencia -->
+                <div class="mb-1">
+                    <label class="form-label fw-semibold">
+                        {{ differenceRequiresNote ? 'Explique la diferencia' : 'Nota de cierre (opcional)' }}
+                        @if (differenceRequiresNote) {
+                            <span class="text-danger">*</span>
+                        }
+                    </label>
+                    <textarea class="form-control" rows="2" [(ngModel)]="closeNote"
+                              [class.is-invalid]="differenceRequiresNote && !closeNote.trim()"
+                              [placeholder]="differenceRequiresNote ? 'Ej: faltante por vuelto mal entregado, venta sin registrar...' : 'Observaciones del cierre...'"></textarea>
+                    @if (differenceRequiresNote) {
+                        <div class="form-text text-danger-emphasis">
+                            La diferencia supera {{ formatCurrency(config.differenceThreshold) }}; la explicación es obligatoria.
+                        </div>
+                    }
+                </div>
+
             </div>
 
             <div class="modal-footer">
                 <button class="btn btn-outline-secondary" (click)="cancelCloseModal()">Cancelar</button>
-                <button class="btn btn-danger" (click)="confirmCloseCount()">
+                <button class="btn btn-danger" (click)="confirmCloseCount()" [disabled]="!canConfirmClose">
+                    @if (isClosing) {
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                    }
                     <i class="bi bi-lock-fill me-1"></i>Cerrar Arqueo
                 </button>
             </div>

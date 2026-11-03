@@ -8,7 +8,7 @@ import {
     AccountReportFilter,
     AccountSummary,
     ManualDebtRequest,
-    PagedAccountReport
+    PagedAccountReport, AccountReceivableRow
 } from '../models/client-account';
 
 @Injectable({
@@ -60,6 +60,11 @@ export class ClientAccountService {
      */
     getAccountsReport(filter: AccountReportFilter): Observable<PagedAccountReport> {
         return this.http.post<PagedAccountReport>(`${this.url}/report`, filter);
+    }
+
+    getReceivableSummary(clientId?: string): Observable<AccountReceivableRow[]> {
+        const params: Record<string, string> = clientId ? { clientId } : {};
+        return this.http.get<AccountReceivableRow[]>(`${this.url}/report/receivable-summary`, { params });
     }
 
     /**

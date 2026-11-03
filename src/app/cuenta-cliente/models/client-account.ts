@@ -59,6 +59,18 @@ export class AccountReportFilter {
     size?: number;
 }
 
+/** Fila del PDF resumen de cartera (solo clientes con saldo > 0) */
+export interface AccountReceivableRow {
+    clientId: string;
+    clientName: string;
+    clientNickname?: string;
+    clientPhone?: string;
+    clientAddress?: string;
+    currentBalance: number;
+    lastPaymentDate?: string;
+    lastPaymentAmount?: number;
+}
+
 /** Respuesta paginada del reporte */
 export interface PagedAccountReport {
     content: AccountSummary[];

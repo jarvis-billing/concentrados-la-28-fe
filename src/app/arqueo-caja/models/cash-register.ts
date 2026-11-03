@@ -61,6 +61,7 @@ export interface CashCountSession {
     // Conteo físico de efectivo
     cashDenominations: CashDenomination[];
     totalCashCounted: number;      // Total contado en efectivo
+    countMode?: CashCountMode;     // Cómo se capturó el efectivo
     
     // Resumen por método de pago
     paymentMethodSummaries: PaymentMethodSummary[];
@@ -172,7 +173,25 @@ export interface CreateCashCountRequest {
     sessionDate: string;
     openingBalance: number;
     cashDenominations: { value: number; quantity: number }[];
+    countMode: CashCountMode;
+    totalCashCounted?: number;     // Solo se usa en modo TOTAL
     notes?: string;
+}
+
+/**
+ * TOTAL: se digita el total de efectivo en caja.
+ * DENOMINACIONES: se cuenta billete por billete / moneda por moneda.
+ */
+export type CashCountMode = 'TOTAL' | 'DENOMINACIONES';
+
+/**
+ * Configuración del arqueo: nota obligatoria cuando la diferencia supera el umbral
+ */
+export interface CashCountConfig {
+    requireNoteOnDifference: boolean;
+    differenceThreshold: number;
+    updatedAt?: string;
+    updatedBy?: string;
 }
 
 /**

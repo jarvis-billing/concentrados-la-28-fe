@@ -13,11 +13,14 @@ import {
     CreateCashCountRequest,
     CashCountSession,
     AuditTrailEntry,
-    SessionSnapshot
+    SessionSnapshot,
+    CashCountMode,
+    CashCountConfig
 } from '../../models/cash-register';
 import { ReopenSessionModalComponent } from '../../../shared/components/reopen-session-modal/reopen-session-modal.component';
 import { toast } from 'ngx-sonner';
 import { formatInTimeZone } from 'date-fns-tz';
+import { switchMap } from 'rxjs';
 
 @Component({
     selector: 'app-cash-count-page',
@@ -38,6 +41,16 @@ export class CashCountPageComponent implements OnInit {
     // Saldo de apertura
     openingBalance: number = 0;
     suggestedOpeningBalance: number = 0;
+
+    // Modo de conteo: total digitado (rápido, por defecto) o por denominaciones (detallado)
+    countMode: CashCountMode = 'TOTAL';
+    manualTotal: number = 0;
+
+    // Configuración: nota obligatoria cuando la diferencia supera el umbral
+    config: CashCountConfig = { requireNoteOnDifference: true, differenceThreshold: 5000 };
+    showConfigPanel = false;
+    configDraft: CashCountConfig = { ...this.config };
+    isSavingConfig = false;
 
     // Denominaciones para conteo
     billetes: CashDenomination[] = [];
@@ -89,6 +102,7 @@ export class CashCountPageComponent implements OnInit {
 
     ngOnInit(): void {
         this.initializeDenominations();
+        this.loadConfig();
         this.loadSuggestedOpeningBalance();
         this.loadDailySummary();
         this.loadPendingLoans();
@@ -131,6 +145,72 @@ export class CashCountPageComponent implements OnInit {
         this.monedas = COLOMBIAN_DENOMINATIONS
             .filter(d => d.type === 'MONEDA')
             .map(d => ({ ...d, quantity: 0, subtotal: 0 }));
+    }
+
+    // ---------------- Modo de conteo ----------------
+
+    setCountMode(mode: CashCountMode): void {
+        if (this.countMode === mode) return;
+        this.countMode = mode;
+    }
+
+    onManualTotalInput(event: Event): void {
+        const input = event.target as HTMLInputElement;
+        const raw = input.value.replace(/\D/g, '');
+        this.manualTotal = raw ? parseInt(raw, 10) : 0;
+        input.value = this.formatCurrencyInput(this.manualTotal);
+    }
+
+    get totalByDenominations(): number {
+        return this.totalBilletes + this.totalMonedas;
+    }
+
+    // ---------------- Configuración (nota por diferencia) ----------------
+
+    loadConfig(): void {
+        this.cashService.getConfig().subscribe({
+            next: (config) => this.config = config,
+            error: () => {
+                // Silencioso, se usan los valores por defecto
+            }
+        });
+    }
+
+    toggleConfigPanel(): void {
+        this.configDraft = { ...this.config };
+        this.showConfigPanel = !this.showConfigPanel;
+    }
+
+    onThresholdInput(event: Event): void {
+        const input = event.target as HTMLInputElement;
+        const raw = input.value.replace(/\D/g, '');
+        this.configDraft.differenceThreshold = raw ? parseInt(raw, 10) : 0;
+        input.value = this.formatCurrencyInput(this.configDraft.differenceThreshold);
+    }
+
+    saveConfig(): void {
+        this.isSavingConfig = true;
+        this.cashService.updateConfig({
+            requireNoteOnDifference: this.configDraft.requireNoteOnDifference,
+            differenceThreshold: this.configDraft.differenceThreshold
+        }).subscribe({
+            next: (config) => {
+                this.config = config;
+                this.showConfigPanel = false;
+                this.isSavingConfig = false;
+                toast.success('Configuración del arqueo actualizada');
+            },
+            error: (err) => {
+                toast.error('Error al guardar la configuración: ' + (err.error?.error || 'Intente nuevamente'));
+                this.isSavingConfig = false;
+            }
+        });
+    }
+
+    /** La diferencia supera el umbral y la configuración exige explicarla */
+    get differenceRequiresNote(): boolean {
+        return this.config.requireNoteOnDifference
+            && Math.abs(this.cashDifference) > (this.config.differenceThreshold || 0);
     }
 
     loadSuggestedOpeningBalance(): void {
@@ -183,6 +263,13 @@ export class CashCountPageComponent implements OnInit {
     loadExistingSession(session: CashCountSession): void {
         this.openingBalance = session.openingBalance;
         this.notes = session.notes || '';
+        this.manualTotal = session.totalCashCounted || 0;
+        // Rápido por defecto; solo un arqueo cerrado que se contó por denominaciones
+        // se muestra en detallado para poder ver su desglose
+        const closedWithDetail = session.status === 'CERRADO'
+            && session.countMode === 'DENOMINACIONES'
+            && (session.cashDenominations?.length ?? 0) > 0;
+        this.countMode = closedWithDetail ? 'DENOMINACIONES' : 'TOTAL';
         
         // Cargar cantidades de denominaciones
         session.cashDenominations.forEach(d => {
@@ -201,6 +288,8 @@ export class CashCountPageComponent implements OnInit {
 
     onDateChange(): void {
         this.initializeDenominations();
+        this.manualTotal = 0;
+        this.countMode = 'TOTAL';
         this.existingSession = null;
         this.loadDailySummary();
     }
@@ -218,7 +307,7 @@ export class CashCountPageComponent implements OnInit {
     }
 
     get totalCashCounted(): number {
-        return this.totalBilletes + this.totalMonedas;
+        return this.countMode === 'TOTAL' ? this.manualTotal : this.totalByDenominations;
     }
 
     get expectedTotalCash(): number {
@@ -320,6 +409,23 @@ export class CashCountPageComponent implements OnInit {
         );
     }
 
+    private buildSaveRequest(): CreateCashCountRequest {
+        const allDenominations = this.countMode === 'DENOMINACIONES'
+            ? [...this.billetes, ...this.monedas]
+                .filter(d => d.quantity > 0)
+                .map(d => ({ value: d.value, quantity: d.quantity }))
+            : [];
+
+        return {
+            sessionDate: this.sessionDate,
+            openingBalance: this.openingBalance,
+            cashDenominations: allDenominations,
+            countMode: this.countMode,
+            totalCashCounted: this.countMode === 'TOTAL' ? this.manualTotal : undefined,
+            notes: this.notes || undefined
+        };
+    }
+
     // Guardar arqueo
     saveCount(): void {
         if (this.openingBalance < 0) {
@@ -329,18 +435,7 @@ export class CashCountPageComponent implements OnInit {
 
         this.isSaving = true;
 
-        const allDenominations = [...this.billetes, ...this.monedas]
-            .filter(d => d.quantity > 0)
-            .map(d => ({ value: d.value, quantity: d.quantity }));
-
-        const request: CreateCashCountRequest = {
-            sessionDate: this.sessionDate,
-            openingBalance: this.openingBalance,
-            cashDenominations: allDenominations,
-            notes: this.notes || undefined
-        };
-
-        this.cashService.createOrUpdate(request).subscribe({
+        this.cashService.createOrUpdate(this.buildSaveRequest()).subscribe({
             next: (session) => {
                 this.existingSession = session;
                 toast.success('Arqueo guardado correctamente');
@@ -358,6 +453,12 @@ export class CashCountPageComponent implements OnInit {
     showCloseModal = false;
     closingBase: number = 0;
     closingBaseInput: string = '';
+    closeNote: string = '';
+    isClosing = false;
+
+    get canConfirmClose(): boolean {
+        return !this.isClosing && (!this.differenceRequiresNote || this.closeNote.trim().length > 0);
+    }
 
     /** El físico es menor al fondo deseado */
     get isUnderBase(): boolean {
@@ -373,6 +474,7 @@ export class CashCountPageComponent implements OnInit {
         // Pre-llenar fondo con el closingBase del día anterior si existe
         this.closingBase = this.suggestedOpeningBalance || 0;
         this.closingBaseInput = this.formatCurrencyInput(this.closingBase);
+        this.closeNote = '';
         this.showCloseModal = true;
     }
 
@@ -387,16 +489,30 @@ export class CashCountPageComponent implements OnInit {
         this.showCloseModal = false;
     }
 
-    /** Confirmación final del cierre */
+    /**
+     * Confirmación final del cierre. Guarda primero el conteo actual para que el
+     * cierre use exactamente el total y la diferencia que el operador está viendo.
+     */
     confirmCloseCount(): void {
-        this.cashService.closeSession(this.existingSession!.id!, this.notes, this.closingBase || undefined).subscribe({
+        if (!this.canConfirmClose) {
+            toast.warning('Debe explicar la diferencia antes de cerrar el arqueo');
+            return;
+        }
+        this.isClosing = true;
+        this.cashService.createOrUpdate(this.buildSaveRequest()).pipe(
+            switchMap(saved => this.cashService.closeSession(
+                saved.id!, this.closeNote.trim() || undefined, this.closingBase || undefined))
+        ).subscribe({
             next: (session) => {
                 this.existingSession = session;
+                this.notes = session.notes || '';
                 this.showCloseModal = false;
+                this.isClosing = false;
                 toast.success('Arqueo cerrado correctamente');
             },
             error: (err) => {
-                toast.error('Error al cerrar el arqueo: ' + (err.error?.message || 'Intente nuevamente'));
+                toast.error('Error al cerrar el arqueo: ' + (err.error?.error || err.error?.message || 'Intente nuevamente'));
+                this.isClosing = false;
             }
         });
     }
@@ -414,6 +530,7 @@ export class CashCountPageComponent implements OnInit {
     // Limpiar conteo
     clearCount(): void {
         this.initializeDenominations();
+        this.manualTotal = 0;
     }
 
     // Helpers para auditTrail

@@ -34,7 +34,7 @@ interface ReportRow {
   pendingCostPrice: number | null;  // costo sugerido pendiente de confirmar (magic button)
 }
 
-type ColumnKey = 'category' | 'brand' | 'product' | 'presentation' | 'salePrice' | 'cost' | 'entityCost' | 'newCostPrice' | 'newSalePrice';
+type ColumnKey = 'category' | 'brand' | 'product' | 'presentation' | 'salePrice' | 'freight' | 'cost' | 'entityCost' | 'newCostPrice' | 'newSalePrice';
 
 interface ColumnConfig {
   key: ColumnKey;
@@ -96,8 +96,9 @@ export class PurchaseCostReportPageComponent implements OnInit {
     { key: 'product', label: 'Producto', defaultVisible: true },
     { key: 'presentation', label: 'Presentación', defaultVisible: true },
     { key: 'salePrice', label: 'Precio venta', defaultVisible: true },
-    { key: 'cost', label: 'Costo/u', defaultVisible: true },
-    { key: 'entityCost', label: 'Costo entidad', defaultVisible: true },
+    { key: 'freight', label: 'Flete/u', defaultVisible: true },
+    { key: 'cost', label: 'Costo últ. compra', defaultVisible: true },
+    { key: 'entityCost', label: 'Costo total unid', defaultVisible: true },
     { key: 'newCostPrice', label: 'Nuevo costo', defaultVisible: true },
     { key: 'newSalePrice', label: 'Nuevo precio venta', defaultVisible: true },
   ];
@@ -203,6 +204,7 @@ export class PurchaseCostReportPageComponent implements OnInit {
       case 'product': return row.productDescription;
       case 'presentation': return row.presentationLabel;
       case 'salePrice': return row.salePrice;
+      case 'freight': return this.getFreightPerUnit(row);
       case 'cost': return this.getReportCost(row);
       case 'entityCost': return row.presentationCostPrice;
       case 'newCostPrice': return row.newCostPrice ?? 0;
@@ -306,8 +308,10 @@ export class PurchaseCostReportPageComponent implements OnInit {
               const baseUnitCost = info.lastUnitCost || 0;
               const vatPerUnit = info.lastVatPerUnit || 0;
               const freightPerUnit = info.lastFreightPerUnit || 0;
+              // Siempre reconstruir el total sumando los componentes. Esto garantiza que el flete
+              // quede incluido incluso en facturas antiguas donde unitTotalCost no lo tenía.
               const computedTotal = baseUnitCost + vatPerUnit + freightPerUnit;
-              row.lastUnitTotalCost = info.lastUnitTotalCost || computedTotal;
+              row.lastUnitTotalCost = baseUnitCost > 0 ? computedTotal : (info.lastUnitTotalCost || null);
               row.lastVatRate = info.lastVatRate || 0;
               row.lastVatPerUnit = vatPerUnit;
               row.lastFreightPerUnit = freightPerUnit;
@@ -559,6 +563,19 @@ export class PurchaseCostReportPageComponent implements OnInit {
     return base + freight + vat;
   }
 
+  /** Flete por unidad: el de la última compra más el ajuste global del reporte */
+  getFreightPerUnit(row: ReportRow): number {
+    return (row.lastFreightPerUnit || 0) + (this.reportFreightPerUnit || 0);
+  }
+
+  hasFreight(row: ReportRow): boolean {
+    return this.getFreightPerUnit(row) > 0;
+  }
+
+  hasVat(row: ReportRow): boolean {
+    return row.lastVatPerUnit > 0 || this.reportVatPercent > 0;
+  }
+
   isLastCost(row: ReportRow): boolean {
     return row.lastUnitTotalCost != null;
   }
@@ -605,7 +622,12 @@ export class PurchaseCostReportPageComponent implements OnInit {
             case 'product': rowCells.push(r.productDescription); break;
             case 'presentation': rowCells.push(r.presentationLabel); break;
             case 'salePrice': rowCells.push(this.formatNumber(r.salePrice)); break;
-            case 'cost': rowCells.push(this.formatNumber(this.getReportCost(r)) + (this.isLastCost(r) ? '' : '*')); break;
+            case 'freight': rowCells.push(this.hasFreight(r) ? this.formatNumber(this.getFreightPerUnit(r)) : '-'); break;
+            case 'cost': {
+              const marks = [this.hasFreight(r) ? 'F' : '', this.hasVat(r) ? 'I' : ''].filter(Boolean).join(',');
+              rowCells.push(this.formatNumber(this.getReportCost(r)) + (marks ? ` (${marks})` : '') + (this.isLastCost(r) ? '' : '*'));
+              break;
+            }
             case 'entityCost': rowCells.push(this.formatNumber(r.presentationCostPrice)); break;
             case 'newCostPrice': rowCells.push(r.newCostPrice != null && r.newCostPrice > 0 ? this.formatNumber(r.newCostPrice) : ''); break;
             case 'newSalePrice': rowCells.push(r.newSalePrice != null && r.newSalePrice !== r.salePrice ? this.formatNumber(r.newSalePrice) : ''); break;
@@ -622,7 +644,8 @@ export class PurchaseCostReportPageComponent implements OnInit {
         product: 'auto',
         presentation: 35,
         salePrice: 28,
-        cost: 28,
+        freight: 22,
+        cost: 32,
         entityCost: 28,
         newCostPrice: 28,
         newSalePrice: 28,
@@ -630,10 +653,14 @@ export class PurchaseCostReportPageComponent implements OnInit {
       const columnStyles: Record<number, any> = { 0: { halign: 'center', cellWidth: 10 } };
       pdfCols.forEach((k, i) => {
         const w = colWidthMap[k];
-        columnStyles[i + 1] = w === 'auto' ? { cellWidth: 'auto' } : { cellWidth: w, halign: ['salePrice', 'cost', 'entityCost', 'newCostPrice', 'newSalePrice'].includes(k) ? 'right' : 'left' };
+        columnStyles[i + 1] = w === 'auto' ? { cellWidth: 'auto' } : { cellWidth: w, halign: ['salePrice', 'freight', 'cost', 'entityCost', 'newCostPrice', 'newSalePrice'].includes(k) ? 'right' : 'left' };
       });
       if (this.addBlankPdfColumn) {
         columnStyles[pdfCols.length + 1] = { cellWidth: 35 };
+      }
+      const costColIdx = pdfCols.indexOf('entityCost');
+      if (costColIdx >= 0) {
+        columnStyles[costColIdx + 1] = { ...columnStyles[costColIdx + 1], fontStyle: 'bold', fillColor: [231, 241, 255] };
       }
 
       autoTable(doc, {
@@ -658,7 +685,7 @@ export class PurchaseCostReportPageComponent implements OnInit {
       if (finalY < doc.internal.pageSize.getHeight() - 20) {
         doc.setFontSize(8);
         doc.setTextColor(120);
-        let footnote = '* Costo/u: valor de última compra. Sin *: costo registrado en la entidad producto.';
+        let footnote = 'Costo total unid: costo registrado del producto. Costo últ. compra = base + IVA + flete; (F) incluye flete, (I) incluye IVA, * = sin historial de compra.';
         if (this.reportFreightPerUnit > 0 || this.reportVatPercent > 0) {
           const adjParts: string[] = [];
           if (this.reportFreightPerUnit > 0) adjParts.push(`flete/u $${this.formatNumber(this.reportFreightPerUnit)}`);

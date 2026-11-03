@@ -2,11 +2,13 @@ import { Component, inject, OnInit, ViewChild } from '@angular/core';
 import { CommonModule, CurrencyPipe } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { ClientAccountService } from '../../services/client-account.service';
-import { AccountSummary, AccountReportFilter, PagedAccountReport, ManualTransaction } from '../../models/client-account';
+import { AccountSummary, AccountReceivableRow, AccountReportFilter, PagedAccountReport, ManualTransaction } from '../../models/client-account';
 import { ManualCreditModalComponent } from '../../components/manual-credit-modal/manual-credit-modal.component';
 import { ClienteService } from '../../../cliente/cliente.service';
 import { Client } from '../../../cliente/cliente';
 import { toast } from 'ngx-sonner';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 type StatusFilter = 'all' | 'pending' | 'settled';
 type RowTab = 'facturas' | 'cuaderno' | 'pagos';
@@ -27,6 +29,7 @@ export class AccountsReceivableReportComponent implements OnInit {
     accounts:    AccountSummary[] = [];
     isLoading = false;
     isExportingPdf = false;
+    isExportingSummaryPdf = false;
 
     // ─── Paginación ──────────────────────────────────────────────
     currentPage   = 0;
@@ -363,5 +366,95 @@ export class AccountsReceivableReportComponent implements OnInit {
                 this.isExportingPdf = false;
             }
         });
+    }
+
+    /** PDF resumen de cartera: clientes con saldo > 0, del mayor al menor saldo */
+    exportSummaryPDF(): void {
+        if (this.isExportingSummaryPdf) return;
+        this.isExportingSummaryPdf = true;
+        this.accountService.getReceivableSummary(this.selectedClient?.id || undefined).subscribe({
+            next: (rows) => {
+                try {
+                    if (!rows.length) {
+                        toast.warning('No hay clientes con saldo pendiente');
+                        return;
+                    }
+                    this.buildSummaryPdf(rows);
+                    toast.success(`PDF resumen generado (${rows.length} clientes)`);
+                } catch (err) {
+                    console.error('Error generando PDF resumen:', err);
+                    toast.error('Error al generar el PDF resumen');
+                } finally {
+                    this.isExportingSummaryPdf = false;
+                }
+            },
+            error: () => {
+                toast.error('Error al consultar los datos del reporte');
+                this.isExportingSummaryPdf = false;
+            }
+        });
+    }
+
+    private buildSummaryPdf(rows: AccountReceivableRow[]): void {
+        const doc = new jsPDF('landscape', 'mm', 'letter');
+        const pageW = doc.internal.pageSize.getWidth();
+        const pageH = doc.internal.pageSize.getHeight();
+        const margin = 10;
+        const money = (v: number | undefined | null) => v == null ? '-'
+            : new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(v);
+        const clean = (v: string | undefined | null) => (v || '').replace(/\s+/g, ' ').trim() || '-';
+
+        doc.setFontSize(15);
+        doc.setTextColor(33, 37, 41);
+        doc.text('Cuentas por Cobrar - Clientes con saldo pendiente', margin, 14);
+
+        doc.setFontSize(9);
+        doc.setTextColor(100);
+        const subtitle = this.selectedClient
+            ? `Cliente: ${clean(`${this.selectedClient.name} ${this.selectedClient.surname || ''}`)}`
+            : 'Ordenado de mayor a menor saldo';
+        doc.text(subtitle, margin, 20);
+        doc.text(`Generado: ${new Date().toLocaleString('es-CO')}`, pageW - margin, 20, { align: 'right' });
+
+        const totalBalance = rows.reduce((acc, a) => acc + (a.currentBalance || 0), 0);
+
+        autoTable(doc, {
+            startY: 25,
+            head: [['#', 'Cliente', 'Apodo', 'Teléfono', 'Dirección', 'Saldo actual', 'Fecha último pago', 'Valor último pago']],
+            body: rows.map((a, i) => [
+                i + 1,
+                clean(a.clientName),
+                clean(a.clientNickname),
+                clean(a.clientPhone),
+                clean(a.clientAddress),
+                money(a.currentBalance),
+                a.lastPaymentDate ? this.formatDate(a.lastPaymentDate) : 'Sin pagos',
+                a.lastPaymentAmount != null ? money(a.lastPaymentAmount) : '-'
+            ]),
+            foot: [['', `${rows.length} clientes`, '', '', 'TOTAL SALDO', money(totalBalance), '', '']],
+            showFoot: 'lastPage',
+            theme: 'grid',
+            headStyles: { fillColor: [33, 37, 41], textColor: 255, fontSize: 8.5, halign: 'center' },
+            footStyles: { fillColor: [231, 241, 255], textColor: [13, 110, 253], fontStyle: 'bold', fontSize: 9, halign: 'right' },
+            styles: { fontSize: 8, cellPadding: 1.5, valign: 'middle' },
+            columnStyles: {
+                0: { cellWidth: 8, halign: 'center' },
+                1: { cellWidth: 55 },
+                2: { cellWidth: 28 },
+                3: { cellWidth: 24 },
+                4: { cellWidth: 'auto' },
+                5: { cellWidth: 28, halign: 'right', fontStyle: 'bold', textColor: [176, 42, 55] },
+                6: { cellWidth: 24, halign: 'center' },
+                7: { cellWidth: 28, halign: 'right' }
+            },
+            margin: { left: margin, right: margin },
+            didDrawPage: (data) => {
+                doc.setFontSize(8);
+                doc.setTextColor(120);
+                doc.text(`Página ${data.pageNumber}`, pageW - margin, pageH - 6, { align: 'right' });
+            }
+        });
+
+        doc.save(`cuentas_por_cobrar_resumen_${new Date().toISOString().split('T')[0]}.pdf`);
     }
 }

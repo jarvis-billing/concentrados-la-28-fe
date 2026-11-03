@@ -10,7 +10,8 @@ import {
     CashTransaction,
     PaymentMethodSummary,
     RegisterOwnerWithdrawalRequest,
-    OwnerWithdrawal
+    OwnerWithdrawal,
+    CashCountConfig
 } from '../models/cash-register';
 
 @Injectable({
@@ -45,6 +46,20 @@ export class CashRegisterService {
      */
     createOrUpdate(request: CreateCashCountRequest): Observable<CashCountSession> {
         return this.http.post<CashCountSession>(`${this.url}`, request);
+    }
+
+    /**
+     * Obtiene la configuración del arqueo
+     */
+    getConfig(): Observable<CashCountConfig> {
+        return this.http.get<CashCountConfig>(`${this.url}/config`);
+    }
+
+    /**
+     * Actualiza la configuración del arqueo
+     */
+    updateConfig(config: Partial<CashCountConfig>): Observable<CashCountConfig> {
+        return this.http.put<CashCountConfig>(`${this.url}/config`, config);
     }
 
     /**

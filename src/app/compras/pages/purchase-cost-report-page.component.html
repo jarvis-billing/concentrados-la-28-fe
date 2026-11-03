@@ -21,8 +21,9 @@
           <div class="form-check"><input class="form-check-input" type="checkbox" id="col-prod" [checked]="isColumnVisible('product')" (change)="toggleColumn('product',$any($event.target).checked)"><label class="form-check-label" for="col-prod">Producto</label></div>
           <div class="form-check"><input class="form-check-input" type="checkbox" id="col-pres" [checked]="isColumnVisible('presentation')" (change)="toggleColumn('presentation',$any($event.target).checked)"><label class="form-check-label" for="col-pres">Presentación</label></div>
           <div class="form-check"><input class="form-check-input" type="checkbox" id="col-sp" [checked]="isColumnVisible('salePrice')" (change)="toggleColumn('salePrice',$any($event.target).checked)"><label class="form-check-label" for="col-sp">Precio venta</label></div>
-          <div class="form-check"><input class="form-check-input" type="checkbox" id="col-cost" [checked]="isColumnVisible('cost')" (change)="toggleColumn('cost',$any($event.target).checked)"><label class="form-check-label" for="col-cost">Costo/u</label></div>
-          <div class="form-check"><input class="form-check-input" type="checkbox" id="col-ec" [checked]="isColumnVisible('entityCost')" (change)="toggleColumn('entityCost',$any($event.target).checked)"><label class="form-check-label" for="col-ec">Costo entidad</label></div>
+          <div class="form-check"><input class="form-check-input" type="checkbox" id="col-freight" [checked]="isColumnVisible('freight')" (change)="toggleColumn('freight',$any($event.target).checked)"><label class="form-check-label" for="col-freight">Flete/u</label></div>
+          <div class="form-check"><input class="form-check-input" type="checkbox" id="col-cost" [checked]="isColumnVisible('cost')" (change)="toggleColumn('cost',$any($event.target).checked)"><label class="form-check-label" for="col-cost">Costo últ. compra</label></div>
+          <div class="form-check"><input class="form-check-input" type="checkbox" id="col-ec" [checked]="isColumnVisible('entityCost')" (change)="toggleColumn('entityCost',$any($event.target).checked)"><label class="form-check-label" for="col-ec">Costo total unid</label></div>
           <div class="form-check"><input class="form-check-input" type="checkbox" id="col-ncp" [checked]="isColumnVisible('newCostPrice')" (change)="toggleColumn('newCostPrice',$any($event.target).checked)"><label class="form-check-label" for="col-ncp">Nuevo costo</label></div>
           <div class="form-check"><input class="form-check-input" type="checkbox" id="col-nsp" [checked]="isColumnVisible('newSalePrice')" (change)="toggleColumn('newSalePrice',$any($event.target).checked)"><label class="form-check-label" for="col-nsp">Nuevo precio venta</label></div>
         </div>
@@ -152,11 +153,17 @@
               <th *ngIf="isColumnVisible('salePrice')" (click)="toggleSort('salePrice')" class="text-end" style="cursor:pointer">
                 Precio venta <i class="bi" [ngClass]="sortIcon('salePrice')"></i>
               </th>
-              <th *ngIf="isColumnVisible('cost')" (click)="toggleSort('cost')" class="text-end" style="cursor:pointer">
-                Costo/u <i class="bi" [ngClass]="sortIcon('cost')"></i>
+              <th *ngIf="isColumnVisible('freight')" (click)="toggleSort('freight')" class="text-end" style="cursor:pointer">
+                <i class="bi bi-truck me-1"></i>Flete/u <i class="bi" [ngClass]="sortIcon('freight')"></i>
               </th>
-              <th *ngIf="isColumnVisible('entityCost')" (click)="toggleSort('entityCost')" class="text-end text-muted small" style="cursor:pointer">
-                Costo entidad <i class="bi" [ngClass]="sortIcon('entityCost')"></i>
+              <th *ngIf="isColumnVisible('cost')" (click)="toggleSort('cost')" class="text-end" style="cursor:pointer"
+                  title="Costo por unidad de la última compra = base + IVA + flete">
+                Costo últ. compra <i class="bi" [ngClass]="sortIcon('cost')"></i>
+                <div class="fw-normal text-muted" style="font-size:0.68rem">base + IVA + flete</div>
+              </th>
+              <th *ngIf="isColumnVisible('entityCost')" (click)="toggleSort('entityCost')" class="text-end total-cost-col total-cost-head" style="cursor:pointer"
+                  title="Costo total por unidad registrado en el producto">
+                <i class="bi bi-star-fill me-1"></i>Costo total unid <i class="bi" [ngClass]="sortIcon('entityCost')"></i>
               </th>
               <th *ngIf="isColumnVisible('newCostPrice')" class="text-end">
                 Nuevo costo
@@ -176,6 +183,17 @@
                 <code class="text-muted" style="font-size:0.72rem">{{ row.barcode }}</code>
               </td>
               <td *ngIf="isColumnVisible('salePrice')" class="text-end fw-semibold">{{ formatCurrency(row.salePrice) }}</td>
+              <td *ngIf="isColumnVisible('freight')" class="text-end small">
+                <ng-container *ngIf="hasFreight(row); else noFreight">
+                  <div class="fw-semibold">{{ formatCurrency(getFreightPerUnit(row)) }}</div>
+                  <span class="badge bg-warning text-dark" title="Este producto tiene flete incluido en su costo total">
+                    <i class="bi bi-truck me-1"></i>Con flete
+                  </span>
+                </ng-container>
+                <ng-template #noFreight>
+                  <span class="badge bg-light text-muted border">Sin flete</span>
+                </ng-template>
+              </td>
               <td *ngIf="isColumnVisible('cost')" class="text-end">
                 <span *ngIf="getReportCost(row) != null; else noCost">
                   <div class="fw-semibold">{{ formatCurrency(getReportCost(row)) }}</div>
@@ -188,13 +206,13 @@
                     <span *ngIf="row.lastVatPerUnit > 0"
                           class="badge bg-info text-dark"
                           title="IVA {{ row.lastVatRate }}% incluido: +{{ formatCurrency(row.lastVatPerUnit) }}/u">
-                      IVA {{ row.lastVatRate }}%
+                      <i class="bi bi-percent me-1"></i>Con IVA {{ row.lastVatRate }}%
                     </span>
                     <!-- Marca: flete incluido en el costo -->
                     <span *ngIf="row.lastFreightPerUnit > 0"
                           class="badge bg-warning text-dark"
                           title="Flete incluido: +{{ formatCurrency(row.lastFreightPerUnit) }}/u">
-                      <i class="bi bi-truck me-1"></i>Flete
+                      <i class="bi bi-truck me-1"></i>Con flete
                     </span>
                     <!-- Ajuste de reporte -->
                     <span *ngIf="(reportFreightPerUnit > 0 || reportVatPercent > 0) && getReportCost(row) !== getDisplayCost(row)"
@@ -212,7 +230,7 @@
                   <span class="text-muted small">Sin datos</span>
                 </ng-template>
               </td>
-              <td *ngIf="isColumnVisible('entityCost')" class="text-end small">
+              <td *ngIf="isColumnVisible('entityCost')" class="text-end total-cost-col">
                 <ng-container *ngIf="row.pendingCostPrice !== null; else staticCost">
                   <div class="input-group input-group-sm justify-content-end" style="max-width:140px; margin-left:auto">
                     <span class="input-group-text bg-warning border-warning text-dark py-0 px-1">
@@ -231,9 +249,9 @@
                   </small>
                 </ng-container>
                 <ng-template #staticCost>
-                  <span class="text-muted">
+                  <div class="fw-bold fs-6 text-primary">
                     {{ row.presentationCostPrice > 0 ? formatCurrency(row.presentationCostPrice) : '-' }}
-                  </span>
+                  </div>
                 </ng-template>
               </td>
               <td *ngIf="isColumnVisible('newCostPrice')" class="text-end">
@@ -310,7 +328,11 @@
 
   <div class="alert alert-light small mt-3">
     <i class="bi bi-info-circle me-1"></i>
-    <strong>Costo/u:</strong> muestra el costo total por unidad de la <span class="badge bg-success">última compra</span> si existe; de lo contrario usa el <span class="badge bg-secondary">costo registrado en la entidad producto</span>.
+    <strong class="text-primary"><i class="bi bi-star-fill me-1"></i>Costo total unid</strong>: costo total por unidad registrado en el producto (valor de referencia para fijar el precio de venta).
+    <strong class="ms-2">Costo últ. compra</strong> = costo base + IVA + flete de la <span class="badge bg-success">última compra</span>;
+    <span class="badge bg-warning text-dark"><i class="bi bi-truck me-1"></i>Con flete</span>
+    <span class="badge bg-info text-dark"><i class="bi bi-percent me-1"></i>Con IVA</span>
+    indican qué componentes incluye. Si no hay compras, se usa el costo del producto.
     <span *ngIf="reportFreightPerUnit > 0 || reportVatPercent > 0">
       <strong class="ms-2">| Ajustado:</strong>
       <span *ngIf="reportFreightPerUnit > 0">flete/u ${{ reportFreightPerUnit | number }}</span>

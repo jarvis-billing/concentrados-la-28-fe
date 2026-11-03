@@ -13,11 +13,20 @@
                 <button class="btn btn-outline-secondary btn-sm" (click)="exportToCSV()" [disabled]="!accounts.length">
                     <i class="bi bi-file-earmark-spreadsheet me-1"></i>CSV
                 </button>
-                <button class="btn btn-danger btn-sm" (click)="exportToPDF()" [disabled]="!accounts.length || isExportingPdf">
+                <button class="btn btn-outline-danger btn-sm" (click)="exportSummaryPDF()" [disabled]="!accounts.length || isExportingSummaryPdf"
+                        title="Clientes con saldo pendiente, de mayor a menor saldo, con datos de contacto y último pago">
+                    @if (isExportingSummaryPdf) {
+                        <span class="spinner-border spinner-border-sm me-1"></span>Generando…
+                    } @else {
+                        <i class="bi bi-file-earmark-pdf me-1"></i>PDF resumen
+                    }
+                </button>
+                <button class="btn btn-danger btn-sm" (click)="exportToPDF()" [disabled]="!accounts.length || isExportingPdf"
+                        title="Detalle completo con facturas y pagos por cliente">
                     @if (isExportingPdf) {
                         <span class="spinner-border spinner-border-sm me-1"></span>Generando…
                     } @else {
-                        <i class="bi bi-file-earmark-pdf me-1"></i>PDF
+                        <i class="bi bi-file-earmark-pdf me-1"></i>PDF detallado
                     }
                 </button>
             </div>
