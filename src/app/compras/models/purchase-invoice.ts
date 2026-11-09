@@ -1,5 +1,6 @@
 import { Supplier } from './supplier';
 import { PurchaseItem } from './purchase-item';
+import { SupplierPayment } from './supplier-payment';
 
 export type PurchasePaymentType = 'CONTADO' | 'CREDITO';
 
@@ -31,4 +32,20 @@ export interface PurchaseInvoice {
   paymentStatus?: PurchasePaymentStatus;
   totalPaid?: number;
   linkedPayments?: LinkedPayment[];
+  /** Solo entrada (al crear): pago nuevo que se registra con la factura */
+  newPayment?: SupplierPayment;
+  /** Solo entrada (al crear): anticipos del proveedor que se aplican a la factura */
+  advancePaymentIds?: string[];
+}
+
+/** Factura de compra con saldo pendiente (para aplicar pagos) */
+export interface PendingPurchaseInvoice {
+  id: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  paymentType: PurchasePaymentType;
+  totalAmount: number;
+  totalPaid: number;
+  paymentStatus: PurchasePaymentStatus;
+  balance: number;
 }

@@ -57,7 +57,12 @@
                         <tbody>
                           <tr *ngFor="let pres of producto.presentations; let pIndex = index">
                             <td class="text-nowrap">{{ pres.barcode }}</td>
-                            <td class="text-start">{{ pres.label }}</td>
+                            <td class="text-start">
+                              {{ pres.label }}
+                              <span *ngIf="pres.supplierCode" class="badge bg-light text-dark border ms-1" title="Código del proveedor">
+                                Prov: {{ pres.supplierCode }}
+                              </span>
+                            </td>
                             <td class="text-nowrap">
                               <span class="badge bg-success">{{ getPresStockLabel(producto, pres) }}</span>
                             </td>

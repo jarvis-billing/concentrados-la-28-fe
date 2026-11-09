@@ -18,12 +18,15 @@ import { Subscription, debounceTime } from 'rxjs';
 import { PurchaseLastCostInfo } from '../models/purchase-cost-history';
 import { ProductoService } from '../../producto/producto.service';
 import { BulkPresentationPriceUpdateRequest, PresentationPriceUpdate } from '../../producto/models/bulk-price-update.model';
+import { PurchasePaymentModalComponent, PurchasePaymentResult } from '../components/purchase-payment-modal/purchase-payment-modal.component';
+import { SupplierPaymentsService } from '../services/supplier-payments.service';
 
 interface ProductSuggestion {
   product: Product;
   presentation: Presentation;
   displayName: string;
   barcode: string;
+  supplierCode: string;
   costPrice: number;
   brand: string;
 }
@@ -31,7 +34,7 @@ interface ProductSuggestion {
 @Component({
   selector: 'app-purchase-invoices-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule, ExpensesFabComponent, CurrencyFormatDirective, ProductsSearchModalComponent, BatchExpirationAlertComponent],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, ExpensesFabComponent, CurrencyFormatDirective, ProductsSearchModalComponent, BatchExpirationAlertComponent, PurchasePaymentModalComponent],
   templateUrl: './purchase-invoices-page.component.html',
   styleUrls: ['./purchase-invoices-page.component.css']
 })
@@ -137,6 +140,12 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
   currentBatchItem: { productId: string; description: string; quantity: number } | null = null;
   batchSalePrice: number = 0;
   batchPriceValidityDays: number = 8; // Días de validez del precio (configurable)
+
+  // Pago de la factura (paso previo a crear la compra)
+  @ViewChild(PurchasePaymentModalComponent) paymentModal?: PurchasePaymentModalComponent;
+  private supplierPaymentsService = inject(SupplierPaymentsService);
+  private pendingCreate: { payload: any; mappedItems: any[]; validItems: any[] } | null = null;
+  isCreatingInvoice = false;
 
   form: FormGroup = this.fb.group({
     supplierId: ['', [Validators.required]],
@@ -307,8 +316,9 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
         const rootDesc = (prod.description || '').toLowerCase();
         const label = (pres.label || '').toLowerCase();
         const productCode = (prod.productCode || '').toLowerCase();
+        const supplierCode = (pres.supplierCode || '').toLowerCase();
         const combined = `${rootDesc} ${label}`.trim();
-        if (barcode.includes(query) || combined.includes(query) || productCode.includes(query)) {
+        if (barcode.includes(query) || supplierCode.includes(query) || combined.includes(query) || productCode.includes(query)) {
           const labelPart = (pres.label || '').trim();
           const rootPart = (prod.description || '').trim();
           suggestions.push({
@@ -316,6 +326,7 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
             presentation: pres,
             displayName: labelPart ? `${rootPart} - ${labelPart}` : rootPart,
             barcode: pres.barcode || '',
+            supplierCode: pres.supplierCode || '',
             costPrice: pres.costPrice || 0,
             brand: prod.brand || ''
           });
@@ -390,11 +401,13 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
     }, 200);
   }
 
+  /** Busca por código de barras o por código del proveedor (exacto, sin distinguir mayúsculas) */
   private findPresentationByBarcode(barcode: string): { product: Product; presentation: Presentation } | null {
     if (!barcode) return null;
+    const code = barcode.trim().toUpperCase();
     for (const prod of this.allProducts) {
       for (const pres of (prod.presentations || [])) {
-        if (pres.barcode === barcode) {
+        if (pres.barcode === barcode || (!!pres.supplierCode && pres.supplierCode.toUpperCase() === code)) {
           return { product: prod, presentation: pres };
         }
       }
@@ -908,9 +921,52 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
       supportDocument: raw.supportDocument || undefined
     };
 
+    // Antes de crear: registrar el pago (obligatorio en contado; en crédito solo si hay anticipos)
+    this.pendingCreate = { payload, mappedItems, validItems };
+    this.supplierPaymentsService.listUnlinked(selectedSupplier.id).subscribe({
+      next: (advances) => this.askInvoicePayment(advances),
+      error: () => this.askInvoicePayment([])
+    });
+  }
+
+  private askInvoicePayment(advances: any[]): void {
+    if (!this.pendingCreate) return;
+    const { payload } = this.pendingCreate;
+    if (payload.paymentType === 'CREDITO' && advances.length === 0) {
+      this.submitNewInvoice();
+      return;
+    }
+    this.paymentModal?.open({
+      supplierName: payload.supplier.name,
+      invoiceNumber: payload.invoiceNumber,
+      paymentType: payload.paymentType,
+      total: payload.total,
+      advances
+    });
+  }
+
+  onInvoicePaymentConfirmed(result: PurchasePaymentResult): void {
+    if (!this.pendingCreate) return;
+    this.pendingCreate.payload.newPayment = result.newPayment;
+    this.pendingCreate.payload.advancePaymentIds = result.advancePaymentIds;
+    this.submitNewInvoice();
+  }
+
+  onInvoicePaymentCancelled(): void {
+    this.pendingCreate = null;
+    toast.info('La compra no se ha guardado');
+  }
+
+  private submitNewInvoice(): void {
+    if (!this.pendingCreate || this.isCreatingInvoice) return;
+    const { payload, mappedItems, validItems } = this.pendingCreate;
+    this.isCreatingInvoice = true;
+
     this.purchasesService.create(payload).subscribe({
       next: (response) => {
-        toast.success('Compra registrada');
+        this.isCreatingInvoice = false;
+        this.pendingCreate = null;
+        toast.success(this.buildCreatedMessage(response));
         this.updateProductCostPrices(mappedItems);
         this.clearDraft();
         
@@ -933,9 +989,20 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
       },
       error: (error) => {
         console.error('Error al guardar:', error);
-        toast.error('Error al guardar la factura');
+        this.isCreatingInvoice = false;
+        const msg = typeof error?.error === 'string' ? error.error : error?.error?.message;
+        toast.error(msg || 'Error al guardar la factura');
+        this.pendingCreate = null;
       }
     });
+  }
+
+  private buildCreatedMessage(invoice: any): string {
+    switch (invoice?.paymentStatus) {
+      case 'PAGADO': return 'Compra registrada y pagada';
+      case 'PARCIAL': return 'Compra registrada con abono';
+      default: return 'Compra registrada';
+    }
   }
 
   private addItemsToExistingInvoice(mappedItems: any[], validItems: any[]): void {
@@ -1253,6 +1320,10 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
         this.addItem();
       }
       this.openProductsModalForRow(index);
+    }
+    if (this.paymentModal?.isOpen) {
+      if (e.key === 'Escape') { e.preventDefault(); this.paymentModal.cancel(); }
+      return;
     }
     if (e.key === 'F4') {
       e.preventDefault();

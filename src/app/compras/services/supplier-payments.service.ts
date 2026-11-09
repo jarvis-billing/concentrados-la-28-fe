@@ -9,16 +9,21 @@ export class SupplierPaymentsService {
   private baseUrl = urlConfig.getSupplierPaymentsServiceUrl();
   constructor(private http: HttpClient) {}
 
-  create(payment: SupplierPayment, file?: File): Observable<void> {
+  create(payment: SupplierPayment, file?: File): Observable<SupplierPayment> {
     const form = new FormData();
     const metadata = new Blob([JSON.stringify(payment)], { type: 'application/json' });
     form.append('metadata', metadata);
     if (file) form.append('support', file, file.name);
-    return this.http.post<void>(this.baseUrl, form);
+    return this.http.post<SupplierPayment>(this.baseUrl, form);
   }
 
-  list(params?: { supplierId?: string; bankAccountId?: string; from?: string; to?: string; status?: SupplierPaymentStatus; unlinkedOnly?: boolean }): Observable<SupplierPayment[]> {
-    return this.http.get<SupplierPayment[]>(this.baseUrl, { params: (params as any) || {} });
+  list(params?: { supplierId?: string; bankAccountId?: string; from?: string; to?: string; status?: SupplierPaymentStatus | 'CORTE'; unlinkedOnly?: boolean }): Observable<SupplierPayment[]> {
+    // Quitar parámetros vacíos: HttpParams envía undefined como el texto "undefined"
+    const clean: Record<string, string> = {};
+    Object.entries(params || {}).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') clean[k] = String(v);
+    });
+    return this.http.get<SupplierPayment[]>(this.baseUrl, { params: clean });
   }
 
   listUnlinked(supplierId: string): Observable<SupplierPayment[]> {

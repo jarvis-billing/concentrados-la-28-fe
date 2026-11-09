@@ -20,4 +20,25 @@ export interface SupplierPayment {
   linkedBy?: string;
   appliedAmount?: number;
   remainingAmount?: number;
+  applications?: PaymentApplication[];
+  /** true si el pago fue cerrado por el script de corte (sin factura asociada) */
+  legacyClosed?: boolean;
+  /** Solo entrada: facturas a las que se aplica el pago al registrarlo */
+  allocations?: PaymentAllocation[];
+}
+
+/** Monto de un pago aplicado a una factura de compra */
+export interface PaymentApplication {
+  purchaseId: string;
+  invoiceNumber?: string;
+  amount: number;
+  appliedAt?: string;
+  appliedBy?: string;
+  /** Solo lectura: estado de pago actual de la factura */
+  invoicePaymentStatus?: string;
+}
+
+export interface PaymentAllocation {
+  purchaseId: string;
+  amount: number;
 }

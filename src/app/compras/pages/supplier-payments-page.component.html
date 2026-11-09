@@ -94,6 +94,79 @@
       </div>
     </div>
 
+    <!-- Aplicación del pago a facturas -->
+    <div class="card" *ngIf="selectedSupplier">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-receipt me-1"></i>Facturas que cubre este pago</span>
+        <button type="button" class="btn btn-sm btn-outline-primary"
+                *ngIf="pendingInvoices.length > 0" (click)="openInvoicesModal()">
+          <i class="bi bi-list-check me-1"></i>{{ allocations.length ? 'Cambiar facturas' : 'Seleccionar facturas' }}
+        </button>
+      </div>
+      <div class="card-body">
+        <div *ngIf="loadingPending" class="text-muted small">
+          <span class="spinner-border spinner-border-sm me-1"></span>Buscando facturas pendientes...
+        </div>
+
+        <ng-container *ngIf="!loadingPending">
+          <div *ngIf="pendingInvoices.length === 0" class="text-muted small">
+            <i class="bi bi-info-circle me-1"></i>
+            El proveedor no tiene facturas pendientes de pago. El pago quedará como <strong>anticipo</strong>
+            y podrá aplicarse a la factura cuando llegue la mercancía.
+          </div>
+
+          <div *ngIf="pendingInvoices.length > 0 && allocations.length === 0" class="alert alert-warning py-2 mb-0">
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            Sin facturas seleccionadas: el pago quedará como <strong>anticipo</strong> del proveedor.
+            El proveedor tiene {{ pendingInvoices.length }} factura(s) pendiente(s) por {{ formatMoney(pendingBalanceTotal) }}.
+          </div>
+
+          <div *ngIf="allocations.length > 0" class="table-responsive">
+            <table class="table table-sm align-middle mb-2">
+              <thead class="table-light">
+                <tr>
+                  <th>Factura</th>
+                  <th>Fecha</th>
+                  <th class="text-end">Saldo</th>
+                  <th class="text-end">Se aplica</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let a of allocations">
+                  <td class="fw-semibold">{{ a.invoice.invoiceNumber }}</td>
+                  <td>{{ a.invoice.invoiceDate | date:'dd/MM/yyyy' }}</td>
+                  <td class="text-end">{{ formatMoney(a.invoice.balance) }}</td>
+                  <td class="text-end fw-semibold text-success">{{ formatMoney(a.amount) }}</td>
+                  <td class="text-end">
+                    <button type="button" class="btn btn-sm btn-link text-danger p-0" title="Quitar"
+                            (click)="removeAllocation(a.invoice.id)">
+                      <i class="bi bi-x-circle"></i>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th colspan="3" class="text-end">Total aplicado a facturas</th>
+                  <th class="text-end">{{ formatMoney(allocatedTotal) }}</th>
+                  <th></th>
+                </tr>
+              </tfoot>
+            </table>
+            <div *ngIf="advanceRemainder > 0" class="small text-info-emphasis">
+              <i class="bi bi-piggy-bank me-1"></i>
+              {{ formatMoney(advanceRemainder) }} no se aplican a facturas y quedan como anticipo.
+            </div>
+            <div *ngIf="allocatedTotal - paymentAmount > 1" class="small text-danger">
+              <i class="bi bi-exclamation-circle me-1"></i>
+              El monto del pago es menor al total aplicado a facturas.
+            </div>
+          </div>
+        </ng-container>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-header d-flex justify-content-between align-items-center">
         <span>Soporte del pago (opcional)</span>
@@ -127,7 +200,77 @@
 
     <div class="d-flex justify-content-end gap-2">
       <button type="button" class="btn btn-secondary" (click)="resetForm()">Cancelar (Esc)</button>
-      <button type="submit" class="btn btn-primary">Guardar (F4)</button>
+      <button type="submit" class="btn btn-primary" [disabled]="isSaving">
+        <span *ngIf="isSaving" class="spinner-border spinner-border-sm me-1"></span>Guardar (F4)
+      </button>
     </div>
   </form>
+</div>
+
+<!-- Modal: facturas pendientes del proveedor -->
+<div *ngIf="showInvoicesModal" class="modal d-block" tabindex="-1" style="background: rgba(0,0,0,.5);">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-receipt me-2"></i>Facturas pendientes de {{ selectedSupplier?.name }}</h5>
+        <button type="button" class="btn-close" (click)="closeInvoicesModal()"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-2">
+          Seleccione las facturas que cubre este pago y ajuste el monto si es un abono.
+          Si el pago es anticipado (la mercancía aún no llega), use <strong>Pago anticipado</strong>.
+        </p>
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle">
+            <thead class="table-light">
+              <tr>
+                <th style="width: 36px;">
+                  <input type="checkbox" class="form-check-input" [checked]="allInvoicesSelected" (change)="toggleAllInvoices()">
+                </th>
+                <th>Factura</th>
+                <th>Fecha</th>
+                <th>Tipo</th>
+                <th class="text-end">Total</th>
+                <th class="text-end">Pagado</th>
+                <th class="text-end">Saldo</th>
+                <th class="text-end" style="width: 150px;">Aplicar</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let inv of pendingInvoices" [class.table-primary]="isInvoiceSelected(inv)">
+                <td><input type="checkbox" class="form-check-input" [checked]="isInvoiceSelected(inv)" (change)="toggleInvoice(inv)"></td>
+                <td class="fw-semibold" role="button" (click)="toggleInvoice(inv)">{{ inv.invoiceNumber }}</td>
+                <td>{{ inv.invoiceDate | date:'dd/MM/yyyy' }}</td>
+                <td>
+                  <span class="badge" [ngClass]="inv.paymentType === 'CREDITO' ? 'bg-info text-dark' : 'bg-secondary'">{{ inv.paymentType }}</span>
+                  <span *ngIf="inv.paymentStatus === 'PARCIAL'" class="badge bg-warning text-dark ms-1">Abonada</span>
+                </td>
+                <td class="text-end">{{ formatMoney(inv.totalAmount) }}</td>
+                <td class="text-end text-success">{{ formatMoney(inv.totalPaid) }}</td>
+                <td class="text-end fw-semibold text-danger">{{ formatMoney(inv.balance) }}</td>
+                <td>
+                  <input *ngIf="isInvoiceSelected(inv)" type="text" class="form-control form-control-sm text-end"
+                         appCurrencyFormat [ngModel]="getDraftAmount(inv)" (ngModelChange)="setDraftAmount(inv, $event)">
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer justify-content-between">
+        <div>
+          <small class="text-muted d-block">Total a aplicar</small>
+          <strong class="fs-5">{{ formatMoney(draftTotal) }}</strong>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-secondary" (click)="payAsAdvance()">
+            <i class="bi bi-piggy-bank me-1"></i>Pago anticipado (sin factura)
+          </button>
+          <button type="button" class="btn btn-primary" (click)="confirmInvoices()" [disabled]="draftSelection.size === 0">
+            <i class="bi bi-check2 me-1"></i>Aplicar a facturas
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>

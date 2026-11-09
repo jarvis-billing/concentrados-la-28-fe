@@ -1,0 +1,149 @@
+<div *ngIf="isOpen && data" class="modal d-block" tabindex="-1" style="background: rgba(0,0,0,.5);">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-cash-coin me-2"></i>
+          {{ isCash ? 'Registrar pago de la factura de contado' : 'Pago de la factura a crédito' }}
+        </h5>
+        <button type="button" class="btn-close" (click)="cancel()"></button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Resumen -->
+        <div class="row g-2 mb-3">
+          <div class="col-6 col-md-4">
+            <div class="p-2 rounded bg-light">
+              <small class="text-muted d-block">Proveedor</small>
+              <strong>{{ data.supplierName }}</strong>
+            </div>
+          </div>
+          <div class="col-6 col-md-4">
+            <div class="p-2 rounded bg-light">
+              <small class="text-muted d-block">Factura</small>
+              <strong>{{ data.invoiceNumber }}</strong>
+              <span class="badge ms-1" [ngClass]="isCash ? 'bg-secondary' : 'bg-info text-dark'">{{ data.paymentType }}</span>
+            </div>
+          </div>
+          <div class="col-12 col-md-4">
+            <div class="p-2 rounded bg-primary-subtle">
+              <small class="text-muted d-block">Total factura</small>
+              <strong class="fs-5">{{ formatMoney(total) }}</strong>
+            </div>
+          </div>
+        </div>
+
+        <p *ngIf="!isCash" class="text-muted small">
+          La factura es a crédito: el pago es opcional. Si el proveedor ya recibió un pago anticipado,
+          aplíquelo aquí; también puede registrar un abono ahora.
+        </p>
+
+        <!-- Anticipos disponibles -->
+        <div *ngIf="data.advances.length > 0" class="mb-3">
+          <h6 class="fw-semibold"><i class="bi bi-piggy-bank me-1"></i>Anticipos disponibles del proveedor</h6>
+          <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-1">
+              <thead class="table-light">
+                <tr>
+                  <th style="width: 36px;"></th>
+                  <th>Fecha</th>
+                  <th>Medio</th>
+                  <th>Referencia</th>
+                  <th class="text-end">Disponible</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let adv of data.advances" role="button" (click)="toggleAdvance(adv)"
+                    [class.table-primary]="isAdvanceSelected(adv)">
+                  <td><input type="checkbox" class="form-check-input" [checked]="isAdvanceSelected(adv)"
+                             (click)="$event.stopPropagation()" (change)="toggleAdvance(adv)"></td>
+                  <td>{{ adv.paymentDate | date:'dd/MM/yyyy' }}</td>
+                  <td>{{ adv.method }}</td>
+                  <td class="text-muted small">{{ adv.reference || adv.notes || '-' }}</td>
+                  <td class="text-end fw-semibold">{{ formatMoney(availableOf(adv)) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <small class="text-muted">Se aplican de los anticipos: <strong>{{ formatMoney(advancesApplied) }}</strong>.
+            Lo que no se use sigue disponible como anticipo.</small>
+        </div>
+
+        <!-- Pago nuevo -->
+        <div class="border rounded p-3">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="fw-semibold mb-0"><i class="bi bi-plus-circle me-1"></i>Pago nuevo</h6>
+            <div *ngIf="!isCash || remainingAfterAdvances === 0" class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" id="registerNewPaymentSwitch"
+                     [checked]="registerNewPayment" (change)="toggleNewPayment()">
+              <label class="form-check-label small" for="registerNewPaymentSwitch">
+                {{ isCash ? 'Registrar pago adicional' : 'Registrar abono ahora' }}
+              </label>
+            </div>
+          </div>
+
+          <div *ngIf="!registerNewPayment" class="text-muted small">
+            {{ isCash ? 'Los anticipos seleccionados cubren la factura.' : 'No se registrará pago ahora; la factura quedará pendiente.' }}
+          </div>
+
+          <div *ngIf="registerNewPayment" class="row g-2">
+            <div class="col-6 col-md-3">
+              <label class="form-label small mb-1">Valor</label>
+              <input type="text" class="form-control text-end fw-semibold" appCurrencyFormat [(ngModel)]="amount">
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label small mb-1">Fecha</label>
+              <input type="date" class="form-control" [(ngModel)]="paymentDate">
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label small mb-1">Medio</label>
+              <select class="form-select" [(ngModel)]="method">
+                <option value="EFECTIVO">EFECTIVO</option>
+                <option value="TRANSFERENCIA">TRANSFERENCIA</option>
+                <option value="TARJETA_CREDITO">TARJETA CREDITO</option>
+                <option value="TARJETA_DEBITO">TARJETA DEBITO</option>
+                <option value="CHEQUE">CHEQUE</option>
+              </select>
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label small mb-1">Referencia</label>
+              <input type="text" class="form-control" [(ngModel)]="reference" placeholder="Opcional">
+            </div>
+            <div *ngIf="isBankMethod" class="col-12">
+              <label class="form-label small mb-1">Cuenta bancaria <span class="text-danger">*</span></label>
+              <select class="form-select" [(ngModel)]="bankAccountId" [class.is-invalid]="!bankAccountId">
+                <option value="" disabled>Seleccione cuenta...</option>
+                <option *ngFor="let a of bankAccounts" [value]="a.id">{{ a.name }} — {{ a.bankName }} ({{ a.accountNumber }})</option>
+              </select>
+            </div>
+            <div *ngIf="method === 'EFECTIVO'" class="col-12">
+              <small class="text-muted"><i class="bi bi-info-circle me-1"></i>El pago en efectivo se descuenta del arqueo de caja del día.</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Estado resultante -->
+        <div class="alert mt-3 mb-0 py-2"
+             [ngClass]="missing > 1 ? (isCash ? 'alert-danger' : 'alert-warning') : 'alert-success'">
+          <ng-container *ngIf="missing > 1">
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            {{ isCash ? 'Falta cubrir' : 'Quedará pendiente' }}: <strong>{{ formatMoney(missing) }}</strong>
+          </ng-container>
+          <ng-container *ngIf="missing <= 1">
+            <i class="bi bi-check-circle me-1"></i>La factura quedará <strong>pagada</strong>.
+          </ng-container>
+          <span *ngIf="excess > 1" class="d-block small mt-1">
+            {{ formatMoney(excess) }} del pago nuevo exceden la factura y quedarán como anticipo.
+          </span>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" (click)="cancel()">Volver a la factura</button>
+        <button type="button" class="btn btn-primary" (click)="confirm()" [disabled]="isCash && missing > 1">
+          <i class="bi bi-save me-1"></i>Guardar compra{{ totalCovered > 0 ? ' y pago' : '' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

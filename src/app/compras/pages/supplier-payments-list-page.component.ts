@@ -36,12 +36,23 @@ export class SupplierPaymentsListPageComponent {
   filter: FormGroup = this.fb.group({
     supplierId: [''],
     bankAccountId: [''],
+    status: [''],
     from: [''],
     to: ['']
   });
 
+  readonly statusOptions = [
+    { value: '', label: 'Todos' },
+    { value: 'VINCULADO', label: 'Vinculado / aplicado' },
+    { value: 'PARCIAL', label: 'Parcial (con anticipo)' },
+    { value: 'ADELANTO', label: 'Anticipo sin aplicar' },
+    { value: 'CORTE', label: 'Vinculado en corte (sin factura)' },
+    { value: 'ANULADO', label: 'Anulado' }
+  ];
+
   ngOnInit() {
-    this.today = new Date().toISOString().split('T')[0];
+    const now = new Date(); // fecha local (no UTC: después de las 7 p.m. saltaba al día siguiente)
+    this.today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     this.filter.patchValue({ from: this.today, to: this.today });
     this.loadSuppliers();
     this.loadBankAccounts();
@@ -116,6 +127,7 @@ export class SupplierPaymentsListPageComponent {
     this.paymentsService.list({
       supplierId: f.supplierId || undefined,
       bankAccountId: f.bankAccountId || undefined,
+      status: f.status || undefined,
       from: f.from || undefined,
       to: f.to || undefined
     }).subscribe(res => {
@@ -128,7 +140,7 @@ export class SupplierPaymentsListPageComponent {
   }
 
   clearFilters() {
-    this.filter.reset({ supplierId: '', bankAccountId: '', from: this.today, to: this.today });
+    this.filter.reset({ supplierId: '', bankAccountId: '', status: '', from: this.today, to: this.today });
     this.clearSupplierSelection();
     this.search();
   }
@@ -156,5 +168,59 @@ export class SupplierPaymentsListPageComponent {
 
   get totalAmount(): number {
     return this.payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+  }
+
+  /** Saldo del pago que sigue disponible como anticipo */
+  remainingOf(p: SupplierPayment): number {
+    if (p.status === 'ANULADO' || p.status === 'VINCULADO' || p.legacyClosed) return 0;
+    return Number(p.remainingAmount ?? p.amount) || 0;
+  }
+
+  appliedOf(p: SupplierPayment): number {
+    if (p.status === 'ANULADO') return 0;
+    const fromApps = (p.applications || []).reduce((s, a) => s + (Number(a.amount) || 0), 0);
+    if (fromApps > 0) return fromApps;
+    // Vinculado sin detalle de factura: se considera aplicado completo
+    if (p.status === 'VINCULADO') return Number(p.amount) || 0;
+    return 0;
+  }
+
+  hasInvoices(p: SupplierPayment): boolean {
+    return !!p.applications?.length;
+  }
+
+  statusInfo(p: SupplierPayment): { label: string; css: string; hint: string } {
+    switch (p.status) {
+      case 'ANULADO':
+        return { label: 'Anulado', css: 'bg-danger', hint: 'El pago fue anulado' };
+      case 'VINCULADO':
+        return this.hasInvoices(p)
+          ? { label: 'Aplicado a factura', css: 'bg-success', hint: 'El pago está aplicado por completo' }
+          : { label: 'Vinculado sin factura', css: 'bg-secondary',
+              hint: p.legacyClosed
+                ? 'Pago anterior al corte: se dio por aplicado a facturas anteriores sin detalle de factura'
+                : 'El pago está vinculado pero no tiene detalle de factura registrado' };
+      case 'PARCIAL':
+        return { label: 'Parcial + anticipo', css: 'bg-info text-dark', hint: 'Parte del pago se aplicó y el resto queda como anticipo' };
+      default:
+        return { label: 'Anticipo sin aplicar', css: 'bg-warning text-dark', hint: 'Todo el pago está disponible para aplicar a facturas' };
+    }
+  }
+
+  invoiceStatusCss(status?: string): string {
+    switch (status) {
+      case 'PAGADO': return 'text-success';
+      case 'PARCIAL': return 'text-primary';
+      case 'SOBREPAGADO': return 'text-danger';
+      default: return 'text-warning';
+    }
+  }
+
+  get totalApplied(): number {
+    return this.payments.reduce((sum, p) => sum + this.appliedOf(p), 0);
+  }
+
+  get totalAdvance(): number {
+    return this.payments.reduce((sum, p) => sum + this.remainingOf(p), 0);
   }
 }

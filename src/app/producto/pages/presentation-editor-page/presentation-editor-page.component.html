@@ -184,6 +184,17 @@
                         </div>
 
                         <div class="field-group">
+                            <label class="field-label">Código proveedor</label>
+                            <input
+                                type="text"
+                                class="field-input text-uppercase"
+                                [(ngModel)]="pres.supplierCode"
+                                (ngModelChange)="onFieldChange(pres)"
+                                placeholder="Código con el que el proveedor factura esta presentación"
+                            />
+                        </div>
+
+                        <div class="field-group">
                             <label class="field-label">Etiqueta</label>
                             <input
                                 type="text"

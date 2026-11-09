@@ -45,18 +45,24 @@
             </div>
           </div>
         </div>
-        <div class="col-12 col-md-3">
+        <div class="col-12 col-md-2">
           <label class="form-label">Cuenta Bancaria</label>
           <select class="form-select" formControlName="bankAccountId">
             <option value="">Todas</option>
             <option *ngFor="let a of bankAccounts" [value]="a.id">{{a.name}} — {{a.bankName}}</option>
           </select>
         </div>
-        <div class="col-6 col-md-3">
+        <div class="col-12 col-md-2">
+          <label class="form-label">Estado</label>
+          <select class="form-select" formControlName="status">
+            <option *ngFor="let o of statusOptions" [value]="o.value">{{ o.label }}</option>
+          </select>
+        </div>
+        <div class="col-6 col-md-2">
           <label class="form-label">Desde</label>
           <input class="form-control" type="date" formControlName="from">
         </div>
-        <div class="col-6 col-md-3">
+        <div class="col-6 col-md-2">
           <label class="form-label">Hasta</label>
           <input class="form-control" type="date" formControlName="to">
         </div>
@@ -81,6 +87,8 @@
               <th>Método</th>
               <th>Cuenta Bancaria</th>
               <th>Referencia</th>
+              <th>Estado</th>
+              <th>Aplicado a facturas</th>
               <th>Notas</th>
               <th class="text-end">Soporte</th>
             </tr>
@@ -93,6 +101,31 @@
               <td>{{ p.method }}</td>
               <td>{{ p.bankAccountName || getBankAccountName(p.bankAccountId) || '-' }}</td>
               <td>{{ p.reference }}</td>
+              <td class="text-nowrap">
+                <span class="badge {{ statusInfo(p).css }}" [title]="statusInfo(p).hint">{{ statusInfo(p).label }}</span>
+              </td>
+              <td>
+                <ng-container *ngIf="p.status !== 'ANULADO'">
+                  <div *ngFor="let a of p.applications" class="small text-nowrap">
+                    <i class="bi bi-receipt text-muted me-1"></i>
+                    <a [routerLink]="['/main/compras/facturas/editar', a.purchaseId]" title="Ver factura">{{ a.invoiceNumber || 'Factura' }}</a>:
+                    <strong>{{ a.amount | currency:'$ ':'symbol':'.0-0' }}</strong>
+                    <span *ngIf="a.invoicePaymentStatus" class="ms-1 {{ invoiceStatusCss(a.invoicePaymentStatus) }}"
+                          title="Estado de pago actual de la factura">({{ a.invoicePaymentStatus }})</span>
+                  </div>
+                  <div *ngIf="remainingOf(p) > 0" class="small text-nowrap text-warning-emphasis"
+                       title="Saldo del pago disponible para aplicar a facturas">
+                    <i class="bi bi-hourglass-split me-1"></i>Anticipo disponible:
+                    <strong>{{ remainingOf(p) | currency:'$ ':'symbol':'.0-0' }}</strong>
+                  </div>
+                  <div *ngIf="p.status === 'VINCULADO' && !hasInvoices(p)" class="small text-muted text-nowrap">
+                    <i class="bi bi-link-45deg me-1"></i>Vinculado sin factura:
+                    <strong>{{ p.amount | currency:'$ ':'symbol':'.0-0' }}</strong>
+                    <div *ngIf="p.legacyClosed" style="font-size:0.75rem;">Pago anterior al corte</div>
+                  </div>
+                </ng-container>
+                <span *ngIf="p.status === 'ANULADO'" class="small text-muted">—</span>
+              </td>
               <td>{{ p.notes }}</td>
               <td class="text-end">
                 <ng-container *ngIf="p.supportUrl; else noSupport">
@@ -108,8 +141,11 @@
             <tr class="fw-semibold">
               <td colspan="2" class="text-end">Total pagos:</td>
               <td class="text-center">{{ totalAmount | currency:'$ ':'symbol':'.0-0' }}</td>
-              <td colspan="4"></td>
-              <td></td>
+              <td colspan="3"></td>
+              <td colspan="4" class="small fw-normal">
+                Aplicado: <strong>{{ totalApplied | currency:'$ ':'symbol':'.0-0' }}</strong>
+                <span class="ms-3">Anticipo disponible: <strong>{{ totalAdvance | currency:'$ ':'symbol':'.0-0' }}</strong></span>
+              </td>
             </tr>
           </tfoot>
         </table>

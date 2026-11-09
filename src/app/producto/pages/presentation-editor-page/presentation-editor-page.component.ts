@@ -226,6 +226,7 @@ export class PresentationEditorPageComponent implements OnInit, OnDestroy {
         const newP: EditablePresentation = {
             barcode: '',
             productCode: this.selectedProduct?.productCode ?? '',
+            supplierCode: '',
             label: '',
             salePrice: 0,
             costPrice: 0,
@@ -465,6 +466,7 @@ export class PresentationEditorPageComponent implements OnInit, OnDestroy {
             id:            p.id,
             barcode:       p.barcode,
             productCode:   p.productCode,
+            supplierCode:  (p.supplierCode || '').trim().toUpperCase() || undefined,
             label:         p.label,
             salePrice:     p.salePrice,
             costPrice:     p.costPrice,
@@ -473,6 +475,7 @@ export class PresentationEditorPageComponent implements OnInit, OnDestroy {
             isFixedAmount: p.isFixedAmount,
             fixedAmount:   p.fixedAmount ?? undefined,
             packageType:   p._packageKey ?? p.packageType,  // siempre guardar el embalaje
+            active:        p.active,
         };
     }
 

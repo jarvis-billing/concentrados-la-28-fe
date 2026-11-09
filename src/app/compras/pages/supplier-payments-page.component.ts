@@ -11,6 +11,8 @@ import { SupplierPayment, PaymentMethod } from '../models/supplier-payment';
 import { BankAccountService } from '../../bank-accounts/services/bank-account.service';
 import { BankAccountDto } from '../../bank-accounts/models/bank-account.model';
 import { CurrencyFormatDirective } from '../../directive/currency-format.directive';
+import { PurchasesService } from '../services/purchases.service';
+import { PendingPurchaseInvoice } from '../models/purchase-invoice';
 
 @Component({
   selector: 'app-supplier-payments-page',
@@ -25,6 +27,7 @@ export class SupplierPaymentsPageComponent implements OnInit {
   private bankAccountService = inject(BankAccountService);
   private router = inject(Router);
   private sanitizer = inject(DomSanitizer);
+  private purchasesService = inject(PurchasesService);
 
   suppliers: Supplier[] = [];
   bankAccounts: BankAccountDto[] = [];
@@ -39,6 +42,14 @@ export class SupplierPaymentsPageComponent implements OnInit {
   supportPreviewUrl: string | null = null; // object URL para previsualización
   supportMime: string | null = null;
   supportTrustedUrl: SafeResourceUrl | null = null; // para iframes (PDF)
+
+  // Facturas pendientes del proveedor y aplicación del pago
+  pendingInvoices: PendingPurchaseInvoice[] = [];
+  loadingPending = false;
+  showInvoicesModal = false;
+  draftSelection = new Map<string, number>(); // purchaseId -> monto (edición en el modal)
+  allocations: { invoice: PendingPurchaseInvoice; amount: number }[] = [];
+  isSaving = false;
 
   form: FormGroup = this.fb.group({
     supplierId: ['', [Validators.required]],
@@ -122,6 +133,7 @@ export class SupplierPaymentsPageComponent implements OnInit {
     this.supplierSearchText = `${s.name} (${s.documentType} ${s.idNumber})`;
     this.form.patchValue({ supplierId: s.id });
     this.showSupplierDropdown = false;
+    this.loadPendingInvoices(s.id!);
   }
 
   clearSupplierSelection() {
@@ -129,6 +141,123 @@ export class SupplierPaymentsPageComponent implements OnInit {
     this.supplierSearchText = '';
     this.form.patchValue({ supplierId: '' });
     this.supplierSuggestions = [];
+    this.pendingInvoices = [];
+    this.allocations = [];
+    this.showInvoicesModal = false;
+  }
+
+  // ---------------- Facturas pendientes ----------------
+
+  private loadPendingInvoices(supplierId: string) {
+    this.pendingInvoices = [];
+    this.allocations = [];
+    this.loadingPending = true;
+    this.purchasesService.listPending(supplierId).subscribe({
+      next: (list) => {
+        this.pendingInvoices = list;
+        this.loadingPending = false;
+        if (list.length > 0) this.openInvoicesModal();
+      },
+      error: () => {
+        this.loadingPending = false;
+        toast.error('No se pudieron cargar las facturas pendientes del proveedor');
+      }
+    });
+  }
+
+  openInvoicesModal() {
+    this.draftSelection = new Map(this.allocations.map(a => [a.invoice.id, a.amount]));
+    this.showInvoicesModal = true;
+  }
+
+  closeInvoicesModal() {
+    this.showInvoicesModal = false;
+  }
+
+  isInvoiceSelected(inv: PendingPurchaseInvoice): boolean {
+    return this.draftSelection.has(inv.id);
+  }
+
+  toggleInvoice(inv: PendingPurchaseInvoice) {
+    if (this.draftSelection.has(inv.id)) {
+      this.draftSelection.delete(inv.id);
+    } else {
+      this.draftSelection.set(inv.id, inv.balance);
+    }
+  }
+
+  get allInvoicesSelected(): boolean {
+    return this.pendingInvoices.length > 0 && this.pendingInvoices.every(i => this.draftSelection.has(i.id));
+  }
+
+  toggleAllInvoices() {
+    if (this.allInvoicesSelected) {
+      this.draftSelection.clear();
+    } else {
+      this.pendingInvoices.forEach(i => { if (!this.draftSelection.has(i.id)) this.draftSelection.set(i.id, i.balance); });
+    }
+  }
+
+  getDraftAmount(inv: PendingPurchaseInvoice): number {
+    return this.draftSelection.get(inv.id) ?? 0;
+  }
+
+  setDraftAmount(inv: PendingPurchaseInvoice, value: number | null) {
+    if (!this.draftSelection.has(inv.id)) return;
+    this.draftSelection.set(inv.id, Math.min(Math.max(value || 0, 0), inv.balance));
+  }
+
+  get draftTotal(): number {
+    let total = 0;
+    this.draftSelection.forEach(v => total += v);
+    return total;
+  }
+
+  get pendingBalanceTotal(): number {
+    return this.pendingInvoices.reduce((s, i) => s + i.balance, 0);
+  }
+
+  /** Confirma las facturas seleccionadas; si el monto del pago es menor, lo ajusta al total aplicado */
+  confirmInvoices() {
+    const selected = this.pendingInvoices
+      .filter(i => this.draftSelection.has(i.id) && (this.draftSelection.get(i.id) || 0) > 0)
+      .map(i => ({ invoice: i, amount: this.draftSelection.get(i.id)! }));
+    if (selected.length === 0) {
+      toast.warning('Seleccione al menos una factura o registre el pago como anticipo');
+      return;
+    }
+    this.allocations = selected;
+    if (this.paymentAmount < this.allocatedTotal) {
+      this.form.patchValue({ amount: this.allocatedTotal });
+    }
+    this.showInvoicesModal = false;
+  }
+
+  /** Registrar el pago sin factura: queda como anticipo del proveedor */
+  payAsAdvance() {
+    this.allocations = [];
+    this.showInvoicesModal = false;
+  }
+
+  removeAllocation(purchaseId: string) {
+    this.allocations = this.allocations.filter(a => a.invoice.id !== purchaseId);
+  }
+
+  get paymentAmount(): number {
+    return this.normalizeToNumber(this.form.get('amount')!.value);
+  }
+
+  get allocatedTotal(): number {
+    return this.allocations.reduce((s, a) => s + a.amount, 0);
+  }
+
+  /** Parte del pago que no se aplica a facturas y queda como anticipo */
+  get advanceRemainder(): number {
+    return Math.max(this.paymentAmount - this.allocatedTotal, 0);
+  }
+
+  formatMoney(value: number | null | undefined): string {
+    return '$ ' + new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(Number(value) || 0);
   }
 
   hideSupplierDropdownDelayed() {
@@ -165,6 +294,14 @@ export class SupplierPaymentsPageComponent implements OnInit {
       toast.warning('Complete los campos obligatorios');
       return;
     }
+    if (this.paymentAmount <= 0) {
+      toast.warning('El monto del pago debe ser mayor a 0');
+      return;
+    }
+    if (this.allocatedTotal - this.paymentAmount > 1) {
+      toast.warning(`El monto del pago (${this.formatMoney(this.paymentAmount)}) es menor al total aplicado a facturas (${this.formatMoney(this.allocatedTotal)})`);
+      return;
+    }
     const raw = this.form.getRawValue();
     const selectedSupplier = this.suppliers.find(s => s.id === raw.supplierId);
     const selectedAccount = this.bankAccounts.find(a => a.id === raw.bankAccountId);
@@ -177,11 +314,29 @@ export class SupplierPaymentsPageComponent implements OnInit {
       bankAccountId: raw.method !== 'EFECTIVO' ? raw.bankAccountId || undefined : undefined,
       bankAccountName: raw.method !== 'EFECTIVO' ? selectedAccount?.name || undefined : undefined,
       reference: raw.reference || undefined,
-      notes: raw.notes || undefined
+      notes: raw.notes || undefined,
+      allocations: this.allocations.map(a => ({ purchaseId: a.invoice.id, amount: a.amount }))
     };
-    this.paymentsService.create(payload, this.supportFile || undefined).subscribe(() => {
-      toast.success('Pago registrado');
-      this.resetForm();
+    this.isSaving = true;
+    this.paymentsService.create(payload, this.supportFile || undefined).subscribe({
+      next: () => {
+        const applied = this.allocations.length;
+        const advance = this.advanceRemainder;
+        if (applied === 0) {
+          toast.success('Pago registrado como anticipo');
+        } else if (advance > 0) {
+          toast.success(`Pago aplicado a ${applied} factura(s); ${this.formatMoney(advance)} quedan como anticipo`);
+        } else {
+          toast.success(`Pago aplicado a ${applied} factura(s)`);
+        }
+        this.isSaving = false;
+        this.resetForm();
+      },
+      error: (err) => {
+        const msg = typeof err?.error === 'string' ? err.error : err?.error?.message;
+        toast.error(msg || 'Error al registrar el pago');
+        this.isSaving = false;
+      }
     });
   }
 
@@ -221,6 +376,10 @@ export class SupplierPaymentsPageComponent implements OnInit {
 
   @HostListener('document:keydown', ['$event'])
   handleKeys(e: KeyboardEvent) {
+    if (this.showInvoicesModal) {
+      if (e.key === 'Escape') { e.preventDefault(); this.closeInvoicesModal(); }
+      return;
+    }
     if (e.key === 'F4') { e.preventDefault(); this.savePayment(); }
     if (e.key === 'Escape') { e.preventDefault(); this.resetForm(); }
   }

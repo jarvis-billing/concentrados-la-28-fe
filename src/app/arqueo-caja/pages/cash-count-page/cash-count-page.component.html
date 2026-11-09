@@ -169,15 +169,7 @@
                                         Limpiar Conteo
                                     </button>
                                     <div class="d-flex gap-2">
-                                        <button class="btn btn-primary" (click)="saveCount()"
-                                                [disabled]="isSaving || existingSession?.status === 'CERRADO'">
-                                            @if (isSaving) {
-                                                <span class="spinner-border spinner-border-sm me-1"></span>
-                                            }
-                                            <i class="bi bi-save me-1"></i>
-                                            {{ existingSession ? 'Actualizar' : 'Guardar' }} Arqueo
-                                        </button>
-                                        @if (existingSession && existingSession.status !== 'CERRADO') {
+                                        @if (existingSession?.status !== 'CERRADO') {
                                             <button class="btn btn-success" (click)="closeCount()">
                                                 <i class="bi bi-check-circle me-1"></i>
                                                 Cerrar Arqueo

@@ -70,7 +70,6 @@ export class CashCountPageComponent implements OnInit {
 
     // Estado
     isLoading: boolean = false;
-    isSaving: boolean = false;
     existingSession: CashCountSession | null = null;
     notes: string = '';
 
@@ -426,28 +425,6 @@ export class CashCountPageComponent implements OnInit {
         };
     }
 
-    // Guardar arqueo
-    saveCount(): void {
-        if (this.openingBalance < 0) {
-            toast.warning('El saldo de apertura no puede ser negativo');
-            return;
-        }
-
-        this.isSaving = true;
-
-        this.cashService.createOrUpdate(this.buildSaveRequest()).subscribe({
-            next: (session) => {
-                this.existingSession = session;
-                toast.success('Arqueo guardado correctamente');
-                this.isSaving = false;
-            },
-            error: (err) => {
-                toast.error('Error al guardar el arqueo: ' + (err.error?.message || 'Intente nuevamente'));
-                this.isSaving = false;
-            }
-        });
-    }
-
     // ==================== Modal de cierre con fondo fijo ====================
 
     showCloseModal = false;
@@ -467,8 +444,8 @@ export class CashCountPageComponent implements OnInit {
 
     // Cerrar arqueo — abre el modal de cierre
     closeCount(): void {
-        if (!this.existingSession?.id) {
-            toast.warning('Primero debe guardar el arqueo');
+        if (this.openingBalance < 0) {
+            toast.warning('El saldo de apertura no puede ser negativo');
             return;
         }
         // Pre-llenar fondo con el closingBase del día anterior si existe

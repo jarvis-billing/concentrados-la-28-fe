@@ -360,7 +360,7 @@
                               (mousedown)="selectProductSuggestion(s, item.idx)">
                               <div style="flex: 1; overflow: hidden; margin-right: 8px;">
                                 <div style="font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ s.displayName }}</div>
-                                <div style="font-size: 12px; opacity: .7;">{{ s.barcode }}@if (s.brand) { · {{ s.brand }} }</div>
+                                <div style="font-size: 12px; opacity: .7;">{{ s.barcode }}@if (s.supplierCode) { · Prov: {{ s.supplierCode }} }@if (s.brand) { · {{ s.brand }} }</div>
                               </div>
                               <div style="text-align: right; flex-shrink: 0;">
                                 <div style="font-size: 11px; color: var(--text-muted);">Costo/u</div>
@@ -498,6 +498,7 @@
 </div>
 
 <app-products-search-modal (selectPresentation)="onPresentationSelected($event)"></app-products-search-modal>
+<app-purchase-payment-modal (confirmed)="onInvoicePaymentConfirmed($event)" (cancelled)="onInvoicePaymentCancelled()"></app-purchase-payment-modal>
 
 
 <!-- Modal lote animales vivos -->

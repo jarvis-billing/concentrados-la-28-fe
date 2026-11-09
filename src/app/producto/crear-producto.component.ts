@@ -310,8 +310,13 @@ export class CrearProductoComponent implements OnInit, AfterViewInit {
     }
     const currentDesc = (this.productoForm.get('description')?.value || '').toString().trim();
     const group = this.fb.group({
+      // Campos que no se editan aquí pero deben conservarse al guardar
+      id: [presentation?.id ?? null],
+      packageType: [presentation?.packageType ?? null],
+      active: [presentation?.active ?? true],
       barcode: [presentation?.barcode || '', Validators.required],
       productCode: [presentation?.productCode || ''],
+      supplierCode: [presentation?.supplierCode || ''],
       label: [presentation?.label || currentDesc, Validators.required],
       salePrice: [presentation?.salePrice || 0, [Validators.required, Validators.min(0)]],
       costPrice: [presentation?.costPrice || 0, [Validators.required, Validators.min(0)]],
@@ -571,6 +576,7 @@ export class CrearProductoComponent implements OnInit, AfterViewInit {
     productData.presentations = productData.presentations.map((presentation: any) => ({
       ...presentation,
       productCode: this.productoForm.value.productCode,
+      supplierCode: (presentation.supplierCode || '').trim().toUpperCase() || null,
       label: presentation.label.trim().toUpperCase(),
       salePrice: Number(presentation.salePrice),
       costPrice: Number(presentation.costPrice),
@@ -586,7 +592,7 @@ export class CrearProductoComponent implements OnInit, AfterViewInit {
           toast.success('Producto editado correctamente');
           this.router.navigate(['/main/producto']);
         },
-        error: () => toast.error('Error al editar el producto')
+        error: (err) => toast.error(err?.error?.message || 'Error al editar el producto')
       });
     } else {
       this.productoService.create(productData).subscribe({
@@ -594,7 +600,7 @@ export class CrearProductoComponent implements OnInit, AfterViewInit {
           toast.success('Producto creado correctamente');
           this.router.navigate(['/main/producto']);
         },
-        error: () => toast.error('Error al crear el producto')
+        error: (err) => toast.error(err?.error?.message || 'Error al crear el producto')
       });
     }
   }

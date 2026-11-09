@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
-import { PurchaseInvoice, LinkedPayment } from '../models/purchase-invoice';
+import { Observable, map } from 'rxjs';
+import { PurchaseInvoice, LinkedPayment, PendingPurchaseInvoice } from '../models/purchase-invoice';
 import { BulkLastCostItem, CostHistoryEntry, PurchaseLastCostInfo } from '../models/purchase-cost-history';
 import { urlConfig } from '../../../config/config';
 
@@ -97,6 +97,28 @@ export class PurchasesService {
     if (params?.fromDate) httpParams = httpParams.set('fromDate', params.fromDate);
     if (params?.toDate) httpParams = httpParams.set('toDate', params.toDate);
     return this.http.get<CostHistoryEntry[]>(`${this.baseUrl}/cost-history`, { params: httpParams });
+  }
+
+  /**
+   * Facturas del proveedor pendientes de pago (PENDIENTE o PARCIAL), más antiguas primero.
+   */
+  listPending(supplierId: string): Observable<PendingPurchaseInvoice[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/pending`, { params: { supplierId } }).pipe(
+      map(list => list.map(inv => {
+        const totalAmount = Number(inv.totalAmount) || 0;
+        const totalPaid = Number(inv.totalPaid) || 0;
+        return {
+          id: inv.id,
+          invoiceNumber: inv.invoiceNumber,
+          invoiceDate: inv.invoiceDate,
+          paymentType: inv.paymentType,
+          totalAmount,
+          totalPaid,
+          paymentStatus: inv.paymentStatus || 'PENDIENTE',
+          balance: Math.max(totalAmount - totalPaid, 0)
+        } as PendingPurchaseInvoice;
+      }))
+    );
   }
 
   linkPayments(purchaseInvoiceId: string, paymentIds: string[]): Observable<void> {

@@ -307,6 +307,15 @@ export class ProductsSearchModalComponent implements OnInit, OnDestroy {
 
     const source = this.isClientSource() ? this.completeProductsList : this.originalListProducts;
 
+    // Código de proveedor exacto: identifica una sola presentación, se selecciona directamente
+    for (const product of source) {
+      const pres = (product.presentations || []).find(p => (p.supplierCode || '').toLowerCase() === query);
+      if (pres) {
+        this.ProductToSellFromPresentation(product, pres);
+        return;
+      }
+    }
+
     this.filteredListProducts = source.filter(product => {
       try {
         const rootDescription = product.description?.toLowerCase() || '';
@@ -314,9 +323,10 @@ export class ProductsSearchModalComponent implements OnInit, OnDestroy {
 
         const inPresentations = (product.presentations || []).some(pres => {
           const barcode = pres.barcode?.toLowerCase() || '';
+          const supplierCode = pres.supplierCode?.toLowerCase() || '';
           const label = pres.label?.toLowerCase() || '';
           const combinedDescription = `${rootDescription} ${label}`.trim();
-          return barcode.includes(query) || combinedDescription.includes(query);
+          return barcode.includes(query) || supplierCode.includes(query) || combinedDescription.includes(query);
         });
 
         const byProductCode = productCode.includes(query);
@@ -343,9 +353,10 @@ export class ProductsSearchModalComponent implements OnInit, OnDestroy {
       // Detectar presentaciones que coinciden específicamente con el criterio
       const matchingPresentations = presentationsList.filter(pres => {
         const barcode = pres.barcode?.toLowerCase() || '';
+        const supplierCode = pres.supplierCode?.toLowerCase() || '';
         const label = pres.label?.toLowerCase() || '';
         const combinedDescription = `${rootDescription} ${label}`.trim();
-        return barcode.includes(query) || combinedDescription.includes(query);
+        return barcode.includes(query) || supplierCode.includes(query) || combinedDescription.includes(query);
       });
 
       if (matchingPresentations.length === 1) {

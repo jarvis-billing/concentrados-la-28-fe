@@ -31,6 +31,7 @@ export class Presentation {
     id?: string;          // UUID generado por el backend — clave estable para updates
     barcode: string = "";
     productCode: string = "";
+    supplierCode?: string;        // código del proveedor (ej. el del bulto completo)
     label: string = "";
     salePrice: number = 0;
     costPrice: number = 0;
