@@ -125,6 +125,23 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
 
   // Precio de venta actual por presentación (para permitir ajuste rápido al confirmar)
   currentSalePriceByPresentation: Map<string, number> = new Map();
+
+  // Código del proveedor: edición desde la fila de compra
+  private presentationIndex = new Map<string, { product: Product; presentation: Presentation }>();
+  /** Texto buscado en la fila que no encontró productos (posible código del proveedor) */
+  private pendingSupplierCodeByRow = new Map<number, string>();
+  supplierCodeEdit: {
+    rowIdx: number;
+    productId: string;
+    presentationBarcode: string;
+    productName: string;
+    presentationLabel: string;
+    currentCode: string;
+    otherPresentation: { label: string; code: string } | null;
+    value: string;
+    suggested: boolean;
+  } | null = null;
+  savingSupplierCode = false;
   // Precio de venta pendiente de actualizar (editado por el usuario en modal de confirmación)
   pendingSalePriceUpdates: Map<string, number> = new Map();
 
@@ -182,6 +199,12 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
 
     this.productService.productos$.subscribe(products => {
       this.allProducts = products || [];
+      this.presentationIndex.clear();
+      for (const product of this.allProducts) {
+        for (const presentation of (product.presentations || [])) {
+          if (presentation.barcode) this.presentationIndex.set(presentation.barcode, { product, presentation });
+        }
+      }
     });
 
     // Recalcular flete cuando cambie la tarifa de flete en el encabezado
@@ -277,6 +300,7 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
   }
 
   removeItem(index: number) {
+    this.pendingSupplierCodeByRow.clear();
     this.itemsArray.removeAt(index);
     this.productSearchTexts.splice(index, 1);
   }
@@ -306,6 +330,15 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
       return;
     }
     this.filterProductSuggestions(query);
+    if (this.productSuggestions.length === 0 && this.looksLikeSupplierCode(value)) {
+      this.pendingSupplierCodeByRow.set(index, value.trim().toUpperCase());
+    }
+  }
+
+  /** Un código de proveedor: sin espacios, con al menos un dígito y 3+ caracteres */
+  private looksLikeSupplierCode(value: string): boolean {
+    const v = (value || '').trim();
+    return v.length >= 3 && !/\s/.test(v) && /\d/.test(v);
   }
 
   private filterProductSuggestions(query: string): void {
@@ -432,6 +465,107 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
     this.currentSalePriceByPresentation.set(presentation.barcode, presentation.salePrice || 0);
     this.fetchLastCostForPresentation(presentation.barcode, description);
     this.focusQuantityInput(index);
+
+    // Si antes se buscó un código que no existía, ofrecer asignarlo a este producto
+    const pending = this.pendingSupplierCodeByRow.get(index);
+    this.pendingSupplierCodeByRow.delete(index);
+    if (pending && (presentation.supplierCode || '').toUpperCase() !== pending) {
+      setTimeout(() => this.openSupplierCodeEditor(index, pending), 80);
+    }
+  }
+
+  // ===== Código del proveedor =====
+
+  /** Código del proveedor del producto de la fila (en esta presentación o en otra del mismo producto) */
+  supplierCodeOfRow(ctrl: any): { code: string; otherLabel: string | null } | null {
+    const barcode = ctrl?.get('presentationBarcode')?.value || ctrl?.get('presentationId')?.value;
+    const entry = barcode ? this.presentationIndex.get(barcode) : undefined;
+    if (!entry) return null;
+    if (entry.presentation.supplierCode) return { code: entry.presentation.supplierCode, otherLabel: null };
+    const other = (entry.product.presentations || []).find(p => !!p.supplierCode);
+    return other ? { code: other.supplierCode!, otherLabel: other.label || other.barcode } : null;
+  }
+
+  canEditSupplierCode(ctrl: any): boolean {
+    const barcode = ctrl?.get('presentationBarcode')?.value || ctrl?.get('presentationId')?.value;
+    return !!barcode && this.presentationIndex.has(barcode);
+  }
+
+  openSupplierCodeEditor(rowIdx: number, suggested?: string): void {
+    const group = this.itemsArray.at(rowIdx) as FormGroup | undefined;
+    const barcode = group?.get('presentationBarcode')?.value || group?.get('presentationId')?.value;
+    const entry = barcode ? this.presentationIndex.get(barcode) : undefined;
+    if (!entry || !entry.product.id) {
+      toast.error('Seleccione primero un producto del catálogo');
+      return;
+    }
+    const { product, presentation } = entry;
+    const other = (product.presentations || [])
+      .find(p => p.barcode !== presentation.barcode && !!p.supplierCode);
+    this.supplierCodeEdit = {
+      rowIdx,
+      productId: product.id,
+      presentationBarcode: presentation.barcode,
+      productName: product.description,
+      presentationLabel: presentation.label || presentation.barcode,
+      currentCode: presentation.supplierCode || '',
+      otherPresentation: other ? { label: other.label || other.barcode, code: other.supplierCode! } : null,
+      value: suggested || presentation.supplierCode || other?.supplierCode || '',
+      suggested: !!suggested
+    };
+    setTimeout(() => {
+      const el = document.getElementById('supplierCodeInput') as HTMLInputElement | null;
+      el?.focus();
+      el?.select();
+    }, 60);
+  }
+
+  /** Producto que ya usa el código escrito (otro producto distinto al de la fila) */
+  get supplierCodeConflict(): string | null {
+    const edit = this.supplierCodeEdit;
+    const code = (edit?.value || '').trim().toUpperCase();
+    if (!edit || !code) return null;
+    for (const prod of this.allProducts) {
+      if (prod.id === edit.productId) continue;
+      const pres = (prod.presentations || []).find(p => (p.supplierCode || '').toUpperCase() === code);
+      if (pres) return `${prod.description}${pres.label ? ' - ' + pres.label : ''}`;
+    }
+    return null;
+  }
+
+  cancelSupplierCodeEdit(): void {
+    const rowIdx = this.supplierCodeEdit?.rowIdx;
+    this.supplierCodeEdit = null;
+    if (rowIdx !== undefined) this.focusQuantityInput(rowIdx);
+  }
+
+  saveSupplierCode(): void {
+    const edit = this.supplierCodeEdit;
+    if (!edit || this.savingSupplierCode) return;
+    const code = (edit.value || '').trim().toUpperCase();
+    if (code === (edit.currentCode || '').toUpperCase() && !(code && edit.otherPresentation)) {
+      this.cancelSupplierCodeEdit();
+      return;
+    }
+    if (this.supplierCodeConflict) {
+      toast.error(`El código ${code} ya está asignado a ${this.supplierCodeConflict}`);
+      return;
+    }
+    this.savingSupplierCode = true;
+    this.productService.updateSupplierCode(edit.productId, edit.presentationBarcode, code).subscribe({
+      next: () => {
+        this.savingSupplierCode = false;
+        toast.success(code
+          ? `Código del proveedor ${code} asignado a ${edit.productName}`
+          : `Se quitó el código del proveedor de ${edit.productName}`);
+        this.cancelSupplierCodeEdit();
+      },
+      error: (err) => {
+        this.savingSupplierCode = false;
+        const msg = typeof err?.error === 'string' ? err.error : (err?.error?.message || err?.error?.error);
+        toast.error(msg || 'No se pudo actualizar el código del proveedor');
+      }
+    });
   }
 
   private focusQuantityInput(index: number): void {
@@ -1309,6 +1443,10 @@ export class PurchaseInvoicesPageComponent implements OnInit, OnDestroy {
   // Keyboard: F2 new item, F4 save, Esc cancel
   @HostListener('document:keydown', ['$event'])
   handleKeys(e: KeyboardEvent) {
+    if (this.supplierCodeEdit) {
+      if (e.key === 'Escape') { e.preventDefault(); this.cancelSupplierCodeEdit(); }
+      return;
+    }
     if (e.key === 'F2') {
       e.preventDefault();
       this.addItem();

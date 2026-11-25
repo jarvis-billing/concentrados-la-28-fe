@@ -138,6 +138,16 @@ export class ProductoService {
   }
 
   /**
+   * Asigna (o quita, si viene vacío) el código del proveedor a una presentación.
+   * Hay un solo código por producto: el backend lo quita de las demás presentaciones.
+   */
+  updateSupplierCode(productId: string, presentation: string, supplierCode: string): Observable<Product> {
+    return this.http.patch<Product>(`${this.url}/${productId}/supplier-code`, { presentation, supplierCode }).pipe(
+      tap(() => { this.fetchAll(); this.notifyExternalChange(); })
+    );
+  }
+
+  /**
    * Actualiza masivamente precios de venta y/o costos a nivel de presentación.
    * El backend debe aplicar los cambios de forma atómica por producto.
    */

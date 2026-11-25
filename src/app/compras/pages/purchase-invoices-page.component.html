@@ -323,6 +323,20 @@
                         <div style="margin-top: 2px; display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">
                           <span style="font-size: 12px; font-weight: 500; color: var(--text);">{{ item.ctrl.get('description')?.value }}</span>
                           <span style="font-size: 11px; color: var(--text-hint); font-family: monospace;">{{ item.ctrl.get('presentationId')?.value }}</span>
+                          @if (canEditSupplierCode(item.ctrl)) {
+                            @if (supplierCodeOfRow(item.ctrl); as sc) {
+                              <button type="button" class="supplier-code-chip" (click)="openSupplierCodeEditor(item.idx)"
+                                [title]="sc.otherLabel ? 'Código del proveedor (en la presentación ' + sc.otherLabel + ') — clic para editar' : 'Código del proveedor — clic para editar'">
+                                <i class="bi bi-upc"></i> Prov: {{ sc.code }}@if (sc.otherLabel) { <span style="opacity:.7;">({{ sc.otherLabel }})</span> }
+                                <i class="bi bi-pencil"></i>
+                              </button>
+                            } @else {
+                              <button type="button" class="supplier-code-chip supplier-code-chip-empty" (click)="openSupplierCodeEditor(item.idx)"
+                                title="Asignar el código con el que el proveedor factura este producto">
+                                <i class="bi bi-plus"></i> Cód. proveedor
+                              </button>
+                            }
+                          }
                           @switch (getCostTrend(item.ctrl)) {
                             @case ('up') { <span class="trend-badge-up"><i class="bi bi-arrow-up me-1"></i>+{{ getCostDeltaPercent(item.ctrl) | number:'1.0-1' }}%</span> }
                             @case ('down') { <span class="trend-badge-dn"><i class="bi bi-arrow-down me-1"></i>−{{ getCostDeltaPercent(item.ctrl) | number:'1.0-1' }}%</span> }
@@ -609,6 +623,61 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" (click)="cancelConfirmSave()">Cancelar</button>
           <button type="button" class="btn btn-primary" (click)="confirmSave()"><i class="bi bi-check-circle me-1"></i>Confirmar y guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+@if (supplierCodeEdit; as sce) {
+  <div class="modal-backdrop fade show"></div>
+  <div class="modal fade show d-block" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-upc me-2"></i>Código del proveedor</h5>
+          <button type="button" class="btn-close" (click)="cancelSupplierCodeEdit()"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-2">
+            <div class="fw-semibold">{{ sce.productName }}</div>
+            <div class="small text-muted">Presentación: {{ sce.presentationLabel }} · {{ sce.presentationBarcode }}</div>
+            @if (selectedSupplier) {
+              <div class="small text-muted">Proveedor: {{ selectedSupplier.name }}</div>
+            }
+          </div>
+          @if (sce.suggested) {
+            <div class="alert alert-info py-2 small mb-2">
+              <i class="bi bi-lightbulb me-1"></i>Buscó <strong>{{ sce.value }}</strong> y no encontró ningún producto.
+              ¿Desea guardarlo como código del proveedor de este producto?
+            </div>
+          }
+          <label class="form-label small mb-1" for="supplierCodeInput">Código del proveedor</label>
+          <input id="supplierCodeInput" type="text" class="form-control text-uppercase" autocomplete="off"
+            [(ngModel)]="sce.value" placeholder="Ej: HLF-1234"
+            (keydown.enter)="$event.preventDefault(); saveSupplierCode()">
+          <div class="form-text">Déjelo vacío para quitar el código. Se guarda en el producto (Enter para guardar, Esc para cancelar).</div>
+          @if (sce.otherPresentation && sce.value.trim()) {
+            <div class="small text-warning-emphasis mt-2">
+              <i class="bi bi-arrow-left-right me-1"></i>El código <strong>{{ sce.otherPresentation.code }}</strong> está en la presentación
+              <strong>{{ sce.otherPresentation.label }}</strong>; se moverá a esta presentación (un código por producto).
+            </div>
+          }
+          @if (supplierCodeConflict) {
+            <div class="small text-danger mt-2">
+              <i class="bi bi-exclamation-triangle me-1"></i>Este código ya está asignado a <strong>{{ supplierCodeConflict }}</strong>.
+            </div>
+          }
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" (click)="cancelSupplierCodeEdit()">
+            {{ sce.suggested ? 'No, gracias' : 'Cancelar' }}
+          </button>
+          <button type="button" class="btn btn-primary" (click)="saveSupplierCode()"
+            [disabled]="savingSupplierCode || !!supplierCodeConflict">
+            @if (savingSupplierCode) { <span class="spinner-border spinner-border-sm me-1"></span> }
+            Guardar código
+          </button>
         </div>
       </div>
     </div>
